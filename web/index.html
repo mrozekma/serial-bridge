@@ -2,13 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
-    <link rel="stylesheet" href="/xterm.css">
-    <link rel="stylesheet" href="/serial-bridge.css">
-    <script src="/serial-bridge.js"></script>
+    <title>Devices</title>
 </head>
 <body>
-<div class="term">
-</div>
+{% for device in deviceNames %}
+<a href="/devices/{{ slugify(device) }}">{{ device }}</a><br>
+{% end %}
 </body>
 </html>

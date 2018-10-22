@@ -1,0 +1,46 @@
+{
+  /*
+  "devices": [
+    {
+      "name": "<device name>",
+      "nodes": [
+        {
+          "name": "<node name>",
+          "com port": "COM<n>",
+          "baud rate": 115200,
+          "byte size": 8, // 5, 6, 7, 8
+          "parity": "none", // even, odd, none
+          "stop": 1, // 1, 1.5, 2
+          "tcp port": 10000
+        }
+      ]
+    }
+  ],
+  */
+
+  "devices": [
+    {
+      "name": "Test device",
+      "nodes": [
+        {
+          "name": "Foo",
+          "com port": "COM1",
+          "baud rate": 9600,
+          "tcp port": 10000
+        },
+        {
+          "name": "Bar",
+          "com port": "COM3",
+          "baud rate": 9600,
+          "tcp port": 10001
+        },
+        {
+          "name": "Baz",
+          "com port": "COM5",
+          "baud rate": 9600,
+          "tcp port": 10002
+        }
+      ]
+    }
+  ]
+}
