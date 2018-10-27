@@ -1,2 +1,4 @@
+jsmin
 pyserial
-readchar
+python-slugify
+tornado

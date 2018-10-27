@@ -1,15 +1,78 @@
+//@title-height: 28px;
+@title-height: 24px;
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: calc(100% - 32px);
+}
+
 body {
-  //background-color: #0f0;
+  height: 100%;
+  background-color: #fdd;
+  line-height: 1;
+
+  &.connected {
+    background-color: inherit;
+  }
+}
+
+#terminals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  height: 100%;
 }
 
 .term {
-  //width: 1024px;
-  //height: 768px;
-  width: 600px;
-  height: 400px;
-  //overflow: scroll;
+  visibility: hidden;
+  border: 3px solid #888;
+  margin-bottom: 10px;
 
-  //textarea.xterm-helper-textarea, .xterm-char-measure-element {
-  //  display: none;
-  //}
+  //TODO This hardcodes the fact that there's 6 terminals; not sure how to do it generically:
+  width: 33%;
+  height: 50%;
+
+  .title {
+    position: relative;
+    height: @title-height;
+    width: 100%;
+    padding: 2px 4px;
+    border: 2px solid #000;
+    background-image: linear-gradient(#555555, #888888);
+    //font-size: 1.2em;
+    color: #fff;
+
+    /*
+    .btn {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      line-height: .75;
+    }
+    */
+
+    a {
+      position: relative;
+      top: -1px;
+      float: right;
+      color: #fff;
+      i {
+        font-size: .75em;
+      }
+    }
+  }
+
+  .content {
+    height: calc(100% - @title-height);
+  }
+
+  .content .xterm {
+    padding: 5px;
+
+    width: 100%;
+    height: 100%;
+  }
 }

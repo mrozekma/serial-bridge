@@ -1,6 +1,6 @@
 from socketserver import ThreadingTCPServer, BaseRequestHandler
 import traceback
-from typing import Set, Dict, Callable
+from typing import Set, Callable
 
 from serial import Serial
 
@@ -31,12 +31,25 @@ class TCPHandler(BaseRequestHandler):
         self.server.device.clients.remove(self)
 
 class Node:
-    def __init__(self, comPort: str, baudrate: int, tcpPort: int, listener: Callable[['Node', str, bytes], None] = lambda node, source, data: None):
-        self.clients: Set[TCPHandler] = set()
-        self.listener = listener
+    def __init__(self, name: str, deviceName: str, comPort: str, baudrate: int, byteSize: int, parity: str, stopBits: int, tcpPort: int):
+        if byteSize not in Serial.BYTESIZES:
+            raise ValueError(f"Invalid byteSize: {byteSize}")
+        elif parity[0].upper() not in Serial.PARITIES:
+            raise ValueError(f"Invalid parity: {parity}")
+        elif stopBits not in Serial.STOPBITS:
+            raise ValueError(f"Invalid stopBits: {stopBits}")
 
-        self.serial = Serial(comPort, baudrate, timeout = 0)
+        self.name = name
+        self.deviceName = deviceName
+        self.tcpPort = tcpPort
+        self.clients: Set[TCPHandler] = set()
+        self.listeners = []
+
+        self.serial = Serial(comPort, baudrate, byteSize, parity[0].upper(), stopBits, timeout = 0)
         self.tcp = TCPServer(self, tcpPort)
+
+    def addListener(self, listener: Callable[['Node', str, bytes], None]):
+        self.listeners.append(listener)
 
     def poll(self):
         if self.serial.in_waiting:
@@ -45,8 +58,10 @@ class Node:
     def serialToTcp(self, data: bytes):
         for client in self.clients:
             client.request.sendall(data)
-        self.listener(self, 'serial', data)
+        for listener in self.listeners:
+            listener(self, 'serial', data)
 
     def tcpToSerial(self, data: bytes):
         self.serial.write(data)
-        self.listener(self, 'tcp', data)
+        for listener in self.listeners:
+            listener(self, 'tcp', data)

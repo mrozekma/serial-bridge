@@ -9,10 +9,15 @@
 </head>
 <body>
 <div id="terminals">
-    <div class="term">
-        <div class="title"></div>
+    {% for node in nodes %}
+    <div class="term" data-name="{{ node.name }}">
+        <div class="title">
+            {{ node.name }}
+            <a class="telnet-link" data-port="{{ node.tcpPort }}" href="#"><i class="fas fa-external-link-alt"></i></a>
+        </div>
         <div class="content"></div>
     </div>
+    {% end %}
 </div>
 </body>
 </html>
