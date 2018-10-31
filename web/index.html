@@ -2,11 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Devices</title>
+    <title>Serial Bridge</title>
 </head>
 <body>
-{% for device in deviceNames %}
-<a href="/devices/{{ slugify(device) }}">{{ device }}</a><br>
-{% end %}
+<div id="vue-root"></div>
+<script src="/serial-bridge.js"></script>
 </body>
 </html>

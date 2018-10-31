@@ -43,6 +43,10 @@
           "tcp port": 10002
         }
       ]
+    },
+    {
+      "name": "Test device 2",
+      "nodes": []
     }
   ]
 }

@@ -1,73 +1,34 @@
-// import 'bootstrap/dist/css/bootstrap.css'; // First so style.less can override it
+import 'bootstrap'
+import 'bootstrap/dist/css/bootstrap.css'
+
 import './style.less';
 
 import '@fortawesome/fontawesome-free'
 import '@fortawesome/fontawesome-free/css/all.css'
 
-var $ = require('jquery');
-window.$ = $; // Make jQuery available in DevTools
+import Vue from 'vue'
+Vue.config.productionTip = false;
 
-import { Terminal } from 'xterm';
-// import * as attach from 'xterm/lib/addons/attach/attach';
-// Terminal.applyAddon(attach);
-import * as fit from 'xterm/lib/addons/fit/fit';
-Terminal.applyAddon(fit);
+var viewName = document.currentScript.getAttribute('data-view');
+var viewData = JSON.parse(document.currentScript.getAttribute('data-data'));
 
-$(function() {
-    var terminals = new Map();
+import HomeView from './views/home.vue';
+import DeviceView from './views/device.vue';
+var viewClass;
+switch(viewName) {
+    case 'home':
+        viewClass = HomeView;
+        break;
+    case 'device':
+        viewClass = DeviceView;
+        break;
+    default:
+        console.error(`Unrecognized view: ${document.currentScript.getAttribute('data-view')}`);
+        return;
+}
 
-    $('.term[data-name]').each(function() {
-        var container = $(this);
-
-        var term = new Terminal({
-            disableStdin: true,
-            scrollback: 5000,
-        });
-        terminals.set(container.data('name'), term);
-        term.open($('.content', container)[0]);
-        term.fit();
-    }).css('visibility', 'visible');
-
-    $('.term a.telnet-link').each(function() {
-        var anchor = $(this);
-        anchor.attr('href', 'telnet://' + window.location.hostname + ':' + anchor.data('port'));
-    });
-
-    var process_message = function(msg) {
-        switch(msg.type) {
-            case 'data':
-                terminals.get(msg.node).write(msg.data);
-                break;
-        }
-    };
-
-    var connection_timer = null;
-    var socket = null;
-    var connect = function() {
-        socket = new WebSocket(window.location.href.replace('http://', 'ws://') + '/websocket');
-        socket.onopen = function () {
-            console.log('Websocket open');
-            $('body').addClass('connected');
-            if (connection_timer) {
-                clearInterval(connection_timer);
-                connection_timer = null;
-            }
-        }
-        socket.onmessage = function (e) {
-            process_message(JSON.parse(e.data));
-        }
-        socket.onclose = function () {
-            console.log('Websocket closed');
-            $('body').removeClass('connected');
-            connection_timer = setInterval(connect, 5000);
-        }
-    };
-    connection_timer = setInterval(connect, 5000);
-    connect();
-
-    window.onunload = function () {
-        if (socket != null) {
-            socket.close();
-        }
-    };
+var ctor = Vue.extend(viewClass);
+new ctor({
+    el: '#vue-root',
+    propsData: viewData,
 });

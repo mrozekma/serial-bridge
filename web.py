@@ -1,8 +1,10 @@
 import asyncio
+import html
 import json
 import traceback
 from collections import defaultdict
 from pathlib import Path
+from textwrap import dedent
 from typing import Dict, List, Set
 
 from slugify import slugify
@@ -16,21 +18,69 @@ devices: Dict[str, List[Node]] = {}
 slugs: Dict[str, str] = {}
 sockets: Dict[str, Set['WebsocketHandler']] = defaultdict(set) # {device name: {socket}}
 
-class TemplateHandler(RequestHandler):
-    def initialize(self, template, **args):
-        self.template = template
-        self.args = args
+class UncachedHandler(RequestHandler):
+    def compute_etag(self):
+        return None
 
-    def get(self, *, args = {}):
-        self.render(str(self.template), **self.args, **args)
+class VueHandler(UncachedHandler):
+    def initialize(self, view, data = {}):
+        self.view = view
+        self.data = data
 
-class DeviceHandler(TemplateHandler):
+    def get(self):
+        self.render()
+
+    def render(self, data = {}):
+        data = {
+            'devices': sorted([{'name': value, 'slug': key} for key, value in slugs.items()], key=lambda e: e['name']),
+            **self.data,
+            **data,
+        }
+
+        self.write(dedent(f"""\
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <title>Serial Bridge</title>
+        <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+        <body>
+        <div id="vue-root"></div>
+        <link rel="stylesheet" href="/serial-bridge.css">
+        <script src="/serial-bridge.js" data-view="{self.view}" data-data="{html.escape(json.dumps(data), True)}"></script>
+        </body>
+        </html>
+        """))
+
+class UncachedStaticFileHandler(UncachedHandler, StaticFileHandler):
+    pass
+
+class GenerateRegHandler(RequestHandler):
+    def post(self):
+        path = self.get_argument('telnet_path')
+        self.write(dedent(f"""\
+        Windows Registry Editor Version 5.00
+        
+        [HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\telnet\\shell\\open\\command]
+        @="\\"{path}\\" %l"
+        
+        """))
+        self.set_header('Content-Type', 'application/octet-stream')
+        self.set_header('Content-Disposition', 'attachment; filename=serial_bridge.reg')
+
+class DeviceHandler(VueHandler):
+    def initialize(self):
+        super(DeviceHandler, self).initialize('device')
+        
     def get(self, slug):
         if slug not in slugs:
             self.send_error(404)
             return
         device = slugs[slug]
-        return super(DeviceHandler, self).get(args = {'nodes': devices[device]})
+        nodes = devices[device]
+        self.render({
+            'device': device,
+            'nodes': [{'name': node.name, 'tcpPort': node.tcpPort} for node in nodes] + [{'name': node.name + ' 2', 'tcpPort': node.tcpPort} for node in nodes],
+        })
 
 class WebsocketHandler(WebSocketHandler):
     def open(self, slug):
@@ -76,10 +126,11 @@ def listen(port: int, _devices: Dict[str, Node]):
 
     wwwDir = Path('web')
     handlers = [
-        ('/', TemplateHandler, {'template': wwwDir / 'index.html', 'deviceNames': sorted(devices.keys()), 'slugify': slugify}),
-        ('/devices/([^/]+)', DeviceHandler, {'template': wwwDir / 'device.html'}),
-        ('/(serial-bridge.(?:js|css|map))', StaticFileHandler, {'path': wwwDir / 'dist'}),
-        ('/xterm.css()', StaticFileHandler, {'path': wwwDir / 'node_modules' / 'xterm' / 'dist' / 'xterm.css'}), # TODO Can't figure out how to bundle this with everything else...
+        ('/', VueHandler, {'view': 'home'}),
+        ('/(favicon.ico)', UncachedStaticFileHandler, {'path': wwwDir}),
+        ('/generate-reg', GenerateRegHandler),
+        ('/devices/([^/]+)', DeviceHandler),
+        ('/(serial-bridge.(?:js|css|map))', UncachedStaticFileHandler, {'path': wwwDir / 'dist'}),
         ('/(fa-[^/]+)', StaticFileHandler, {'path': wwwDir / 'dist'}),
         ('/devices/([^/]+)/websocket', WebsocketHandler),
     ]
