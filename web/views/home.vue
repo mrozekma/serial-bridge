@@ -1,10 +1,10 @@
 <template>
     <div>
-        <SbNavbar :devices="devices"></SbNavbar>
+        <sb-navbar :devices="devices"></sb-navbar>
         <div class="body">
             <h1>Device</h1>
             Choose a device to connect to:<br><br>
-            <a v-for="device in devices" class="btn btn-primary" :href="`/devices/${device.slug}`">{{ device.name }}</a>
+            <b-button v-for="device in devices" variant="primary" :href="`/devices/${device.slug}`">{{ device.name }}</b-button>
 
             <h1>Setup</h1>
             Each terminal window has a <i class="fas fa-external-link-alt"></i> icon to open a telnet connection. To customize what application handles the telnet link, edit the <code>HKEY_LOCAL_MACHINE\SOFTWARE\Classes\telnet\shell\open\command</code> registry key and set the default value to <code>&lt;Application path&gt; %l</code>. For example, <code>"C:\Program Files (x86)\PuTTY\putty.exe" %l</code>.<br><br>
@@ -22,7 +22,7 @@
     import SbNavbar from '../components/sb-navbar';
     export default {
         components: {
-            SbNavbar,
+            'sb-navbar': SbNavbar,
         },
         props: ['devices'],
     }

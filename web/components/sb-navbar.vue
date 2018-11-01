@@ -1,23 +1,16 @@
 <template>
-    <nav class="navbar navbar-dark navbar-expand-lg bg-dark">
-        <div v-if="device" class="navbar-header">
-            <a class="navbar-brand" href="#">{{ device }}</a>
-        </div>
-        <ul class="navbar-nav mr-auto">
-            <li class="nav-item dropdown">
-                <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown" role="button">Devices <span class="caret"></span></a>
-                <div class="dropdown-menu">
-                    <a v-for="device in devices" class="dropdown-item" :href="`/devices/${device.slug}`">{{ device.name }}</a>
-                </div>
-            </li>
-        </ul>
-        <ul v-if="!connected" class="navbar-nav">
-            <li class="nav-item disconnected">
-                <i class="fas fa-network-wired"></i>
-                Disconnected
-            </li>
-        </ul>
-    </nav>
+    <b-navbar type="dark" variant="dark" class="navbar-expand-lg">
+        <b-navbar-brand v-if="device" href="#">{{ device }}</b-navbar-brand>
+        <b-navbar-nav class="mr-auto">
+            <b-nav-item-dropdown text="Devices">
+                <b-dropdown-item v-for="device in devices" :href="`/devices/${device.slug}`">{{ device.name }}</b-dropdown-item>
+            </b-nav-item-dropdown>
+        </b-navbar-nav>
+        <b-navbar-nav v-if="!connected || true" class="disconnected">
+            <i class="fas fa-network-wired"></i>
+            Disconnected
+        </b-navbar-nav>
+    </b-navbar>
 </template>
 
 <script>

@@ -1,13 +1,16 @@
-import 'bootstrap'
-import 'bootstrap/dist/css/bootstrap.css'
+import Vue from 'vue';
+Vue.config.productionTip = false;
+
+import 'bootstrap';
+import BootstrapVue from 'bootstrap-vue';
+Vue.use(BootstrapVue);
+import 'bootstrap/dist/css/bootstrap.css';
+import 'bootstrap-vue/dist/bootstrap-vue.css';
 
 import './style.less';
 
-import '@fortawesome/fontawesome-free'
-import '@fortawesome/fontawesome-free/css/all.css'
-
-import Vue from 'vue'
-Vue.config.productionTip = false;
+import '@fortawesome/fontawesome-free';
+import '@fortawesome/fontawesome-free/css/all.css';
 
 var viewName = document.currentScript.getAttribute('data-view');
 var viewData = JSON.parse(document.currentScript.getAttribute('data-data'));
@@ -23,8 +26,7 @@ switch(viewName) {
         viewClass = DeviceView;
         break;
     default:
-        console.error(`Unrecognized view: ${document.currentScript.getAttribute('data-view')}`);
-        return;
+        throw new Error(`Unrecognized view: ${document.currentScript.getAttribute('data-view')}`);
 }
 
 var ctor = Vue.extend(viewClass);

@@ -1,6 +1,6 @@
 <template>
     <div class="root">
-        <SbNavbar :device="device" :devices="devices" :connected="connected"></SbNavbar>
+        <sb-navbar :device="device" :devices="devices" :connected="connected"></sb-navbar>
         <div class="body" ref="body">
             <div v-for="node in nodes" :key="node.name" class="term" ref="term">
                 <div class="title">
@@ -29,7 +29,7 @@
     import SbNavbar from '../components/sb-navbar';
     export default {
         components: {
-            SbNavbar,
+            'sb-navbar': SbNavbar,
         },
         props: ['device', 'devices', 'nodes'],
         data: function() {
