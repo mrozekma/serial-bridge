@@ -1,8 +1,10 @@
 import asyncio
 import html
 import json
+import socket
 import traceback
 from collections import defaultdict
+from functools import lru_cache
 from pathlib import Path
 from textwrap import dedent
 from typing import Dict, List, Set
@@ -17,6 +19,10 @@ from Node import Node
 devices: Dict[str, List[Node]] = {}
 slugs: Dict[str, str] = {}
 sockets: Dict[str, Set['WebsocketHandler']] = defaultdict(set) # {device name: {socket}}
+
+@lru_cache()
+def ipToName(ip):
+    return socket.getfqdn(ip)
 
 class UncachedHandler(RequestHandler):
     def compute_etag(self):
@@ -91,6 +97,7 @@ class WebsocketHandler(WebSocketHandler):
 
         print('ws open')
         sockets[self.device].add(self)
+        asyncio.ensure_future(WebsocketHandler.sendConnectionInfo(self.device))
 
     def on_message(self, message):
         print('ws message: %s' % message)
@@ -98,10 +105,24 @@ class WebsocketHandler(WebSocketHandler):
     def on_close(self):
         print('ws close')
         sockets[self.device].remove(self)
-        # sockets.remove(self)
+        asyncio.ensure_future(WebsocketHandler.sendConnectionInfo(self.device))
 
     def send(self, data):
         self.write_message(json.dumps(data))
+
+    @staticmethod
+    def sendAll(deviceName, data):
+        for socket in sockets[deviceName]:
+            try:
+                socket.send(data)
+            except Exception:
+                traceback.print_exc()
+
+    @staticmethod
+    async def sendConnectionInfo(deviceName):
+        addrs = {handler.request.remote_ip for handler in sockets[deviceName]}
+        names = sorted(ipToName(addr) for addr in addrs)
+        WebsocketHandler.sendAll(deviceName, {'type': 'connections', 'data': names})
 
 def listen(port: int, _devices: Dict[str, Node]):
     global devices, slugs
@@ -112,13 +133,14 @@ def listen(port: int, _devices: Dict[str, Node]):
         raise ValueError("Device names don't map to unique URL slugs")
 
     def onSerialData(node: Node, source: str, data: bytes):
-        if source != 'serial':
-            return
-        for socket in sockets[node.deviceName]:
+        if source == 'serial':
             try:
-                socket.send({'type': 'data', 'node': node.name, 'data': data.decode()})
+                dataStr = data.decode()
             except Exception:
                 traceback.print_exc()
+                return
+
+            WebsocketHandler.sendAll(node.deviceName, {'type': 'data', 'node': node.name, 'data': dataStr})
 
     for nodes in devices.values():
         for node in nodes:

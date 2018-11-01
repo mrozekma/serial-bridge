@@ -6,9 +6,15 @@
                 <b-dropdown-item v-for="device in devices" :href="`/devices/${device.slug}`">{{ device.name }}</b-dropdown-item>
             </b-nav-item-dropdown>
         </b-navbar-nav>
-        <b-navbar-nav v-if="!connected || true" class="disconnected">
-            <i class="fas fa-network-wired"></i>
-            Disconnected
+        <b-navbar-nav v-if="connections !== false">
+            <b-nav-item v-if="connections === null" class="disconnected">
+                <i class="fas fa-network-wired"></i>
+                Disconnected
+            </b-nav-item>
+            <b-nav-item v-else-if="connections.length > 0" v-b-tooltip.hover.bottomleft :title="connections.join('\n')">
+                <i class="fas fa-network-wired"></i>
+                {{ connections.length }}
+            </b-nav-item>
         </b-navbar-nav>
     </b-navbar>
 </template>
@@ -19,16 +25,26 @@
         props: {
             'device': String,
             'devices': Array,
-            'connected': {
-                type: Boolean,
-                default: true,
+            'connections': { // null if disconnected, array of names if connected, false to disable the connection entry entirely
+                default: false,
             },
         },
     }
 </script>
 
-<style scoped>
-    .disconnected {
-        color: #f00;
+<style lang="less" scoped>
+    .navbar-nav .nav-item {
+        .nav-link {
+            color: #fff;
+            word-break: keep-all;
+            white-space: nowrap;
+
+            i {
+                margin-right: 2px;
+            }
+        }
+        &.disconnected .nav-link {
+            color: #f00;
+        }
     }
 </style>

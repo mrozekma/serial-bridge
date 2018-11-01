@@ -1,6 +1,6 @@
 <template>
     <div class="root">
-        <sb-navbar :device="device" :devices="devices" :connected="connected"></sb-navbar>
+        <sb-navbar :device="device" :devices="devices" :connections="connections"></sb-navbar>
         <div class="body" ref="body">
             <div v-for="node in nodes" :key="node.name" class="term" ref="term">
                 <div class="title">
@@ -34,7 +34,7 @@
         props: ['device', 'devices', 'nodes'],
         data: function() {
             return {
-                connected: false,
+                connections: null,
             };
         },
         mounted: function() {
@@ -73,6 +73,9 @@
 
             var process_message = function(msg) {
                 switch(msg.type) {
+                    case 'connections':
+                        self.connections = msg.data;
+                        break;
                     case 'data':
                         terminals.get(msg.node).write(msg.data);
                         break;
@@ -84,14 +87,14 @@
                 socket = new WebSocket(window.location.href.replace('http://', 'ws://') + '/websocket');
                 socket.onopen = function () {
                     console.log('Websocket open');
-                    self.connected = true;
+                    self.connections = [];
                 }
                 socket.onmessage = function (e) {
                     process_message(JSON.parse(e.data));
                 }
                 socket.onclose = function () {
                     console.log('Websocket closed');
-                    self.connected = false;
+                    self.connections = null;
                     setTimeout(connect, 5000);
                 }
             };
