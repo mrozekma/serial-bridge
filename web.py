@@ -99,7 +99,7 @@ class DeviceHandler(VueHandler):
         device = devices[slugs[slug]]
         self.render({
             'device': device.name,
-            'nodes': [{'name': node.name, 'tcpPort': node.tcpPort} for node in device.nodes] + [{'name': node.name + ' 2', 'tcpPort': node.tcpPort} for node in device.nodes], #TODO Remove test code
+            'nodes': [{'name': node.name, 'tcp_port': node.tcpPort, 'show_telnet_link': node.webTelnetLink} for node in device.nodes] + [{'name': node.name + ' 2', 'tcp_port': node.tcpPort, 'show_telnet_link': node.webTelnetLink} for node in device.nodes], #TODO Remove test code
             'commands': list(device.commands) if device.commands else None,
         })
 

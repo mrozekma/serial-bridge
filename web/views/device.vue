@@ -29,7 +29,7 @@
                 <div class="title">
                     <div>
                         {{ node.name }}
-                        <a class="telnet-link" :href="`telnet://${window.location.hostname}:${node.tcpPort}`"><i class="fas fa-external-link-alt"></i></a>
+                        <a v-if="node.show_telnet_link" class="telnet-link" :href="`telnet://${window.location.hostname}:${node.tcp_port}`"><i class="fas fa-external-link-alt"></i></a>
                     </div>
                 </div>
                 <div v-once class="content" ref="term-content" :data-name="node.name"></div>

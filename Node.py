@@ -31,7 +31,7 @@ class TCPHandler(BaseRequestHandler):
         self.server.device.clients.remove(self)
 
 class Node:
-    def __init__(self, name: str, deviceName: str, comPort: str, baudrate: int, byteSize: int, parity: str, stopBits: int, tcpPort: int):
+    def __init__(self, name: str, deviceName: str, comPort: str, baudrate: int, byteSize: int, parity: str, stopBits: int, tcpPort: int, webTelnetLink: bool):
         if byteSize not in Serial.BYTESIZES:
             raise ValueError(f"Invalid byteSize: {byteSize}")
         elif parity[0].upper() not in Serial.PARITIES:
@@ -42,6 +42,7 @@ class Node:
         self.name = name
         self.deviceName = deviceName
         self.tcpPort = tcpPort
+        self.webTelnetLink = webTelnetLink
         self.clients: Set[TCPHandler] = set()
         self.listeners = []
 
