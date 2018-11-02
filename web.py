@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import html
 import json
 import socket
@@ -14,13 +15,24 @@ import tornado.ioloop
 from tornado.web import RequestHandler, StaticFileHandler
 from tornado.websocket import WebSocketHandler
 
-from Commands import Commands
 from Device import Device
 from Node import Node
 
 devices: Dict[str, Device] = {}
 slugs: Dict[str, str] = {}
 sockets: Dict[str, Set['WebsocketHandler']] = defaultdict(set) # {device name: {socket}}
+
+wwwDir = Path('web')
+
+# The version hash is calculated once on boot, even though technically static files are loaded from disk on each request.
+# (In other words, editing files on disk without reloading the server in production won't change the version hash)
+m = hashlib.sha256()
+for path in (wwwDir / 'dist').iterdir():
+    m.update(path.name.encode())
+    m.update(b"|")
+    m.update(path.read_bytes())
+    m.update(b"|")
+versionHash = m.hexdigest()
 
 @lru_cache()
 def ipToName(ip):
@@ -41,6 +53,7 @@ class VueHandler(UncachedHandler):
     def render(self, data = {}):
         data = {
             'devices': sorted([{'name': value, 'slug': key} for key, value in slugs.items()], key = lambda e: e['name']),
+            'version_hash': versionHash,
             **self.data,
             **data,
         }
@@ -111,7 +124,7 @@ class WebsocketHandler(WebSocketHandler):
         asyncio.ensure_future(WebsocketHandler.sendConnectionInfo(self.device.name))
 
     def send(self, data):
-        self.write_message(json.dumps(data))
+        self.write_message(json.dumps({'version_hash': versionHash, **data}))
 
     @staticmethod
     def sendAll(deviceName, data):
@@ -180,7 +193,6 @@ def listen(port: int, _devices: Dict[str, Device]):
         for node in device.nodes:
              node.addListener(onSerialData)
 
-    wwwDir = Path('web')
     handlers = [
         ('/', VueHandler, {'view': 'home'}),
         ('/(favicon.ico)', UncachedStaticFileHandler, {'path': wwwDir}),

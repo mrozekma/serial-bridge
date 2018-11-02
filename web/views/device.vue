@@ -66,7 +66,7 @@
             'sb-navbar': SbNavbar,
             'sb-callout': SbCallout,
         },
-        props: ['device', 'devices', 'nodes', 'commands'],
+        props: ['version_hash', 'device', 'devices', 'nodes', 'commands'],
         data: function() {
             return {
                 connections: null,
@@ -108,7 +108,26 @@
             sizeTerminals();
 
             var process_message = function(msg) {
-                console.log(msg);
+                if(process.env.NODE_ENV == 'development') {
+                    console.log(msg);
+                } else if(self.version_hash != null && msg.version_hash != self.version_hash) {
+                    self.version_hash = null; // This indicates that the version is out of date and the toast is already shown
+                    Vue.toasted.show(
+                        "A new version of Serial Bridge is available.",
+                        {
+                            duration: null,
+                            'type': 'info',
+                            'icon': 'sync-alt',
+                            'action': {
+                                text: 'Refresh',
+                                onClick: function(e, toast) {
+                                    window.location.reload(true);
+                                },
+                            },
+                        }
+                    );
+                }
+
                 switch(msg.type) {
                     case 'connections':
                         self.connections = msg.data;
