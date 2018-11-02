@@ -1,6 +1,25 @@
 <template>
     <div class="root">
-        <sb-navbar :device="device" :devices="devices" :connections="connections"></sb-navbar>
+        <sb-navbar :device="device" :devices="devices" :connections="connections">
+            <b-navbar-nav class="mr-auto">
+                <b-nav-item-dropdown v-if="commands" text="Commands">
+                    <template v-for="command in commands">
+                        <b-dropdown-divider v-if="command == '-'"></b-dropdown-divider>
+                        <b-dropdown-item v-else @click="run_command(command)">{{ command }}</b-dropdown-item>
+                    </template>
+                </b-nav-item-dropdown>
+            </b-navbar-nav>
+            <b-navbar-nav>
+                <b-nav-item v-if="connections === null" class="disconnected">
+                    <i class="fas fa-network-wired"></i>
+                    Disconnected
+                </b-nav-item>
+                <b-nav-item v-else-if="connections.length > 0" v-b-tooltip.hover.bottomleft :title="connections.join('\n')">
+                    <i class="fas fa-network-wired"></i>
+                    {{ connections.length }}
+                </b-nav-item>
+            </b-navbar-nav>
+        </sb-navbar>
         <div class="body" ref="body">
             <div v-for="node in nodes" :key="node.name" class="term" ref="term">
                 <div class="title">
@@ -26,12 +45,18 @@
     import * as fit from 'xterm/lib/addons/fit/fit';
     Terminal.applyAddon(fit);
 
+    import axios from 'axios';
+    import qs from 'qs';
+
+    import Toasted from 'vue-toasted';
+    Vue.use(Toasted, {position: 'bottom-center', iconPack: 'fontawesome'});
+
     import SbNavbar from '../components/sb-navbar';
     export default {
         components: {
             'sb-navbar': SbNavbar,
         },
-        props: ['device', 'devices', 'nodes'],
+        props: ['device', 'devices', 'nodes', 'commands'],
         data: function() {
             return {
                 connections: null,
@@ -84,7 +109,7 @@
 
             var socket = null;
             var connect = function() {
-                socket = new WebSocket(window.location.href.replace('http://', 'ws://') + '/websocket');
+                socket = new WebSocket('ws://' + window.location.host + window.location.pathname + '/websocket');
                 socket.onopen = function () {
                     console.log('Websocket open');
                     self.connections = [];
@@ -103,6 +128,19 @@
             window.onunload = function () {
                 socket.close();
             };
+        },
+        methods: {
+            run_command: function(command) {
+                var toast = Vue.toasted.show("Running...", {duration: null, type: 'info', icon: 'clock'});
+                axios.post(window.location.origin + window.location.pathname + '/run-command', qs.stringify({command}))
+                    .then(function(resp) {
+                        toast.text('Done').goAway(1000);
+                    })
+                    .catch(function(err) {
+                        toast.goAway(0);
+                        console.error(err);
+                    });
+            },
         },
     }
 </script>

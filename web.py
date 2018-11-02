@@ -7,13 +7,14 @@ from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
 from textwrap import dedent
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
 from slugify import slugify
 import tornado.ioloop
 from tornado.web import RequestHandler, StaticFileHandler
 from tornado.websocket import WebSocketHandler
 
+from Commands import Commands
 from Node import Node
 
 devices: Dict[str, List[Node]] = {}
@@ -38,7 +39,7 @@ class VueHandler(UncachedHandler):
 
     def render(self, data = {}):
         data = {
-            'devices': sorted([{'name': value, 'slug': key} for key, value in slugs.items()], key=lambda e: e['name']),
+            'devices': sorted([{'name': value, 'slug': key} for key, value in slugs.items()], key = lambda e: e['name']),
             **self.data,
             **data,
         }
@@ -82,10 +83,11 @@ class DeviceHandler(VueHandler):
             self.send_error(404)
             return
         device = slugs[slug]
-        nodes = devices[device]
+        nodes, commands = devices[device]
         self.render({
             'device': device,
             'nodes': [{'name': node.name, 'tcpPort': node.tcpPort} for node in nodes] + [{'name': node.name + ' 2', 'tcpPort': node.tcpPort} for node in nodes],
+            'commands': list(commands) if commands else None,
         })
 
 class WebsocketHandler(WebSocketHandler):
@@ -124,7 +126,22 @@ class WebsocketHandler(WebSocketHandler):
         names = sorted(ipToName(addr) for addr in addrs)
         WebsocketHandler.sendAll(deviceName, {'type': 'connections', 'data': names})
 
-def listen(port: int, _devices: Dict[str, Node]):
+class CommandHandler(RequestHandler):
+    def post(self, slug):
+        if slug not in slugs:
+            self.send_error(404)
+            return
+        device = slugs[slug]
+        nodes, commands = devices[device]
+
+        name = self.get_argument('command')
+        if name not in commands:
+            self.send_error(403)
+            return
+
+        commands.run(name, nodes)
+
+def listen(port: int, _devices: Dict[str, Tuple[Node, Commands]]):
     global devices, slugs
     devices = _devices
     slugs = {slugify(device): device for device in devices.keys()}
@@ -142,7 +159,7 @@ def listen(port: int, _devices: Dict[str, Node]):
 
             WebsocketHandler.sendAll(node.deviceName, {'type': 'data', 'node': node.name, 'data': dataStr})
 
-    for nodes in devices.values():
+    for (nodes, commands) in devices.values():
         for node in nodes:
              node.addListener(onSerialData)
 
@@ -155,6 +172,7 @@ def listen(port: int, _devices: Dict[str, Node]):
         ('/(serial-bridge.(?:js|css|map))', UncachedStaticFileHandler, {'path': wwwDir / 'dist'}),
         ('/(fa-[^/]+)', StaticFileHandler, {'path': wwwDir / 'dist'}),
         ('/devices/([^/]+)/websocket', WebsocketHandler),
+        ('/devices/([^/]+)/run-command', CommandHandler),
     ]
 
     asyncio.set_event_loop(asyncio.new_event_loop())

@@ -15,7 +15,8 @@
           "stop": 1, // 1, 1.5, 2
           "tcp port": 10000
         }
-      ]
+      ],
+      "commands": "<commands module name>"
     }
   ],
 }

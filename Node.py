@@ -65,3 +65,11 @@ class Node:
         self.serial.write(data)
         for listener in self.listeners:
             listener(self, 'tcp', data)
+
+    def webToSerial(self, data: bytes):
+        self.serial.write(data)
+        for listener in self.listeners:
+            listener(self, 'web', data)
+
+    def __repr__(self):
+        return f"{self.deviceName}:{self.name}"
