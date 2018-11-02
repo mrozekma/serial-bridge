@@ -8,6 +8,9 @@
                         <b-dropdown-item v-else @click="run_command(command)">{{ command }}</b-dropdown-item>
                     </template>
                 </b-nav-item-dropdown>
+                <b-nav-item-dropdown text="Admin">
+                    <b-dropdown-item @click="serial_disconnect">Serial disconnect</b-dropdown-item>
+                </b-nav-item-dropdown>
             </b-navbar-nav>
             <b-navbar-nav>
                 <b-nav-item v-if="connections === null" class="disconnected">
@@ -20,7 +23,8 @@
                 </b-nav-item>
             </b-navbar-nav>
         </sb-navbar>
-        <div class="body" ref="body">
+        <!-- It's important never to remove these elements from the DOM, since the xterms are attached. Instead a style dynamically hides them -->
+        <div class="body" ref="body" :class="{hidden: !serial_connected}">
             <div v-for="node in nodes" :key="node.name" class="term" ref="term">
                 <div class="title">
                     <div>
@@ -31,6 +35,10 @@
                 <div v-once class="content" ref="term-content" :data-name="node.name"></div>
             </div>
         </div>
+        <sb-callout v-if="!serial_connected" type="danger" title="Disconnected">
+            This device's serial ports have been disconnected from Serial Bridge. This is typically so someone can connect to those ports directly, but in the meantime they are inaccessible via TCP or this web interface.<br><br>
+            <b-button variant="primary" @click="serial_connect">Reconnect ports</b-button>
+        </sb-callout>
     </div>
 </template>
 
@@ -52,14 +60,17 @@
     Vue.use(Toasted, {position: 'bottom-center', iconPack: 'fontawesome'});
 
     import SbNavbar from '../components/sb-navbar';
+    import SbCallout from '../components/sb-callout';
     export default {
         components: {
             'sb-navbar': SbNavbar,
+            'sb-callout': SbCallout,
         },
         props: ['device', 'devices', 'nodes', 'commands'],
         data: function() {
             return {
                 connections: null,
+                serial_connected: true,
             };
         },
         mounted: function() {
@@ -97,9 +108,13 @@
             sizeTerminals();
 
             var process_message = function(msg) {
+                console.log(msg);
                 switch(msg.type) {
                     case 'connections':
                         self.connections = msg.data;
+                        break;
+                    case 'serial-state':
+                        self.serial_connected = msg.connected;
                         break;
                     case 'data':
                         terminals.get(msg.node).write(msg.data);
@@ -141,6 +156,30 @@
                         console.error(err);
                     });
             },
+            serial_connect: function() {
+                axios.post(window.location.origin + window.location.pathname + '/serial-connection', qs.stringify({state: 'connect'}))
+                    .then(function(resp) {
+                        Vue.toasted.show("Serial ports connected", {duration: 2000, type: 'success', icon: 'check'});
+                    })
+                    .catch(function(err) {
+                        Vue.toasted.show("Failed to connect serial ports", {duration: 5000, type: 'error', icon: 'exclamation-circle'});
+                        console.error(err);
+                    });
+            },
+            serial_disconnect: function() {
+                var msg = (this.connections == null || this.connections.length < 2) ? '' : `There are ${this.connections.length} users on this device. `
+                msg += "Are you sure you want to disconnect this device's serial ports? They will no longer be available over TCP or this web interface."
+                if(confirm(msg)) {
+                    axios.post(window.location.origin + window.location.pathname + '/serial-connection', qs.stringify({state: 'disconnect'}))
+                        .then(function(resp) {
+                            Vue.toasted.show("Serial ports disconnected", {duration: 2000, type: 'success', icon: 'check'});
+                        })
+                        .catch(function(err) {
+                            Vue.toasted.show("Failed to disconnect serial ports", {duration: 5000, type: 'error', icon: 'exclamation-circle'});
+                            console.error(err);
+                        });
+                }
+            },
         },
     }
 </script>
@@ -156,6 +195,10 @@
         justify-content: space-around;
         height: calc(100% - 32px);
         padding: 20px;
+
+        &.hidden {
+            display: none;
+        }
     }
 
     .term {
@@ -196,5 +239,9 @@
             height: 100%;
             padding: 5px;
         }
+    }
+
+    .root > .bd-callout {
+        margin-left: 20px;
     }
 </style>

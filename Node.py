@@ -45,14 +45,21 @@ class Node:
         self.clients: Set[TCPHandler] = set()
         self.listeners = []
 
-        self.serial = Serial(comPort, baudrate, byteSize, parity[0].upper(), stopBits, timeout = 0)
+        self.serialData = {'port': comPort, 'baudrate': baudrate, 'bytesize': byteSize, 'parity': parity[0].upper(), 'stopbits': stopBits, 'timeout': 0}
         self.tcp = TCPServer(self, tcpPort)
+        self.connect()
+
+    def connect(self):
+        self.serial = Serial(**self.serialData)
+
+    def disconnect(self):
+        self.serial = None
 
     def addListener(self, listener: Callable[['Node', str, bytes], None]):
         self.listeners.append(listener)
 
     def poll(self):
-        if self.serial.in_waiting:
+        if self.serial and self.serial.in_waiting:
             self.serialToTcp(self.serial.read(1024))
 
     def serialToTcp(self, data: bytes):
@@ -62,11 +69,15 @@ class Node:
             listener(self, 'serial', data)
 
     def tcpToSerial(self, data: bytes):
+        if self.serial is None:
+            return
         self.serial.write(data)
         for listener in self.listeners:
             listener(self, 'tcp', data)
 
     def webToSerial(self, data: bytes):
+        if self.serial is None:
+            return
         self.serial.write(data)
         for listener in self.listeners:
             listener(self, 'web', data)

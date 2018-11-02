@@ -15,9 +15,10 @@ from tornado.web import RequestHandler, StaticFileHandler
 from tornado.websocket import WebSocketHandler
 
 from Commands import Commands
+from Device import Device
 from Node import Node
 
-devices: Dict[str, List[Node]] = {}
+devices: Dict[str, Device] = {}
 slugs: Dict[str, str] = {}
 sockets: Dict[str, Set['WebsocketHandler']] = defaultdict(set) # {device name: {socket}}
 
@@ -82,12 +83,11 @@ class DeviceHandler(VueHandler):
         if slug not in slugs:
             self.send_error(404)
             return
-        device = slugs[slug]
-        nodes, commands = devices[device]
+        device = devices[slugs[slug]]
         self.render({
-            'device': device,
-            'nodes': [{'name': node.name, 'tcpPort': node.tcpPort} for node in nodes] + [{'name': node.name + ' 2', 'tcpPort': node.tcpPort} for node in nodes],
-            'commands': list(commands) if commands else None,
+            'device': device.name,
+            'nodes': [{'name': node.name, 'tcpPort': node.tcpPort} for node in device.nodes] + [{'name': node.name + ' 2', 'tcpPort': node.tcpPort} for node in device.nodes], #TODO Remove test code
+            'commands': list(device.commands) if device.commands else None,
         })
 
 class WebsocketHandler(WebSocketHandler):
@@ -95,19 +95,20 @@ class WebsocketHandler(WebSocketHandler):
         if slug not in slugs:
             self.write_error(404)
             return
-        self.device = slugs[slug]
+        self.device = devices[slugs[slug]]
 
         print('ws open')
-        sockets[self.device].add(self)
-        asyncio.ensure_future(WebsocketHandler.sendConnectionInfo(self.device))
+        sockets[self.device.name].add(self)
+        asyncio.ensure_future(WebsocketHandler.sendConnectionInfo(self.device.name))
+        self.send({'type': 'serial-state', 'connected': self.device.serialConnected})
 
     def on_message(self, message):
         print('ws message: %s' % message)
 
     def on_close(self):
         print('ws close')
-        sockets[self.device].remove(self)
-        asyncio.ensure_future(WebsocketHandler.sendConnectionInfo(self.device))
+        sockets[self.device.name].remove(self)
+        asyncio.ensure_future(WebsocketHandler.sendConnectionInfo(self.device.name))
 
     def send(self, data):
         self.write_message(json.dumps(data))
@@ -131,17 +132,33 @@ class CommandHandler(RequestHandler):
         if slug not in slugs:
             self.send_error(404)
             return
-        device = slugs[slug]
-        nodes, commands = devices[device]
+        device = devices[slugs[slug]]
 
         name = self.get_argument('command')
-        if name not in commands:
+        if name not in device.commands:
             self.send_error(403)
             return
 
-        commands.run(name, nodes)
+        device.commands.run(name, device.nodes)
 
-def listen(port: int, _devices: Dict[str, Tuple[Node, Commands]]):
+class SerialConnectionHandler(RequestHandler):
+    def post(self, slug):
+        if slug not in slugs:
+            self.send_error(404)
+            return
+        device = devices[slugs[slug]]
+
+        state = self.get_argument('state')
+        if state == 'connect':
+            device.serialConnect()
+        elif state == 'disconnect':
+            device.serialDisconnect()
+        else:
+            raise ValueError(f"Bad state: {state}")
+
+        WebsocketHandler.sendAll(device.name, {'type': 'serial-state', 'connected': device.serialConnected})
+
+def listen(port: int, _devices: Dict[str, Device]):
     global devices, slugs
     devices = _devices
     slugs = {slugify(device): device for device in devices.keys()}
@@ -159,8 +176,8 @@ def listen(port: int, _devices: Dict[str, Tuple[Node, Commands]]):
 
             WebsocketHandler.sendAll(node.deviceName, {'type': 'data', 'node': node.name, 'data': dataStr})
 
-    for (nodes, commands) in devices.values():
-        for node in nodes:
+    for device in devices.values():
+        for node in device.nodes:
              node.addListener(onSerialData)
 
     wwwDir = Path('web')
@@ -173,6 +190,7 @@ def listen(port: int, _devices: Dict[str, Tuple[Node, Commands]]):
         ('/(fa-[^/]+)', StaticFileHandler, {'path': wwwDir / 'dist'}),
         ('/devices/([^/]+)/websocket', WebsocketHandler),
         ('/devices/([^/]+)/run-command', CommandHandler),
+        ('/devices/([^/]+)/serial-connection', SerialConnectionHandler),
     ]
 
     asyncio.set_event_loop(asyncio.new_event_loop())
