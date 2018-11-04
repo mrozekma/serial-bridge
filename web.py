@@ -100,7 +100,7 @@ class DeviceHandler(VueHandler):
         self.render({
             'device': device.name,
             'nodes': [{'name': node.name, 'tcp_port': node.tcpPort, 'show_telnet_link': node.webTelnetLink} for node in device.nodes] + [{'name': node.name + ' 2', 'tcp_port': node.tcpPort, 'show_telnet_link': node.webTelnetLink} for node in device.nodes], #TODO Remove test code
-            'commands': list(device.commands) if device.commands else None,
+            'commands': [{'name': name, 'icon': icon} for (name, icon) in device.commands] if device.commands else None,
         })
 
 class WebsocketHandler(WebSocketHandler):

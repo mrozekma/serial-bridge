@@ -3,7 +3,7 @@
         <b-navbar-brand v-if="device" href="#">{{ device }}</b-navbar-brand>
         <b-navbar-nav>
             <b-nav-item-dropdown text="Devices">
-                <b-dropdown-item v-for="device in devices" :href="`/devices/${device.slug}`">{{ device.name }}</b-dropdown-item>
+                <b-dropdown-item v-for="device in devices" :href="`/devices/${device.slug}`"><i class="fas fa-server"></i>{{ device.name }}</b-dropdown-item>
             </b-nav-item-dropdown>
         </b-navbar-nav>
         <slot></slot>
@@ -17,7 +17,8 @@
     }
 </script>
 
-<style lang="less" scoped>
+<!-- Intentionally not scoped so pages that include the navbar can add to it and still get this style -->
+<style lang="less">
     .navbar-nav .nav-item {
         .nav-link {
             word-break: keep-all;
@@ -27,8 +28,18 @@
                 margin-right: 2px;
             }
         }
-        &.disconnected .nav-link {
-            color: #f00;
+
+        .dropdown-item {
+            i {
+                position: relative;
+                left: -8px;
+            }
         }
+    }
+</style>
+
+<style lang="less" scoped>
+    .navbar-nav .nav-item.disconnected .nav-link {
+        color: #f00;
     }
 </style>

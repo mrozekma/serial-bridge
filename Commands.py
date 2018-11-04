@@ -6,10 +6,11 @@ from typing import List
 from Node import Node
 
 commandList = None
-def command(name):
+def command(name, icon = None):
     def wrap(fn):
         commandList.append(name)
         fn.sb_command = name
+        fn.sb_command_icon = icon
         return fn
     return wrap
 
@@ -44,7 +45,8 @@ class Commands:
         self.commands[name](API())
 
     def __iter__(self):
-        yield from self.commandList
+        for command in self.commandList:
+            yield (command, None if command == '-' else self.commands[command].sb_command_icon)
 
     def __contains__(self, name):
         return name in self.commands

@@ -4,26 +4,31 @@
             <b-navbar-nav class="mr-auto">
                 <b-nav-item-dropdown v-if="commands" text="Commands">
                     <template v-for="command in commands">
-                        <b-dropdown-divider v-if="command == '-'"></b-dropdown-divider>
-                        <b-dropdown-item v-else @click="run_command(command)">{{ command }}</b-dropdown-item>
+                        <b-dropdown-divider v-if="command.name == '-'"></b-dropdown-divider>
+                        <b-dropdown-item v-else @click="run_command(command.name)"><i v-if="command.icon" :class="`fas fa-${command.icon}`"></i>{{ command.name }}</b-dropdown-item>
                     </template>
                 </b-nav-item-dropdown>
+                <b-nav-item v-if="log.start === null" @click="log_start">Logging</b-nav-item>
+                <b-nav-item v-else class="running" @click="log_end">Logging</b-nav-item>
                 <b-nav-item-dropdown text="Admin">
-                    <b-dropdown-item @click="serial_disconnect">Serial disconnect</b-dropdown-item>
+                    <b-dropdown-item @click="serial_disconnect"><i class="fas fa-network-wired"></i>Serial disconnect</b-dropdown-item>
                 </b-nav-item-dropdown>
             </b-navbar-nav>
             <b-navbar-nav>
+                <b-nav-item v-if="log.start !== null" v-b-tooltip.hover.bottomleft :title="`Logging since ${new Date(log.start).toLocaleString()}`" @click="log_end">
+                    <i class="fas fa-edit"></i>
+                </b-nav-item>
                 <b-nav-item v-if="connections === null" class="disconnected">
                     <i class="fas fa-network-wired"></i>
                     Disconnected
                 </b-nav-item>
-                <b-nav-item v-else-if="connections.length > 0" v-b-tooltip.hover.bottomleft :title="connections.join('\n')">
+                <b-nav-item v-else-if="connections.length > 0" v-b-tooltip.hover.bottomleft.html :title="'<b>Connections</b>:<br><br>' + connections.join('<br>')">
                     <i class="fas fa-network-wired"></i>
                     {{ connections.length }}
                 </b-nav-item>
             </b-navbar-nav>
         </sb-navbar>
-        <!-- It's important never to remove these elements from the DOM, since the xterms are attached. Instead a style dynamically hides them -->
+        <!-- It's important never to remove the .term elements from the DOM, since the xterms are attached. Instead a style dynamically hides them -->
         <div class="body" ref="body" :class="{hidden: !serial_connected}">
             <div v-for="node in nodes" :key="node.name" class="term" ref="term">
                 <div class="title">
@@ -54,28 +59,39 @@
     Terminal.applyAddon(fit);
 
     import axios from 'axios';
+    import saveAs from 'file-saver';
     import qs from 'qs';
+    import JSZip from 'jszip';
 
     import Toasted from 'vue-toasted';
     Vue.use(Toasted, {position: 'bottom-center', iconPack: 'fontawesome'});
 
+    import VuejsDialog from 'vuejs-dialog';
+    // import VuejsDialogMixin from 'vuejs-dialog/dist/vuejs-dialog-mixin.min.js';
+    import 'vuejs-dialog/dist/vuejs-dialog.min.css';
+    Vue.use(VuejsDialog);
+
+    import SbLogSave from '../components/sb-log-save';
+    Vue.dialog.registerComponent('log-save', SbLogSave);
+
     import SbNavbar from '../components/sb-navbar';
     import SbCallout from '../components/sb-callout';
     export default {
-        components: {
-            'sb-navbar': SbNavbar,
-            'sb-callout': SbCallout,
-        },
+        components: {SbNavbar, SbCallout},
         props: ['version_hash', 'device', 'devices', 'nodes', 'commands'],
         data: function() {
             return {
                 connections: null,
                 serial_connected: true,
+                terminals: new Map(), // NB: Maps are not reactive
+                log: {
+                    start: null,
+                    nodes: null,
+                },
             };
         },
         mounted: function() {
             var self = this;
-            var terminals = new Map();
 
             document.title = `${this.device} - ${document.title}`;
 
@@ -84,7 +100,7 @@
                     disableStdin: true,
                     scrollback: 5000,
                 });
-                terminals.set(container.getAttribute('data-name'), term);
+                this.terminals.set(container.getAttribute('data-name'), term);
                 term.open(container);
             };
 
@@ -99,7 +115,7 @@
                 }
 
                 // Fit the xterms to the containers
-                for(var term of terminals.values()) {
+                for(var term of self.terminals.values()) {
                     term.fit();
                 }
             };
@@ -136,7 +152,12 @@
                         self.serial_connected = msg.connected;
                         break;
                     case 'data':
-                        terminals.get(msg.node).write(msg.data);
+                        self.terminals.get(msg.node).write(msg.data);
+                        if(self.log.nodes != null) {
+                            var logNode = self.log.nodes.get(msg.node);
+                            logNode.fragments.push({when: Date.now() - self.log.start, data: msg.data});
+                            logNode.size += msg.data.length;
+                        }
                         break;
                 }
             };
@@ -188,17 +209,99 @@
             serial_disconnect: function() {
                 var msg = (this.connections == null || this.connections.length < 2) ? '' : `There are ${this.connections.length} users on this device. `
                 msg += "Are you sure you want to disconnect this device's serial ports? They will no longer be available over TCP or this web interface."
-                if(confirm(msg)) {
-                    axios.post(window.location.origin + window.location.pathname + '/serial-connection', qs.stringify({state: 'disconnect'}))
-                        .then(function(resp) {
-                            Vue.toasted.show("Serial ports disconnected", {duration: 2000, type: 'success', icon: 'check'});
-                        })
-                        .catch(function(err) {
-                            Vue.toasted.show("Failed to disconnect serial ports", {duration: 5000, type: 'error', icon: 'exclamation-circle'});
-                            console.error(err);
-                        });
-                }
+                Vue.dialog.confirm({title: 'Serial disconnect', body: msg}, {okText: 'Disconnect', cancelText: 'Cancel', type: 'hard', verification: this.device, backdropClose: true})
+                    .then(function(dialog) {
+                        axios.post(window.location.origin + window.location.pathname + '/serial-connection', qs.stringify({state: 'disconnect'}))
+                            .then(function(resp) {
+                                Vue.toasted.show("Serial ports disconnected", {duration: 2000, type: 'success', icon: 'check'});
+                            })
+                            .catch(function(err) {
+                                Vue.toasted.show("Failed to disconnect serial ports", {duration: 5000, type: 'error', icon: 'exclamation-circle'});
+                                console.error(err);
+                            });
+                });
             },
+            log_start: function() {
+                this.log.start = Date.now();
+                this.log.nodes = new Map();
+                for(let node of this.nodes) {
+                    this.log.nodes.set(node.name, {size: 0, fragments: []});
+                }
+                Vue.toasted.show("Started logging", {duration: 2000, type: 'info', icon: 'edit'});
+            },
+            log_end: function() {
+                var self = this;
+
+                // These props get passed into the sb-log-save component. All the options passed in to the dialog
+                // are copied to a separate object internally, so these props are wrapped in an extra object to make
+                // sure the props object is shallow-copied and changes here are reflected there.
+                var props = {
+                    msg: '',
+                    progress: 0,
+                    total: 0,
+                    enableSaveButtons: false,
+                    enableStopButton: true,
+                };
+                for(let val of this.log.nodes.values()) {
+                    props.total += val.size;
+                }
+
+                var zip = new JSZip();
+                Vue.dialog.confirm("Test message", {view: 'log-save', backdropClose: true, remoteProps: {props}})
+                    .then(function(resp) {
+                        var {dialog, result} = resp.data;
+                        if(result == 'save-stop' || result == 'stop') {
+                            self.log.start = null;
+                            self.log.nodes = null;
+                        }
+                        if(result == 'save-stop' || result == 'save-continue') {
+                            props.msg = 'Downloading...';
+                            props.enableSaveButtons = props.enableStopButton = false;
+                            zip.generateAsync({type: 'blob'}).then(function (content) {
+                                saveAs(content, 'log.zip');
+                                dialog.close();
+                            });
+                        }
+                    }).catch(() => {});
+
+                var nodeIter = self.log.nodes.entries();
+                var curNode = null; // [node name, {size: int, fragments: [{when: int, data: str}]}]
+                var fragmentIdx = null;
+                var curData = null;
+                function tick() { //TODO Make this async?
+                    if(zip == null) { // Aborted
+                        return;
+                    }
+                    if(curNode != null && fragmentIdx == curNode[1].fragments.length) {
+                        zip.file(`${curNode[0]}.txt`, curData);
+                        curNode = null;
+                        fragmentIdx = null;
+                        curData = null;
+                    }
+                    if(curNode == null) {
+                        var next = nodeIter.next();
+                        if(next.done) {
+                            props.msg = "Ready to download";
+                            props.progress = props.total; // Should already be true, but just in case
+                            props.enableSaveButtons = true;
+                            return;
+                        }
+                        curNode = next.value;
+                        fragmentIdx = 0;
+                        curData = '';
+                        props.msg = `Processing ${curNode[0]}`;
+                    } else {
+                        curData += curNode[1].fragments[fragmentIdx].data;
+                        props.progress += curNode[1].fragments[fragmentIdx].data.length;
+                        if(process.env.NODE_ENV == 'development') {
+                            console.log(`Processed ${curNode[0]} fragment ${fragmentIdx} / ${curNode[1].fragments.length}`);
+                        }
+                        fragmentIdx++;
+                    }
+                    this.$nextTick(tick);
+                }
+                this.$nextTick(tick);
+            }
         },
     }
 </script>
@@ -262,5 +365,12 @@
 
     .root > .bd-callout {
         margin-left: 20px;
+    }
+</style>
+
+<!-- This is unscoped because the navbar comes from a separate component and the scopes interact oddly -->
+<style>
+    .navbar-nav .nav-item.running a.nav-link {
+        color: #f00;
     }
 </style>
