@@ -236,7 +236,7 @@
                 // are copied to a separate object internally, so these props are wrapped in an extra object to make
                 // sure the props object is shallow-copied and changes here are reflected there.
                 var props = {
-                    msg: '',
+                    msg: 'Working...',
                     progress: 0,
                     total: 0,
                     enableSaveButtons: false,
@@ -244,6 +244,13 @@
                 };
                 for(let val of this.log.nodes.values()) {
                     props.total += val.size;
+                }
+
+                if(props.total == 0) {
+                    // Nothing logged
+                    this.log.start = null;
+                    this.log.nodes = null;
+                    return;
                 }
 
                 var zip = new JSZip();
@@ -260,47 +267,42 @@
                             zip.generateAsync({type: 'blob'}).then(function (content) {
                                 saveAs(content, 'log.zip');
                                 dialog.close();
+                                zip = null;
                             });
                         }
-                    }).catch(() => {});
+                    }).catch(() => {
+                        zip = null;
+                    });
 
-                var nodeIter = self.log.nodes.entries();
-                var curNode = null; // [node name, {size: int, fragments: [{when: int, data: str}]}]
-                var fragmentIdx = null;
-                var curData = null;
-                function tick() { //TODO Make this async?
-                    if(zip == null) { // Aborted
-                        return;
-                    }
-                    if(curNode != null && fragmentIdx == curNode[1].fragments.length) {
-                        zip.file(`${curNode[0]}.txt`, curData);
-                        curNode = null;
-                        fragmentIdx = null;
-                        curData = null;
-                    }
-                    if(curNode == null) {
-                        var next = nodeIter.next();
-                        if(next.done) {
-                            props.msg = "Ready to download";
+                //TODO This doesn't work, the dialog doesn't update until the function is done. Not sure this is possible in Javascript without using a web worker.
+                // I do at least wait a moment to make sure the dialog is visible, so the user knows something is happening (otherwise the dialog doesn't even pop up until the zip is ready)
+                setTimeout(function() {
+                    (async function() {
+                        for(let [nodeName, node] of self.log.nodes) {
+                            props.msg = `Processing ${nodeName}`;
+                            var curData = '';
+                            for(let fragment of node.fragments) {
+                                if(zip == null) { // Aborted
+                                    return false;
+                                }
+                                curData += fragment.data;
+                                props.progress += fragment.data.length;
+                                if(process.env.NODE_ENV == 'development') {
+                                    console.log(`Processed ${nodeName} fragment (${props.progress} / ${props.total})`);
+                                }
+                                await self.$nextTick();
+                            }
+                            zip.file(`${nodeName}.txt`, curData);
+                        }
+                        return true;
+                    })().then(function(res) {
+                        if(res) {
+                            props.msg = "Ready to download log data.";
                             props.progress = props.total; // Should already be true, but just in case
                             props.enableSaveButtons = true;
-                            return;
                         }
-                        curNode = next.value;
-                        fragmentIdx = 0;
-                        curData = '';
-                        props.msg = `Processing ${curNode[0]}`;
-                    } else {
-                        curData += curNode[1].fragments[fragmentIdx].data;
-                        props.progress += curNode[1].fragments[fragmentIdx].data.length;
-                        if(process.env.NODE_ENV == 'development') {
-                            console.log(`Processed ${curNode[0]} fragment ${fragmentIdx} / ${curNode[1].fragments.length}`);
-                        }
-                        fragmentIdx++;
-                    }
-                    this.$nextTick(tick);
-                }
-                this.$nextTick(tick);
+                    });
+                }, 100);
             }
         },
     }
