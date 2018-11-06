@@ -17,7 +17,11 @@
           "web telnet link": true, // Show a telnet:// link for this node in the web UI
         }
       ],
-      "commands": "<commands module name>"
+      "commands": "<commands module name>",
+      "web highlighted connections": [
+        "name",
+        {"type": "tcp|web", "name": "name"},
+      ]
     }
   ],
 }

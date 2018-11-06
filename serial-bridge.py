@@ -20,6 +20,7 @@ devices = {device['name']: Device(
     device['name'],
     [Node(node['name'], node['com port'], node['baud rate'], node.get('byte size', 8), node.get('parity', 'none'), node.get('stop', 1), node['tcp port'], node.get('web telnet link', True)) for node in device.get('nodes', [])],
     Commands(device['commands']) if 'commands' in device else None,
+    [highlight if isinstance(highlight, dict) else {'type': None, 'name': highlight} for highlight in device.get('web highlighted connections', [])],
 ) for device in config.get('devices', [])}
 
 # TCP connections are received and handled on their own threads

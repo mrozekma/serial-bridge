@@ -22,9 +22,15 @@
                     <i class="fas fa-network-wired"></i>
                     Disconnected
                 </b-nav-item>
-                <b-nav-item v-else-if="connections.length > 0" v-b-tooltip.hover.bottomleft.html :title="'<b>Connections</b>:<br><br>' + connections.join('<br>')">
+                <b-nav-item v-else-if="connections.length > 0" ref="connectionsIcon" class="connections-icon" :class="{highlighted: connections.some(c => c.highlighted)}">
                     <i class="fas fa-network-wired"></i>
                     {{ connections.length }}
+                    <b-tooltip :target="() => $refs.connectionsIcon" placement="bottomleft">
+                        <div class="connections-tooltip">
+                            <b>Connections</b>:
+                            <div v-for="connection in connections" :class="{highlighted: connection.highlighted}"><i :class="{tcp: 'fas fa-terminal', web: 'fab fa-chrome'}[connection.type]"></i> {{ connection.name }}</div>
+                        </div>
+                    </b-tooltip>
                 </b-nav-item>
             </b-navbar-nav>
         </sb-navbar>
@@ -311,6 +317,13 @@
 <style lang="less" scoped>
     .root {
         height: 100%;
+    }
+
+    .connections-icon.highlighted > a {
+        text-shadow: 0 0 3px #ff0;
+    }
+    .connections-tooltip i {
+        width: 18px;
     }
 
     .body {

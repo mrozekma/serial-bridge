@@ -137,10 +137,15 @@ class WebsocketHandler(WebSocketHandler):
 
     @staticmethod
     def sendConnectionInfo(device: Device):
+        def isHighlighted(type, addr, name):
+            return any(highlight['type'] in (None, type) and highlight['name'] in (addr, name) for highlight in device.webConnectionHighlights)
+
         tcpAddrs = {client.client_address[0] for node in device.nodes for client in node.clients}
         webAddrs = {handler.request.remote_ip for handler in sockets[device.name]}
-        names = sorted(ipToName(addr) + ' (TCP)' for addr in tcpAddrs) + sorted(ipToName(addr) + ' (web)' for addr in webAddrs)
-        WebsocketHandler.sendAll(device.name, {'type': 'connections', 'data': names})
+
+        names = [{'type': 'tcp', 'name': ipToName(addr), 'highlighted': isHighlighted('tcp', addr, ipToName(addr))} for addr in tcpAddrs] \
+              + [{'type': 'web', 'name': ipToName(addr), 'highlighted': isHighlighted('web', addr, ipToName(addr))} for addr in webAddrs]
+        WebsocketHandler.sendAll(device.name, {'type': 'connections', 'data': sorted(names, key = lambda e: e['name'])})
 
 class CommandHandler(RequestHandler):
     def post(self, slug):

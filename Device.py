@@ -1,17 +1,18 @@
 from threading import Lock
-from typing import List
+from typing import List, Dict
 
 from Commands import Commands
 from Node import Node
 
 class Device:
-    def __init__(self, name: str, nodes: List[Node], commands: Commands):
+    def __init__(self, name: str, nodes: List[Node], commands: Commands, webConnectionHighlights: List[Dict[str, str]]):
         if len({node.name for node in nodes}) != len(nodes):
             raise ValueError(f"Duplicate node names in {name} device")
 
         self.name = name
         self.nodes = nodes
         self.commands = commands
+        self.webConnectionHighlights = webConnectionHighlights
         self.serialConnected = True
         self.serialLock = Lock()
 
