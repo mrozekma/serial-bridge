@@ -15,6 +15,9 @@ class Device:
         self.serialConnected = True
         self.serialLock = Lock()
 
+        for node in self.nodes:
+            node.device = self
+
     def serialConnect(self):
         with self.serialLock:
             if self.serialConnected:

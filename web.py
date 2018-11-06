@@ -8,10 +8,11 @@ from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
 from textwrap import dedent
-from typing import Dict, List, Set, Tuple
+from typing import Dict, Set
 
 from slugify import slugify
 import tornado.ioloop
+from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado.web import RequestHandler, StaticFileHandler
 from tornado.websocket import WebSocketHandler
 
@@ -112,7 +113,7 @@ class WebsocketHandler(WebSocketHandler):
 
         print('ws open')
         sockets[self.device.name].add(self)
-        asyncio.ensure_future(WebsocketHandler.sendConnectionInfo(self.device.name))
+        WebsocketHandler.sendConnectionInfo(self.device)
         self.send({'type': 'serial-state', 'connected': self.device.serialConnected})
 
     def on_message(self, message):
@@ -121,7 +122,7 @@ class WebsocketHandler(WebSocketHandler):
     def on_close(self):
         print('ws close')
         sockets[self.device.name].remove(self)
-        asyncio.ensure_future(WebsocketHandler.sendConnectionInfo(self.device.name))
+        WebsocketHandler.sendConnectionInfo(self.device)
 
     def send(self, data):
         self.write_message(json.dumps({'version_hash': versionHash, **data}))
@@ -135,10 +136,11 @@ class WebsocketHandler(WebSocketHandler):
                 traceback.print_exc()
 
     @staticmethod
-    async def sendConnectionInfo(deviceName):
-        addrs = {handler.request.remote_ip for handler in sockets[deviceName]}
-        names = sorted(ipToName(addr) for addr in addrs)
-        WebsocketHandler.sendAll(deviceName, {'type': 'connections', 'data': names})
+    def sendConnectionInfo(device: Device):
+        tcpAddrs = {client.client_address[0] for node in device.nodes for client in node.clients}
+        webAddrs = {handler.request.remote_ip for handler in sockets[device.name]}
+        names = sorted(ipToName(addr) + ' (TCP)' for addr in tcpAddrs) + sorted(ipToName(addr) + ' (web)' for addr in webAddrs)
+        WebsocketHandler.sendAll(device.name, {'type': 'connections', 'data': names})
 
 class CommandHandler(RequestHandler):
     def post(self, slug):
@@ -179,6 +181,9 @@ def listen(port: int, _devices: Dict[str, Device]):
     if len(slugs) != len(devices):
         raise ValueError("Device names don't map to unique URL slugs")
 
+    def onTcpConnectDisconnect(node: Node, remote_addr: str):
+        WebsocketHandler.sendConnectionInfo(node.device)
+
     def onSerialData(node: Node, source: str, data: bytes):
         if source == 'serial':
             try:
@@ -187,11 +192,13 @@ def listen(port: int, _devices: Dict[str, Device]):
                 traceback.print_exc()
                 return
 
-            WebsocketHandler.sendAll(node.deviceName, {'type': 'data', 'node': node.name, 'data': dataStr})
+            WebsocketHandler.sendAll(node.device.name, {'type': 'data', 'node': node.name, 'data': dataStr})
 
     for device in devices.values():
         for node in device.nodes:
-             node.addListener(onSerialData)
+            node.signals['connect'].connect(onTcpConnectDisconnect)
+            node.signals['disconnect'].connect(onTcpConnectDisconnect)
+            node.signals['data'].connect(onSerialData)
 
     handlers = [
         ('/', VueHandler, {'view': 'home'}),
@@ -205,7 +212,7 @@ def listen(port: int, _devices: Dict[str, Device]):
         ('/devices/([^/]+)/serial-connection', SerialConnectionHandler),
     ]
 
-    asyncio.set_event_loop(asyncio.new_event_loop())
+    asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
     app = tornado.web.Application(handlers)
     app.listen(port)
     tornado.ioloop.IOLoop.current().start()
