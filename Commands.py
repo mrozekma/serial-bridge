@@ -1,6 +1,5 @@
+from functools import lru_cache
 import importlib
-from collections import OrderedDict
-from pathlib import Path
 from typing import List
 
 from Node import Node
@@ -18,19 +17,26 @@ def divider():
     commandList.append('-')
 
 class Commands:
-    def __init__(self, scriptName):
+    @staticmethod
+    @lru_cache(maxsize = None)
+    def loadCommands(moduleName):
         global commandList
         commandList = []
-        script = importlib.import_module(scriptName)
-        self.commandList, commandList = commandList, None
+        script = importlib.import_module(moduleName)
+        thisCommandList, commandList = commandList, None
 
         fns = [getattr(script, name) for name in dir(script)]
-        self.commands = {fn.sb_command: fn for fn in fns if hasattr(fn, 'sb_command')}
+        commands = {fn.sb_command: fn for fn in fns if hasattr(fn, 'sb_command')}
 
-        if len(set(self.commandList)) != len(self.commandList):
+        if len(set(thisCommandList)) != len(thisCommandList):
             raise ValueError("Duplicate command name")
-        elif '-' in self.commands:
+        elif '-' in commands:
             raise ValueError("'-' is a reserved command name")
+
+        return thisCommandList, commands
+
+    def __init__(self, scriptName):
+        self.commandList, self.commands = Commands.loadCommands(scriptName)
 
     def run(self, name, nodes: List[Node]):
         nodes = {node.name: node for node in nodes}
