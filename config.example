@@ -15,6 +15,7 @@
           "stop": 1, // 1, 1.5, 2
           "tcp port": 10000,
           "web telnet link": true, // Show a telnet:// link for this node in the web UI
+          "web default visible": true, // Show by default in the web UI
         }
       ],
       "commands": "<commands module name>",

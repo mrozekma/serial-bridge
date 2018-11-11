@@ -2,6 +2,11 @@
     <div class="root">
         <sb-navbar :device="device" :devices="devices" :connections="connections">
             <b-navbar-nav class="mr-auto">
+                <b-nav-item-dropdown text="View">
+                    <b-dropdown-item @click="reset_visibility"><i class="fas fa-minus-square"></i>Reset</b-dropdown-item>
+                    <b-dropdown-divider></b-dropdown-divider>
+                    <b-dropdown-item v-for="node in nodes" @click="node_toggle_visibility(node)"><i class="fas" :class="node_is_visible(node) ? 'fa-check-square' : 'fa-square'"></i>{{ node.name }}</b-dropdown-item>
+                </b-nav-item-dropdown>
                 <b-nav-item-dropdown v-if="commands" text="Commands">
                     <template v-for="command in commands">
                         <b-dropdown-divider v-if="command.name == '-'"></b-dropdown-divider>
@@ -35,8 +40,8 @@
             </b-navbar-nav>
         </sb-navbar>
         <!-- It's important never to remove the .term elements from the DOM, since the xterms are attached. Instead a style dynamically hides them -->
-        <div class="body" ref="body" :class="{hidden: !serial_connected}">
-            <div v-for="node in nodes" :key="node.name" class="term" ref="term">
+        <div class="body" ref="body" :class="{hidden: !serial_connected, wrapped: body_wrapped, odd: (nodes.filter(node_is_visible).length % 2 == 1)}" :style="{'--term-height': `${term_height}px`, '--term-width': `${term_width}px`}">
+            <div v-for="node in nodes_by_column" :key="node.name" class="term" :class="node_is_visible(node) ? null : 'hidden'" ref="term">
                 <div class="title">
                     <div>
                         {{ node.name }}
@@ -69,6 +74,8 @@
     import qs from 'qs';
     import JSZip from 'jszip';
 
+    const _ = require('lodash');
+
     import Toasted from 'vue-toasted';
     Vue.use(Toasted, {position: 'bottom-center', iconPack: 'fontawesome'});
 
@@ -85,16 +92,66 @@
     export default {
         components: {SbNavbar, SbCallout},
         props: ['version_hash', 'device', 'devices', 'nodes', 'commands'],
+        computed: {
+            // The user provides the terminals in row order, but we need them in column order for the flex layout
+            nodes_by_column: function() {
+                const wrap = function*(nodes) {
+                    let len = nodes.length;
+                    const mid = len / 2;
+                    for(let i = 0; len >= 2; i++, len -= 2) {
+                        yield nodes[i];
+                        yield nodes[i + mid];
+                    }
+                    // if(len) {
+                    //     yield nodes[mid - 1];
+                    // }
+                };
+
+                // Do the layout using the visible nodes. Tack the invisible ones onto the end since it doesn't matter where they are
+                const [visible, invisible] = _.partition(this.nodes, this.node_is_visible);
+                if(visible.length == 0) {
+                    return invisible;
+                } else if(visible.length % 2 == 0) {
+                    return [...wrap(visible), ...invisible];
+                } else {
+                    // The first terminal will be double-tall, so it doesn't participate in alternating rows like the others
+                    return [visible[0], ...wrap(visible.slice(1)), ...invisible];
+                }
+            },
+        },
         data: function() {
             return {
                 connections: null,
                 serial_connected: true,
                 terminals: new Map(), // NB: Maps are not reactive
+                term_width: 0,
+                term_height: 0,
+                body_wrapped: false,
+                node_visibility: JSON.parse(localStorage.getItem('node_visibility')) || {},
+                mounting: false,
                 log: {
                     start: null,
                     nodes: null,
                 },
             };
+        },
+        watch: {
+            node_visibility: {
+                handler: function(val) {
+                    if(!_.isEmpty(val)) {
+                        localStorage.setItem('node_visibility', JSON.stringify(val));
+                    } else {
+                        localStorage.removeItem('node_visibility');
+                    }
+                    this.size_terminals();
+                },
+                deep: true,
+            },
+        },
+        beforeMount: function() {
+            // This makes all the terminals visible during the initial render. Without this, invisible terminals are initialized with null dimensions,
+            // and if they're later made visible, fit() calculates Infinity for the dimensions and crashes the browser.
+            this.mounting = true;
         },
         mounted: function() {
             var self = this;
@@ -109,25 +166,11 @@
                 this.terminals.set(container.getAttribute('data-name'), term);
                 term.open(container);
             };
+            this.mounting = false;
 
-            var sizeTerminals = function() {
-                // Figure out the height of each terminal, which is slightly complicated:
-                // Total height available, minus 50px for margins and whatnot, divided by the number of rows (there's 3 terminals per row), rounded down to a multiple of 17px to fit xterm's line height
-                var numRows = Math.ceil(self.$refs['term'].length / 3);
-                var height = Math.floor((self.$refs['body'].clientHeight - 50) / numRows);
-                height -= height % 17;
-                for(var container of self.$refs['term']) {
-                    container.style.height = `${height}px`;
-                }
-
-                // Fit the xterms to the containers
-                for(var term of self.terminals.values()) {
-                    term.fit();
-                }
-            };
-
-            window.addEventListener('resize', sizeTerminals);
-            sizeTerminals();
+            window.addEventListener('resize', this.size_terminals);
+            // Wait for the next render so invisible terminals are actually hidden, then do the initial size
+            this.$nextTick(this.size_terminals);
 
             var process_message = function(msg) {
                 if(process.env.NODE_ENV == 'development') {
@@ -191,6 +234,32 @@
             };
         },
         methods: {
+            size_terminals: function() {
+                const num_rows = 2;
+                const num_cols = Math.ceil(this.nodes.filter(this.node_is_visible).length / num_rows);
+
+                // Figure out the height of each terminal, which is slightly complicated:
+                // Total height available, minus 40px for body padding, divided by the number of rows, rounded down to a multiple of 17px to fit xterm's line height, minus 17px for the lower terminal margin
+                const height = Math.floor((this.$refs['body'].clientHeight - 40) / num_rows);
+                this.term_height = height - (height % 17) - 17;
+
+                // The term width is more straightforward -- just divide up the available space (body width - 40px padding)
+                // This could be done in CSS as calc(25% - 5px), but if the percentage isn't an integer it can cause very minor rendering problems in the term titlebar
+                this.term_width = Math.floor((this.$refs['body'].clientWidth - 40) / num_cols - 5);
+
+                // For some reason that feels like a Chrome bug, the flexbox is overly aggressive with the wrapping when the terminals are resized here.
+                // To work around this, we temporarily disable flexbox wrapping and turn it back on next tick after the xterms are fitted.
+                this.body_wrapped = false;
+
+                // Wait for term_height and term_width to update
+                this.$nextTick(function() {
+                    // Fit the xterms to the containers
+                    for (var term of this.terminals.values()) {
+                        term.fit();
+                    }
+                    this.body_wrapped = true;
+                });
+            },
             run_command: function(command) {
                 var toast = Vue.toasted.show("Running...", {duration: null, type: 'info', icon: 'clock'});
                 axios.post(window.location.origin + window.location.pathname + '/run-command', qs.stringify({command}))
@@ -226,6 +295,17 @@
                                 console.error(err);
                             });
                 });
+            },
+            node_is_visible: function(node) {
+                const vis = this.node_visibility[node.name];
+                // See the comment in beforeMount() for the reason this.mounting makes all nodes visible
+                return this.mounting ? true : (vis !== undefined) ? vis : node.default_visible;
+            },
+            node_toggle_visibility: function(node) {
+                this.$set(this.node_visibility, node.name, !this.node_is_visible(node));
+            },
+            reset_visibility: function() {
+                this.node_visibility = {};
             },
             log_start: function() {
                 this.log.start = Date.now();
@@ -328,21 +408,22 @@
 
     .body {
         display: flex;
-        flex-wrap: wrap;
-        justify-content: space-around;
+        flex-direction: column;
+        &.wrapped {
+            flex-wrap: wrap;
+        }
+        justify-content: flex-start; //space-around;
         height: calc(100% - 32px);
         padding: 20px;
-
-        &.hidden {
-            display: none;
-        }
     }
 
     .term {
         border: 3px solid #888;
-        margin-bottom: 10px;
-        width: 33%;
-        height: 17px * 3; // The real height is set in Javascript. I know, I'm embarrassed
+        margin-bottom: 17px;
+        margin-right: 10px;
+        /*width: calc(25% - 5px);*/
+        width: var(--term-width);
+        height: var(--term-height);
 
         .title {
             width: 100%;
@@ -378,8 +459,16 @@
         }
     }
 
+    .body.odd .term:first-child {
+        height: calc(var(--term-height) * 2 + 17px);
+    }
+
     .root > .bd-callout {
         margin-left: 20px;
+    }
+
+    .hidden {
+        display: none !important;
     }
 </style>
 
