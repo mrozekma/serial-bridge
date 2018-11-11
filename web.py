@@ -211,6 +211,7 @@ def listen(port: int, _devices: Dict[str, Device]):
         ('/generate-reg', GenerateRegHandler),
         ('/devices/([^/]+)', DeviceHandler),
         ('/(serial-bridge.(?:js|css|map))', UncachedStaticFileHandler, {'path': wwwDir / 'dist'}),
+        ('/(bootstrap.css.map)', UncachedStaticFileHandler, {'path': wwwDir / 'node_modules' / 'bootstrap' / 'dist' / 'css'}),
         ('/(fa-[^/]+)', StaticFileHandler, {'path': wwwDir / 'dist'}),
         ('/devices/([^/]+)/websocket', WebsocketHandler),
         ('/devices/([^/]+)/run-command', CommandHandler),

@@ -3,7 +3,8 @@
         <sb-navbar :device="device" :devices="devices" :connections="connections">
             <b-navbar-nav class="mr-auto">
                 <b-nav-item-dropdown text="View">
-                    <b-dropdown-item @click="reset_visibility"><i class="fas fa-minus-square"></i>Reset</b-dropdown-item>
+                    <b-dropdown-item @click="reset_visibility"><i class="fas fa-minus-square"></i>Reset layout</b-dropdown-item>
+                    <b-dropdown-item @click="reset_terms"><i class="fas fa-eraser"></i>Clear</b-dropdown-item>
                     <b-dropdown-divider></b-dropdown-divider>
                     <b-dropdown-item v-for="node in nodes" @click="node_toggle_visibility(node)"><i class="fas" :class="node_is_visible(node) ? 'fa-check-square' : 'fa-square'"></i>{{ node.name }}</b-dropdown-item>
                 </b-nav-item-dropdown>
@@ -306,6 +307,11 @@
             },
             reset_visibility: function() {
                 this.node_visibility = {};
+            },
+            reset_terms: function() {
+                for(const term of this.terminals.values()) {
+                    term.reset();
+                }
             },
             log_start: function() {
                 this.log.start = Date.now();
