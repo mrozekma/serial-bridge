@@ -52,10 +52,18 @@
                 <div v-once class="content" ref="term-content" :data-name="node.name"></div>
             </div>
         </div>
-        <sb-callout v-if="!serial_connected" type="danger" title="Disconnected">
-            This device's serial ports have been disconnected from Serial Bridge. This is typically so someone can connect to those ports directly, but in the meantime they are inaccessible via TCP or this web interface.<br><br>
-            <b-button variant="primary" @click="serial_connect">Reconnect ports</b-button>
-        </sb-callout>
+        <template v-if="!serial_connected">
+            <sb-callout type="danger" title="Disconnected">
+                This device's serial ports have been disconnected from Serial Bridge. This is typically so someone can connect to those ports directly, but in the meantime they are inaccessible via TCP or this web interface.<br><br>
+                <b-button variant="primary" @click="serial_connect">Reconnect ports</b-button>
+            </sb-callout>
+            <sb-callout type="info" title="Ports">
+                For reference, this device uses the following serial ports:<br><br>
+                <table class="com_ports">
+                    <tr v-for="node in nodes"><td>{{ node.com_port }}</td><td>{{ node.name }}</td></tr>
+                </table>
+            </sb-callout>
+        </template>
     </div>
 </template>
 
@@ -447,10 +455,18 @@
 
     .root > .bd-callout {
         margin-left: 20px;
+        margin-right: 20px;
     }
 
     .hidden {
         display: none !important;
+    }
+
+    table.com_ports {
+        td:first-child {
+            font-weight: bold;
+            padding-right: 10px;
+        }
     }
 </style>
 
