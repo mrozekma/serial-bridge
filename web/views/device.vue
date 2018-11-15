@@ -41,8 +41,8 @@
             </b-navbar-nav>
         </sb-navbar>
         <!-- It's important never to remove the .term elements from the DOM, since the xterms are attached. Instead a style dynamically hides them -->
-        <div class="body" ref="body" :class="{hidden: !serial_connected, wrapped: body_wrapped, odd: (nodes.filter(node_is_visible).length % 2 == 1)}" :style="{'--term-height': `${term_height}px`, '--term-width': `${term_width}px`}">
-            <div v-for="node in nodes_by_column" :key="node.name" class="term" :class="node_is_visible(node) ? null : 'hidden'" ref="term">
+        <div class="body" ref="body" :class="{hidden: !serial_connected, odd: (nodes.filter(node_is_visible).length % 2 == 1)}" :style="layout_style">
+            <div v-for="node in nodes" :key="node.name" class="term" :class="node_is_visible(node) ? null : 'hidden'" ref="term">
                 <div class="title">
                     <div>
                         {{ node.name }}
@@ -94,40 +94,26 @@
         components: {SbNavbar, SbCallout},
         props: ['version_hash', 'device', 'devices', 'nodes', 'commands'],
         computed: {
-            // The user provides the terminals in row order, but we need them in column order for the flex layout
-            nodes_by_column: function() {
-                const wrap = function*(nodes) {
-                    let len = nodes.length;
-                    const mid = len / 2;
-                    for(let i = 0; len >= 2; i++, len -= 2) {
-                        yield nodes[i];
-                        yield nodes[i + mid];
-                    }
-                    // if(len) {
-                    //     yield nodes[mid - 1];
-                    // }
+            layout_style: function() {
+                return {
+                    '--term-rows': this.layout.rows,
+                    '--term-cols': this.layout.cols,
+                    '--term-height': `${this.layout.height}px`,
+                    '--term-width': `${this.layout.width}px`,
                 };
-
-                // Do the layout using the visible nodes. Tack the invisible ones onto the end since it doesn't matter where they are
-                const [visible, invisible] = _.partition(this.nodes, this.node_is_visible);
-                if(visible.length == 0) {
-                    return invisible;
-                } else if(visible.length % 2 == 0) {
-                    return [...wrap(visible), ...invisible];
-                } else {
-                    // The first terminal will be double-tall, so it doesn't participate in alternating rows like the others
-                    return [visible[0], ...wrap(visible.slice(1)), ...invisible];
-                }
-            },
+            }
         },
         data: function() {
             return {
                 connections: null,
                 serial_connected: true,
                 terminals: new Map(), // NB: Maps are not reactive
-                term_width: 0,
-                term_height: 0,
-                body_wrapped: false,
+                layout: {
+                    rows: 0,
+                    cols: 0,
+                    width: 0,
+                    height: 0,
+                },
                 node_visibility: JSON.parse(localStorage.getItem('node_visibility')) || {},
                 mounting: false,
                 log: {
@@ -236,29 +222,24 @@
         },
         methods: {
             size_terminals: function() {
-                const num_rows = 2;
-                const num_cols = Math.ceil(this.nodes.filter(this.node_is_visible).length / num_rows);
+                this.layout.rows = 2;
+                this.layout.cols = Math.ceil(this.nodes.filter(this.node_is_visible).length / this.layout.rows);
 
                 // Figure out the height of each terminal, which is slightly complicated:
-                // Total height available, minus 40px for body padding, divided by the number of rows, rounded down to a multiple of 17px to fit xterm's line height, minus 17px for the lower terminal margin
-                const height = Math.floor((this.$refs['body'].clientHeight - 40) / num_rows);
-                this.term_height = height - (height % 17) - 17;
+                // Total height available, minus 20px for body bottom padding, divided by the number of rows, rounded down to a multiple of 17px to fit xterm's line height, minus 17px for the lower terminal margin
+                this.layout.height = Math.floor((this.$refs['body'].clientHeight - 20) / this.layout.rows);
+                this.layout.height = this.layout.height - (this.layout.height % 17) - 17;
 
                 // The term width is more straightforward -- just divide up the available space (body width - 40px padding)
                 // This could be done in CSS as calc(25% - 5px), but if the percentage isn't an integer it can cause very minor rendering problems in the term titlebar
-                this.term_width = Math.floor((this.$refs['body'].clientWidth - 40) / num_cols - 5);
+                this.layout.width = Math.floor((this.$refs['body'].clientWidth - 40) / this.layout.cols - 5);
 
-                // For some reason that feels like a Chrome bug, the flexbox is overly aggressive with the wrapping when the terminals are resized here.
-                // To work around this, we temporarily disable flexbox wrapping and turn it back on next tick after the xterms are fitted.
-                this.body_wrapped = false;
-
-                // Wait for term_height and term_width to update
+                // Wait for the new layout to render
                 this.$nextTick(function() {
                     // Fit the xterms to the containers
                     for (var term of this.terminals.values()) {
                         term.fit();
                     }
-                    this.body_wrapped = true;
                 });
             },
             run_command: function(command) {
@@ -413,23 +394,18 @@
     }
 
     .body {
-        display: flex;
-        flex-direction: column;
-        &.wrapped {
-            flex-wrap: wrap;
-        }
-        justify-content: flex-start; //space-around;
+        display: grid;
+        // The CSS variables here are attached to this element via a style attribute
+        grid-template-columns: repeat(var(--term-cols), var(--term-width));
+        grid-template-rows:  repeat(var(--term-rows), var(--term-height));
+        grid-column-gap: 10px;
+        grid-row-gap: 17px;
         height: calc(100% - 32px);
         padding: 20px;
     }
 
     .term {
         border: 3px solid #888;
-        margin-bottom: 17px;
-        margin-right: 10px;
-        /*width: calc(25% - 5px);*/
-        width: var(--term-width);
-        height: var(--term-height);
 
         .title {
             width: 100%;
@@ -466,7 +442,7 @@
     }
 
     .body.odd .term:first-child {
-        height: calc(var(--term-height) * 2 + 17px);
+        grid-row-end: span 2;
     }
 
     .root > .bd-callout {
