@@ -4,11 +4,10 @@ import html
 import json
 import socket
 import traceback
-from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
 from textwrap import dedent
-from typing import Dict, Set
+from typing import Dict
 
 from slugify import slugify
 import tornado.ioloop
@@ -21,7 +20,6 @@ from Node import Node
 
 devices: Dict[str, Device] = {}
 slugs: Dict[str, str] = {}
-sockets: Dict[str, Set['WebsocketHandler']] = defaultdict(set) # {device name: {socket}}
 
 wwwDir = Path('web')
 
@@ -112,7 +110,7 @@ class WebsocketHandler(WebSocketHandler):
         self.device = devices[slugs[slug]]
 
         print('ws open')
-        sockets[self.device.name].add(self)
+        self.device.websockets.add(self)
         WebsocketHandler.sendConnectionInfo(self.device)
         self.send({'type': 'serial-state', 'connected': self.device.serialConnected})
 
@@ -121,15 +119,15 @@ class WebsocketHandler(WebSocketHandler):
 
     def on_close(self):
         print('ws close')
-        sockets[self.device.name].remove(self)
+        self.device.websockets.remove(self)
         WebsocketHandler.sendConnectionInfo(self.device)
 
     def send(self, data):
         self.write_message(json.dumps({'version_hash': versionHash, **data}))
 
     @staticmethod
-    def sendAll(deviceName, data):
-        for socket in sockets[deviceName]:
+    def sendAll(device, data):
+        for socket in device.websockets:
             try:
                 socket.send(data)
             except Exception:
@@ -141,11 +139,11 @@ class WebsocketHandler(WebSocketHandler):
             return any(highlight['type'] in (None, type) and highlight['name'] in (addr, name) for highlight in device.webConnectionHighlights)
 
         tcpAddrs = {client.client_address[0] for node in device.nodes for client in node.clients}
-        webAddrs = {handler.request.remote_ip for handler in sockets[device.name]}
+        webAddrs = {handler.request.remote_ip for handler in device.websockets}
 
         names = [{'type': 'tcp', 'name': ipToName(addr), 'highlighted': isHighlighted('tcp', addr, ipToName(addr))} for addr in tcpAddrs] \
               + [{'type': 'web', 'name': ipToName(addr), 'highlighted': isHighlighted('web', addr, ipToName(addr))} for addr in webAddrs]
-        WebsocketHandler.sendAll(device.name, {'type': 'connections', 'data': sorted(names, key = lambda e: e['name'])})
+        WebsocketHandler.sendAll(device, {'type': 'connections', 'data': sorted(names, key = lambda e: e['name'])})
 
 class CommandHandler(RequestHandler):
     def post(self, slug):
@@ -176,7 +174,7 @@ class SerialConnectionHandler(RequestHandler):
         else:
             raise ValueError(f"Bad state: {state}")
 
-        WebsocketHandler.sendAll(device.name, {'type': 'serial-state', 'connected': device.serialConnected})
+        WebsocketHandler.sendAll(device, {'type': 'serial-state', 'connected': device.serialConnected})
 
 def listen(port: int, _devices: Dict[str, Device]):
     global devices, slugs
@@ -197,9 +195,11 @@ def listen(port: int, _devices: Dict[str, Device]):
                 traceback.print_exc()
                 return
 
-            WebsocketHandler.sendAll(node.device.name, {'type': 'data', 'node': node.name, 'data': dataStr})
+            WebsocketHandler.sendAll(node.device, {'type': 'data', 'node': node.name, 'data': dataStr})
 
     for device in devices.values():
+        device.websockets = set()
+
         for node in device.nodes:
             node.signals['connect'].connect(onTcpConnectDisconnect)
             node.signals['disconnect'].connect(onTcpConnectDisconnect)
