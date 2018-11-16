@@ -19,8 +19,10 @@
                 <b-nav-item-dropdown text="Admin">
                     <b-dropdown-item @click="serial_disconnect"><i class="fas fa-network-wired"></i>Serial disconnect</b-dropdown-item>
                 </b-nav-item-dropdown>
-                <b-nav-text v-if="jenkins.build_name || jenkins.status" class="jenkins">
-                    <i class="fab fa-jenkins"></i> <a v-if="jenkins.build_name" :href="jenkins.build_link">{{ jenkins.build_name }}</a> <template v-if="jenkins.build_name && jenkins.status">&bull;</template> <template v-if="jenkins.status">{{ jenkins.status }}</template>
+                <b-nav-text v-if="jenkins.build_name" class="jenkins">
+                    <i class="fab fa-jenkins"></i>&nbsp;<a v-if="jenkins.build_name" :href="jenkins.build_link">{{ jenkins.build_name }}</a>
+                    <template v-if="jenkins.stage">&bull; {{ jenkins.stage }}</template>
+                    <template v-if="jenkins.task">&bull; {{ jenkins.task}}</template>
                 </b-nav-text>
             </b-navbar-nav>
             <b-navbar-nav>
@@ -134,7 +136,8 @@
                 jenkins: {
                     build_name: null,
                     build_link: null,
-                    status: null,
+                    stage: null,
+                    task: null,
                 },
             };
         },
@@ -206,7 +209,8 @@
                     case 'jenkins':
                         self.jenkins.build_name = msg.build_name;
                         self.jenkins.build_link = msg.build_link;
-                        self.jenkins.status = msg.status;
+                        self.jenkins.stage = msg.stage;
+                        self.jenkins.task = msg.task;
                         break;
                     case 'data':
                         self.terminals.get(msg.node).write(msg.data);

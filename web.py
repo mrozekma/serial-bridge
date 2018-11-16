@@ -179,35 +179,68 @@ class SerialConnectionHandler(RequestHandler):
 
 class JenkinsInfo:
     def __init__(self):
+        self.clear()
+
+    def clear(self):
         self.buildName = None
         self.buildLink = None
-        self.status = None
+        self.stages = []
+        self.tasks = []
 
     def updateBuild(self, buildName, buildLink):
         self.buildName = buildName
         self.buildLink = buildLink
-        self.status = None
+        self.stages = []
+        self.tasks = []
 
-    def updateStatus(self, status):
-        self.status = status
+    def pushStage(self, stage):
+        self.checkBuild()
+        self.stages.append(stage)
+
+    def popStage(self):
+        if self.stages:
+            self.stages.pop()
+
+    def pushTask(self, task):
+        self.checkBuild()
+        self.tasks.append(task)
+
+    def popTask(self):
+        if self.tasks:
+            self.tasks.pop()
+
+    def checkBuild(self):
+        if self.buildName is None:
+            raise RuntimeError("Can't push stage or task without an active build")
 
     def toDict(self):
         return {
             'build_name': self.buildName,
             'build_link': self.buildLink,
-            'status': self.status,
+            'stage': self.stages[-1] if self.stages else None,
+            'task': self.tasks[-1] if self.tasks else None,
         }
 
 class JenkinsHandler(RequestHandler):
-    def post(self):
+    def post(self, action):
         data = json.loads(self.request.body)
         device = devices[data['device']]
-        if ('build_name' in data) != ('build_link' in data):
-            raise ValueError("build_name and build_link must be included together")
-        if 'build_name' in data:
+        if action == 'build-start':
             device.jenkins.updateBuild(data['build_name'], data['build_link'])
-        if 'status' in data:
-            device.jenkins.updateStatus(data['status'])
+        elif action == 'build-stop':
+            device.jenkins.clear()
+        elif action == 'stage-push':
+            device.jenkins.pushStage(data['stage'])
+        elif action == 'stage-pop':
+            device.jenkins.popStage()
+        elif action == 'task-push':
+            device.jenkins.pushTask(data['task'])
+        elif action == 'task-pop':
+            device.jenkins.popTask()
+        else:
+            self.send_error(404)
+            return
+
         WebsocketHandler.sendAll(device, {'type': 'jenkins', **device.jenkins.toDict()})
 
 def listen(port: int, _devices: Dict[str, Device]):
@@ -251,7 +284,7 @@ def listen(port: int, _devices: Dict[str, Device]):
         ('/devices/([^/]+)/websocket', WebsocketHandler),
         ('/devices/([^/]+)/run-command', CommandHandler),
         ('/devices/([^/]+)/serial-connection', SerialConnectionHandler),
-        ('/jenkins', JenkinsHandler),
+        ('/jenkins/(.+)', JenkinsHandler),
     ]
 
     asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
