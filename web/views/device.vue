@@ -19,6 +19,9 @@
                 <b-nav-item-dropdown text="Admin">
                     <b-dropdown-item @click="serial_disconnect"><i class="fas fa-network-wired"></i>Serial disconnect</b-dropdown-item>
                 </b-nav-item-dropdown>
+                <b-nav-text v-if="jenkins.build_name || jenkins.status" class="jenkins">
+                    <i class="fab fa-jenkins"></i> <a v-if="jenkins.build_name" :href="jenkins.build_link">{{ jenkins.build_name }}</a> <template v-if="jenkins.build_name && jenkins.status">&bull;</template> <template v-if="jenkins.status">{{ jenkins.status }}</template>
+                </b-nav-text>
             </b-navbar-nav>
             <b-navbar-nav>
                 <b-nav-item v-if="log.start !== null" v-b-tooltip.hover.bottomleft :title="`Logging since ${new Date(log.start).toLocaleString()}`" @click="log_end">
@@ -128,6 +131,11 @@
                     start: null,
                     nodes: null,
                 },
+                jenkins: {
+                    build_name: null,
+                    build_link: null,
+                    status: null,
+                },
             };
         },
         watch: {
@@ -194,6 +202,11 @@
                         break;
                     case 'serial-state':
                         self.serial_connected = msg.connected;
+                        break;
+                    case 'jenkins':
+                        self.jenkins.build_name = msg.build_name;
+                        self.jenkins.build_link = msg.build_link;
+                        self.jenkins.status = msg.status;
                         break;
                     case 'data':
                         self.terminals.get(msg.node).write(msg.data);
@@ -471,8 +484,22 @@
 </style>
 
 <!-- This is unscoped because the navbar comes from a separate component and the scopes interact oddly -->
-<style>
+<style lang="less">
     .navbar-nav .nav-item.running a.nav-link {
         color: #f00;
+    }
+
+    .navbar-nav .jenkins {
+        color: #343a40; // Navbar background color
+        background-color: #fff;
+        border-radius: 5px;
+        margin-left: 50px;
+        padding-left: 10px;
+        padding-right: 10px;
+
+        a, a:hover {
+            color: #007bff;
+            text-decoration: none;
+        }
     }
 </style>

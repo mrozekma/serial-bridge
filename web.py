@@ -113,6 +113,7 @@ class WebsocketHandler(WebSocketHandler):
         self.device.websockets.add(self)
         WebsocketHandler.sendConnectionInfo(self.device)
         self.send({'type': 'serial-state', 'connected': self.device.serialConnected})
+        self.send({'type': 'jenkins', **self.device.jenkins.toDict()})
 
     def on_message(self, message):
         print('ws message: %s' % message)
@@ -176,6 +177,39 @@ class SerialConnectionHandler(RequestHandler):
 
         WebsocketHandler.sendAll(device, {'type': 'serial-state', 'connected': device.serialConnected})
 
+class JenkinsInfo:
+    def __init__(self):
+        self.buildName = None
+        self.buildLink = None
+        self.status = None
+
+    def updateBuild(self, buildName, buildLink):
+        self.buildName = buildName
+        self.buildLink = buildLink
+        self.status = None
+
+    def updateStatus(self, status):
+        self.status = status
+
+    def toDict(self):
+        return {
+            'build_name': self.buildName,
+            'build_link': self.buildLink,
+            'status': self.status,
+        }
+
+class JenkinsHandler(RequestHandler):
+    def post(self):
+        data = json.loads(self.request.body)
+        device = devices[data['device']]
+        if ('build_name' in data) != ('build_link' in data):
+            raise ValueError("build_name and build_link must be included together")
+        if 'build_name' in data:
+            device.jenkins.updateBuild(data['build_name'], data['build_link'])
+        if 'status' in data:
+            device.jenkins.updateStatus(data['status'])
+        WebsocketHandler.sendAll(device, {'type': 'jenkins', **device.jenkins.toDict()})
+
 def listen(port: int, _devices: Dict[str, Device]):
     global devices, slugs
     devices = _devices
@@ -199,6 +233,7 @@ def listen(port: int, _devices: Dict[str, Device]):
 
     for device in devices.values():
         device.websockets = set()
+        device.jenkins = JenkinsInfo()
 
         for node in device.nodes:
             node.signals['connect'].connect(onTcpConnectDisconnect)
@@ -216,6 +251,7 @@ def listen(port: int, _devices: Dict[str, Device]):
         ('/devices/([^/]+)/websocket', WebsocketHandler),
         ('/devices/([^/]+)/run-command', CommandHandler),
         ('/devices/([^/]+)/serial-connection', SerialConnectionHandler),
+        ('/jenkins', JenkinsHandler),
     ]
 
     asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
