@@ -229,6 +229,8 @@ class JenkinsHandler(RequestHandler):
             device.jenkins.updateBuild(data['build_name'], data['build_link'])
         elif action == 'build-stop':
             device.jenkins.clear()
+            WebsocketHandler.sendAll(device, {'type': 'jenkins', 'result': data['result']})
+            return
         elif action == 'stage-push':
             device.jenkins.pushStage(data['stage'])
         elif action == 'stage-pop':

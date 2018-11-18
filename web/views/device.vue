@@ -19,11 +19,7 @@
                 <b-nav-item-dropdown text="Admin">
                     <b-dropdown-item @click="serial_disconnect"><i class="fas fa-network-wired"></i>Serial disconnect</b-dropdown-item>
                 </b-nav-item-dropdown>
-                <b-nav-text v-if="jenkins.build_name" class="jenkins">
-                    <i class="fab fa-jenkins"></i>&nbsp;<a v-if="jenkins.build_name" :href="jenkins.build_link">{{ jenkins.build_name }}</a>
-                    <template v-if="jenkins.stage">&bull; {{ jenkins.stage }}</template>
-                    <template v-if="jenkins.task">&bull; {{ jenkins.task}}</template>
-                </b-nav-text>
+                <sb-jenkins v-bind="jenkins" class="jenkins" @close="jenkins_close"></sb-jenkins>
             </b-navbar-nav>
             <b-navbar-nav>
                 <b-nav-item v-if="log.start !== null" v-b-tooltip.hover.bottomleft :title="`Logging since ${new Date(log.start).toLocaleString()}`" @click="log_end">
@@ -103,8 +99,9 @@
 
     import SbNavbar from '../components/sb-navbar';
     import SbCallout from '../components/sb-callout';
+    import SbJenkins from '../components/sb-jenkins';
     export default {
-        components: {SbNavbar, SbCallout},
+        components: {SbNavbar, SbCallout, SbJenkins},
         props: ['version_hash', 'device', 'devices', 'nodes', 'commands'],
         computed: {
             layout_style: function() {
@@ -138,6 +135,7 @@
                     build_link: null,
                     stage: null,
                     task: null,
+                    result: null,
                 },
             };
         },
@@ -207,10 +205,17 @@
                         self.serial_connected = msg.connected;
                         break;
                     case 'jenkins':
-                        self.jenkins.build_name = msg.build_name;
-                        self.jenkins.build_link = msg.build_link;
-                        self.jenkins.stage = msg.stage;
-                        self.jenkins.task = msg.task;
+                        if(msg.result === true || msg.result === false) {
+                            self.jenkins.result = msg.result;
+                            self.jenkins.stage = null;
+                            self.jenkins.task = null;
+                        } else {
+                            self.jenkins.build_name = msg.build_name;
+                            self.jenkins.build_link = msg.build_link;
+                            self.jenkins.stage = msg.stage;
+                            self.jenkins.task = msg.task;
+                            self.jenkins.result = null;
+                        }
                         break;
                     case 'data':
                         self.terminals.get(msg.node).write(msg.data);
@@ -401,7 +406,10 @@
                         }
                     });
                 }, 100);
-            }
+            },
+            jenkins_close: function() {
+                Object.keys(this.jenkins).forEach(k => this.jenkins[k] = null);
+            },
         },
     }
 </script>
@@ -494,16 +502,7 @@
     }
 
     .navbar-nav .jenkins {
-        color: #343a40; // Navbar background color
-        background-color: #fff;
-        border-radius: 5px;
         margin-left: 50px;
-        padding-left: 10px;
-        padding-right: 10px;
 
-        a, a:hover {
-            color: #007bff;
-            text-decoration: none;
-        }
     }
 </style>
