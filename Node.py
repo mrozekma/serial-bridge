@@ -16,16 +16,19 @@ class TCPHandler(BaseRequestHandler):
         self.server.node.addClient(self)
 
     def handle(self):
-        while True:
-            inc = self.request.recv(1024)
-            if inc:
-                print(inc)
-                try:
-                    self.server.node.tcpToSerial(inc)
-                except Exception as e:
-                    traceback.print_exc()
-            else:
-                break
+        try:
+            while True:
+                inc = self.request.recv(1024)
+                if inc:
+                    print(inc)
+                    try:
+                        self.server.node.tcpToSerial(inc)
+                    except Exception as e:
+                        traceback.print_exc()
+                else:
+                    break
+        except ConnectionResetError:
+            print(f"{self.server.node}: Connection reset")
 
     def finish(self):
         print(f"{self.server.node}: Lost connection to {self.client_address}")
@@ -77,7 +80,10 @@ class Node:
 
     def serialToTcp(self, data: bytes):
         for client in self.clients:
-            client.request.sendall(data)
+            try:
+                client.request.sendall(data)
+            except ConnectionResetError:
+                print(f"{client}: Connection reset")
         self.signals['data'].send(self, source = 'serial', data = data)
 
     def tcpToSerial(self, data: bytes):
