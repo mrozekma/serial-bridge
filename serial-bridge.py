@@ -38,5 +38,8 @@ print("Ready")
 while True:
     for device in devices.values():
         for node in device.nodes:
-            node.poll()
+            try:
+                node.poll()
+            except Exception as e:
+                print(e)
     time.sleep(.0001)
