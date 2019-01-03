@@ -5,6 +5,8 @@
                 <b-nav-item-dropdown text="View">
                     <b-dropdown-item @click="reset_visibility"><i class="fas fa-minus-square"></i>Reset layout</b-dropdown-item>
                     <b-dropdown-item @click="reset_terms"><i class="fas fa-eraser"></i>Clear</b-dropdown-item>
+                    <b-dropdown-item v-if="show_new_data" @click="show_new_data = false"><i class="fas fa-pause-circle"></i>Pause</b-dropdown-item>
+                    <b-dropdown-item v-else @click="show_new_data = true"><i class="fas fa-play-circle"></i>Unpause</b-dropdown-item>
                     <b-dropdown-divider></b-dropdown-divider>
                     <b-dropdown-item v-for="node in nodes" @click="node_toggle_visibility(node)"><i class="fas" :class="node_is_visible(node) ? 'fa-check-square' : 'fa-square'"></i>{{ node.name }}</b-dropdown-item>
                 </b-nav-item-dropdown>
@@ -22,6 +24,15 @@
                 <sb-jenkins v-bind="jenkins" class="jenkins" @close="jenkins_close"></sb-jenkins>
             </b-navbar-nav>
             <b-navbar-nav>
+                <b-nav-item v-if="!show_new_data" ref="pausedIcon" class="pause-icon" @click="show_new_data = !show_new_data">
+                    <i class="fas fa-pause-circle"></i>
+                    <b-tooltip :target="() => $refs.pausedIcon" placement="bottomleft">
+                        <div>
+                            <b>Output Paused</b><br>
+                            Output during this<br>time is discarded.
+                        </div>
+                    </b-tooltip>
+                </b-nav-item>
                 <b-nav-item v-if="log.start !== null" v-b-tooltip.hover.bottomleft :title="`Logging since ${new Date(log.start).toLocaleString()}`" @click="log_end">
                     <i class="fas fa-edit"></i>
                 </b-nav-item>
@@ -117,6 +128,7 @@
             return {
                 connections: null,
                 serial_connected: true,
+                show_new_data: true,
                 terminals: new Map(), // NB: Maps are not reactive
                 layout: {
                     rows: 0,
@@ -124,6 +136,7 @@
                     width: 0,
                     height: 0,
                 },
+                term_color: null,
                 node_visibility: JSON.parse(localStorage.getItem('node_visibility')) || {},
                 mounting: false,
                 log: {
@@ -140,6 +153,18 @@
             };
         },
         watch: {
+            connections: function() {this.term_color = this.compute_term_color();},
+            show_new_data: function() {this.term_color = this.compute_term_color();},
+            term_color: function(val) {
+                const theme = val ? {background: val} : {};
+                // Updating the terminal themes is a bit slow, so defer it until the menu has time to close or it gets stuck on screen
+                setTimeout(() => {
+                    for(const term of this.terminals.values()) {
+                        console.log(term);
+                        term.setOption('theme', theme);
+                    }
+                }, 0);
+            },
             node_visibility: {
                 handler: function(val) {
                     if(!_.isEmpty(val)) {
@@ -218,7 +243,9 @@
                         }
                         break;
                     case 'data':
-                        self.terminals.get(msg.node).write(msg.data);
+                        if(self.show_new_data) {
+                            self.terminals.get(msg.node).write(msg.data);
+                        }
                         if(self.log.nodes != null) {
                             var logNode = self.log.nodes.get(msg.node);
                             logNode.fragments.push({when: Date.now() - self.log.start, data: msg.data});
@@ -267,10 +294,15 @@
                 // Wait for the new layout to render
                 this.$nextTick(function() {
                     // Fit the xterms to the containers
-                    for (var term of this.terminals.values()) {
+                    for(var term of this.terminals.values()) {
                         term.fit();
                     }
                 });
+            },
+            compute_term_color: function() {
+                return (this.connections === null) ? '#700' :
+                       !this.show_new_data         ? '#007' :
+                                                     null;
             },
             run_command: function(command) {
                 var toast = Vue.toasted.show("Running...", {duration: null, type: 'info', icon: 'clock'});
