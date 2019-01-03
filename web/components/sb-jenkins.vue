@@ -1,15 +1,15 @@
 <template>
-    <b-nav-text v-if="build_name" :class="`jenkins result-${result}`" @click="click">
+    <b-nav-text v-if="build" :class="`jenkins result-${result}`" @click="click">
         <i :class="icon"></i>
-        <a v-if="build_name" :href="build_link" target="_blank">{{ build_name }}</a>
-        <template v-if="stage">&bull; {{ stage }}</template>
-        <template v-if="task">&bull; {{ task}}</template>
+        <a v-if="build.link" :href="build.link" target="_blank">{{ renderStr('build') }}</a>
+        <template v-if="stage">&bull; {{ renderStr('stage') }}</template>
+        <template v-if="task">&bull; {{ renderStr('task') }}</template>
     </b-nav-text>
 </template>
 
 <script>
     export default {
-        props: ['build_name', 'build_link', 'stage', 'task', 'result'],
+        props: ['build', 'stage', 'task', 'times', 'result'],
         computed: {
             icon: function() {
                 switch(this.result) {
@@ -20,6 +20,19 @@
             },
         },
         methods: {
+            renderStr: function(name) {
+                if(!this.times || !this.times[name]) {
+                    return this[name].name;
+                }
+                const total_secs = Math.max(0, Math.floor(this.times[name] / 1000));
+                const hours = Math.floor(total_secs / 60 / 60);
+                const minutes = Math.floor((total_secs - hours * 60 * 60) / 60);
+                const secs = Math.floor(total_secs - hours * 60 * 60 - minutes * 60);
+
+                const twoDigit = d => d < 10 ? '0' + d : '' + d;
+                const timeStr = hours ? `${hours}:${twoDigit(minutes)}:${twoDigit(secs)}` : `${minutes}:${twoDigit(secs)}`;
+                return `${this[name].name} (${timeStr})`;
+            },
             click: function() {
                 if(this.result === true || this.result === false) {
                     this.$emit('close');

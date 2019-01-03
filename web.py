@@ -6,6 +6,7 @@ import json
 import socket
 import traceback
 import zipfile
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from textwrap import dedent
@@ -159,7 +160,7 @@ class WebsocketHandler(WebSocketHandler):
         self.device.websockets.add(self)
         WebsocketHandler.sendConnectionInfo(self.device)
         self.send({'type': 'serial-state', 'connected': self.device.serialConnected})
-        self.send({'type': 'jenkins', **self.device.jenkins.toDict()})
+        self.send({'type': 'jenkins', 'now': int(datetime.now().timestamp() * 1000), **self.device.jenkins.toDict()})
 
     def on_message(self, message):
         print('ws message: %s' % message)
@@ -230,18 +231,20 @@ class JenkinsInfo:
     def clear(self):
         self.buildName = None
         self.buildLink = None
+        self.buildStart = None
         self.stages = []
         self.tasks = []
 
     def updateBuild(self, buildName, buildLink):
         self.buildName = buildName
         self.buildLink = buildLink
+        self.buildStart = datetime.now()
         self.stages = []
         self.tasks = []
 
     def pushStage(self, stage):
         self.checkBuild()
-        self.stages.append(stage)
+        self.stages.append((stage, datetime.now()))
 
     def popStage(self):
         if self.stages:
@@ -249,7 +252,7 @@ class JenkinsInfo:
 
     def pushTask(self, task):
         self.checkBuild()
-        self.tasks.append(task)
+        self.tasks.append((task, datetime.now()))
 
     def popTask(self):
         if self.tasks:
@@ -260,11 +263,12 @@ class JenkinsInfo:
             raise RuntimeError("Can't push stage or task without an active build")
 
     def toDict(self):
+        stage = self.stages[-1] if self.stages else None
+        task = self.tasks[-1] if self.tasks else None
         return {
-            'build_name': self.buildName,
-            'build_link': self.buildLink,
-            'stage': self.stages[-1] if self.stages else None,
-            'task': self.tasks[-1] if self.tasks else None,
+            'build': {'name': self.buildName, 'link': self.buildLink, 'start': int(self.buildStart.timestamp() * 1000)} if self.buildName else None,
+            'stage': {'name': stage[0], 'start': int(stage[1].timestamp() * 1000)} if stage else None,
+            'task': {'name': task[0], 'start': int(task[1].timestamp() * 1000)} if task else None,
         }
 
 class JenkinsHandler(RequestHandler):
@@ -289,7 +293,7 @@ class JenkinsHandler(RequestHandler):
             self.send_error(404)
             return
 
-        WebsocketHandler.sendAll(device, {'type': 'jenkins', 'action': action, **device.jenkins.toDict()})
+        WebsocketHandler.sendAll(device, {'type': 'jenkins', 'action': action, 'now': int(datetime.now().timestamp() * 1000), **device.jenkins.toDict()})
 
 def listen(port: int, _devices: Dict[str, Device]):
     global devices, slugs

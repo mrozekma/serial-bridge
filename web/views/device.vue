@@ -144,11 +144,11 @@
                     nodes: null,
                 },
                 jenkins: {
-                    build_name: null,
-                    build_link: null,
+                    build: null,
                     stage: null,
                     task: null,
                     result: null,
+                    times: null,
                 },
             };
         },
@@ -234,22 +234,36 @@
                             self.jenkins.result = msg.result;
                             self.jenkins.stage = null;
                             self.jenkins.task = null;
+                            clearInterval(self.jenkins.times.tick);
+                            self.jenkins.times = null;
                         } else {
-                            self.jenkins.build_name = msg.build_name;
-                            self.jenkins.build_link = msg.build_link;
+                            self.jenkins.build = msg.build;
                             self.jenkins.stage = msg.stage;
                             self.jenkins.task = msg.task;
                             self.jenkins.result = null;
+
+                            //TODO Possibly this should be in sb-jenkins
+                            if(self.jenkins.build && !self.jenkins.times) {
+                                const now = new Date().getTime();
+                                const corr = now - msg.now; // Add this to received times to correct for skew
+                                const times = self.jenkins.times = {tick: null, build: null, stage: null, task: null};
+                                times.tick = setInterval(function() {
+                                    const now = new Date().getTime() + corr;
+                                    times.build = now - self.jenkins.build.start;
+                                    times.stage = self.jenkins.stage ? now - self.jenkins.stage.start : null;
+                                    times.task = self.jenkins.task ? now - self.jenkins.task.start : null;
+                                }, 1000);
+                            }
                         }
                         switch(msg.action) {
                             case 'build-start':
-                                self.term_draw_line(self.jenkins.build_name, 'start');
+                                self.term_draw_line(self.jenkins.build.name, 'start');
                                 break;
                             case 'build-stop':
-                                self.term_draw_line(self.jenkins.build_name, 'end');
+                                self.term_draw_line(self.jenkins.build.name, 'end');
                                 break;
                             case 'stage-push':
-                                self.term_draw_line(self.jenkins.stage);
+                                self.term_draw_line(self.jenkins.stage.name);
                                 break;
                         }
                         break;
