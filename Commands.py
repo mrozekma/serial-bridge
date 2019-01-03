@@ -1,6 +1,6 @@
 from functools import lru_cache
 import importlib
-from typing import List
+from typing import Callable, List, Optional
 
 from Node import Node
 
@@ -38,7 +38,7 @@ class Commands:
     def __init__(self, scriptName):
         self.commandList, self.commands = Commands.loadCommands(scriptName)
 
-    def run(self, name, nodes: List[Node]):
+    def run(self, name, nodes: List[Node], termLineFn: Callable[[str, Optional[str]], None]):
         nodes = {node.name: node for node in nodes}
 
         class API:
@@ -47,6 +47,9 @@ class Commands:
 
             def sendln(self, nodeName, command = ''):
                 self.send(nodeName, command + '\r\n')
+
+            def termLine(self, label = ''):
+                termLineFn(label)
 
         self.commands[name](API())
 

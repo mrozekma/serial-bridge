@@ -205,7 +205,10 @@ class CommandHandler(RequestHandler):
             self.send_error(403)
             return
 
-        device.commands.run(name, device.nodes)
+        def termLine(label, caps = None):
+            WebsocketHandler.sendAll(device, {'type': 'term-line', 'label': label, 'caps': caps})
+
+        device.commands.run(name, device.nodes, termLine)
 
 class SerialConnectionHandler(RequestHandler):
     def post(self, slug):

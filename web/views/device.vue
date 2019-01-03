@@ -277,6 +277,9 @@
                             logNode.size += msg.data.length;
                         }
                         break;
+                    case 'term-line':
+                        self.term_draw_line(msg.label, msg.caps)
+                        break;
                 }
             };
 
@@ -499,8 +502,8 @@
             },
             term_draw_line: function(label, caps) {
                 // https://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x622.html
-                const leftCap = {start: 'l', end: 'm', undefined: 'q'}[caps];
-                const rightCap = {start: 'k', end: 'j', undefined: 'q'}[caps];
+                const leftCap = {start: 'l', end: 'm', undefined: 'q', null: 'q'}[caps];
+                const rightCap = {start: 'k', end: 'j', undefined: 'q', null: 'q'}[caps];
                 const line = 'q';
 
                 for(const term of this.terminals.values()) {
