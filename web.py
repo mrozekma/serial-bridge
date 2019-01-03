@@ -1,9 +1,11 @@
 import asyncio
 import hashlib
 import html
+import io
 import json
 import socket
 import traceback
+import zipfile
 from functools import lru_cache
 from pathlib import Path
 from textwrap import dedent
@@ -75,17 +77,61 @@ class UncachedStaticFileHandler(UncachedHandler, StaticFileHandler):
     pass
 
 class GenerateRegHandler(RequestHandler):
+    defaultPuttyPath = r'C:\Program Files (x86)\PuTTY\putty.exe'
+    batFile = f"""\
+    @echo off
+    rem Expects to be invoked via a link of the form "putty:-raw HOST -P PORT", which is also what will be passed in as command-line arguments
+    set args=%*
+    rem The browser encodes spaces as %20
+    setlocal enabledelayedexpansion
+    set decoded=!args:%%20= !
+    
+    if "%decoded:~0,6%" == "putty:" (
+        start "PuTTY" "{defaultPuttyPath}" %decoded:~6%
+    ) else (
+        echo Unexpected arguments
+    )
+    """
+
     def post(self):
-        path = self.get_argument('telnet_path')
-        self.write(dedent(f"""\
-        Windows Registry Editor Version 5.00
-        
-        [HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\telnet\\shell\\open\\command]
-        @="\\"{path}\\" %l"
-        
-        """))
+        path = self.get_argument('app_path')
+        parentStr = path[:path.rfind('\\')] if '\\' in path else 'C:\\'
+
+        fileFormat = lambda s: dedent(s).replace('\n', '\r\n')
+        slashEscape = lambda s: s.replace('\\', '\\\\')
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w') as zip:
+            zip.writestr('README.txt', fileFormat(f"""\
+                To support telnet links, run telnet.reg.
+                To support raw and SSH links in Putty, extract putty.bat to {parentStr} and run putty.reg.
+            """))
+            zip.writestr('telnet.reg', fileFormat(f"""\
+                Windows Registry Editor Version 5.00
+                
+                [HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\telnet\\shell\\open\\command]
+                @="\\"{slashEscape(path)}\\" %l"
+                
+            """))
+            zip.writestr('putty.reg', fileFormat(f"""\
+                Windows Registry Editor Version 5.00
+                
+                [HKEY_CLASSES_ROOT\\putty]
+                "URL Protocol"=""
+                
+                [HKEY_CLASSES_ROOT\\putty\\shell]
+                
+                [HKEY_CLASSES_ROOT\\putty\\shell\\open]
+                
+                [HKEY_CLASSES_ROOT\\putty\\shell\\open\\command]
+                @="\\"{slashEscape(parentStr)}\\\\putty.bat\\" %1"
+                
+            """.replace('\n', '\r\n')))
+            zip.writestr('putty.bat', fileFormat(self.batFile.replace(self.defaultPuttyPath, path)))
+
+        self.write(buf.getvalue())
         self.set_header('Content-Type', 'application/octet-stream')
-        self.set_header('Content-Disposition', 'attachment; filename=serial_bridge.reg')
+        self.set_header('Content-Disposition', 'attachment; filename=serial_bridge.zip')
 
 class DeviceHandler(VueHandler):
     def initialize(self):
@@ -98,7 +144,7 @@ class DeviceHandler(VueHandler):
         device = devices[slugs[slug]]
         self.render({
             'device': device.name,
-            'nodes': [{'name': node.name, 'tcp_port': node.tcpPort, 'com_port': node.serialData['port'], 'show_telnet_link': node.webTelnetLink, 'default_visible': node.webDefaultVisible} for node in device.nodes],
+            'nodes': [{'name': node.name, 'tcp_port': node.tcpPort, 'com_port': node.serialData['port'], 'links': node.getWebLinkInfo(), 'default_visible': node.webDefaultVisible} for node in device.nodes],
             'commands': [{'name': name, 'icon': icon} for (name, icon) in device.commands] if device.commands else None,
         })
 
@@ -276,7 +322,7 @@ def listen(port: int, _devices: Dict[str, Device]):
             node.signals['data'].connect(onSerialData)
 
     handlers = [
-        ('/', VueHandler, {'view': 'home'}),
+        ('/', VueHandler, {'view': 'home', 'data': {'bat': GenerateRegHandler.batFile, 'defaultPuttyPath': GenerateRegHandler.defaultPuttyPath}}),
         ('/(favicon.ico)', UncachedStaticFileHandler, {'path': wwwDir}),
         ('/generate-reg', GenerateRegHandler),
         ('/devices/([^/]+)', DeviceHandler),

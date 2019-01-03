@@ -47,7 +47,7 @@
                 <div class="title">
                     <div>
                         {{ node.name }}
-                        <a v-if="node.show_telnet_link" class="telnet-link" :href="`telnet://${window.location.hostname}:${node.tcp_port}`"><i class="fas fa-external-link-alt"></i></a>
+                        <a v-for="link in Array.from(iter_node_links(node))" class="popup-link" :href="link.url" :title="link.title"><i :class="['fas', link.icon]"></i></a>
                     </div>
                 </div>
                 <div v-once class="content" ref="term-content" :data-name="node.name"></div>
@@ -313,6 +313,36 @@
                 // See the comment in beforeMount() for the reason this.mounting makes all nodes visible
                 return this.mounting ? true : (vis !== undefined) ? vis : node.default_visible;
             },
+            iter_node_links: function*(node) {
+                for(const link of node.links) {
+                    switch(link.type) {
+                        case 'telnet':
+                            yield {
+                                title: 'Telnet',
+                                icon: 'fa-external-link-alt',
+                                url: `telnet://${window.location.hostname}:${node.tcp_port}`,
+                            };
+                            break;
+                        case 'raw':
+                            yield {
+                                title: 'Raw',
+                                icon: 'fa-external-link-alt',
+                                url: `putty:-raw ${window.location.hostname} -P ${node.tcp_port}`,
+                            };
+                            break;
+                        case 'ssh':
+                            const args = [link.host];
+                            if(link.username) {args.push(`-l ${link.username}`);}
+                            if(link.password) {args.push(`-pw ${link.password}`);}
+                            yield {
+                                title: 'SSH',
+                                icon: 'fa-terminal',
+                                url: `putty:-ssh ${args.join(' ')}`,
+                            };
+                            break;
+                    }
+                }
+            },
             node_toggle_visibility: function(node) {
                 this.$set(this.node_visibility, node.name, !this.node_is_visible(node));
             },
@@ -451,12 +481,13 @@
                 padding: 0 4px;
             }
 
-            a {
+            a.popup-link {
                 position: relative;
                 top: -1px;
                 float: right;
                 color: #fff;
                 i {
+                    margin-left: 10px;
                     font-size: .75em;
                 }
             }

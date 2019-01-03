@@ -1,6 +1,6 @@
 from socketserver import ThreadingTCPServer, BaseRequestHandler
 import traceback
-from typing import Set
+from typing import Set, List, Optional, Dict
 
 from blinker import Signal
 from serial import Serial
@@ -35,7 +35,7 @@ class TCPHandler(BaseRequestHandler):
         self.server.node.removeClient(self)
 
 class Node:
-    def __init__(self, name: str, comPort: str, baudrate: int, byteSize: int, parity: str, stopBits: int, tcpPort: int, webTelnetLink: bool, webDefaultVisible: bool):
+    def __init__(self, name: str, comPort: str, baudrate: int, byteSize: int, parity: str, stopBits: int, tcpPort: int, webLinks: Optional[List[str]], webDefaultVisible: bool, ssh: Optional[Dict[str, str]]):
         if byteSize not in Serial.BYTESIZES:
             raise ValueError(f"Invalid byteSize: {byteSize}")
         elif parity[0].upper() not in Serial.PARITIES:
@@ -46,9 +46,13 @@ class Node:
         self.name = name
         self.device = None # Fixed up by the Device constructor
         self.tcpPort = tcpPort
-        self.webTelnetLink = webTelnetLink
+        self.webLinks = webLinks if webLinks is not None else (['telnet'] + (['ssh'] if ssh else []))
         self.webDefaultVisible = webDefaultVisible
+        self.ssh = ssh
         self.clients: Set[TCPHandler] = set()
+
+        if 'ssh' in self.webLinks and self.ssh is None:
+            raise ValueError(f"Node {self.name}: cannot show an SSH link without an SSH entry in the configuration block")
 
         self.serialData = {'port': comPort, 'baudrate': baudrate, 'bytesize': byteSize, 'parity': parity[0].upper(), 'stopbits': stopBits, 'timeout': 0}
         self.tcp = TCPServer(self, tcpPort)
@@ -59,6 +63,16 @@ class Node:
             'disconnect': Signal(), # args: remote_addr: str
             'data': Signal(), # args: source: str, data: bytes
         }
+
+    def getWebLinkInfo(self):
+        def iter():
+            if 'telnet' in self.webLinks:
+                yield {'type': 'telnet'}
+            if 'raw' in self.webLinks:
+                yield {'type': 'raw'}
+            if 'ssh' in self.webLinks:
+                yield {'type': 'ssh', **self.ssh}
+        return list(iter())
 
     def addClient(self, client: TCPHandler):
         self.clients.add(client)

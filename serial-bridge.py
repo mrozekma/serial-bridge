@@ -18,7 +18,7 @@ webPort = config.get('web port', 80)
 print("Opening serial ports")
 devices = {device['name']: Device(
     device['name'],
-    [Node(node['name'], node['com port'], node['baud rate'], node.get('byte size', 8), node.get('parity', 'none'), node.get('stop', 1), node['tcp port'], node.get('web telnet link', True), node.get('web default visible', True)) for node in device.get('nodes', [])],
+    [Node(node['name'], node['com port'], node['baud rate'], node.get('byte size', 8), node.get('parity', 'none'), node.get('stop', 1), node['tcp port'], node.get('web links', None), node.get('web default visible', True), node.get('ssh', None)) for node in device.get('nodes', [])],
     Commands(device['commands']) if 'commands' in device else None,
     [highlight if isinstance(highlight, dict) else {'type': None, 'name': highlight} for highlight in device.get('web highlighted connections', [])],
 ) for device in config.get('devices', [])}

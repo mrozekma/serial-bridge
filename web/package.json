@@ -12,8 +12,10 @@
     "@babel/core": "^7.1.2",
     "@babel/plugin-transform-runtime": "^7.1.0",
     "@vue/component-compiler-utils": "^2.3.0",
+    "babel-plugin-prismjs": "^1.0.2",
     "less": "^3.8.1",
     "parcel-bundler": "^1.10.3",
+    "prismjs": "^1.15.0",
     "sass": "^1.14.3",
     "vue-hot-reload-api": "^2.3.1",
     "vue-template-compiler": "^2.5.17"
