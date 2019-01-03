@@ -275,7 +275,7 @@ class JenkinsHandler(RequestHandler):
             device.jenkins.updateBuild(data['build_name'], data['build_link'])
         elif action == 'build-stop':
             device.jenkins.clear()
-            WebsocketHandler.sendAll(device, {'type': 'jenkins', 'result': data['result']})
+            WebsocketHandler.sendAll(device, {'type': 'jenkins', 'action': 'build-stop', 'result': data['result']})
             return
         elif action == 'stage-push':
             device.jenkins.pushStage(data['stage'])
@@ -289,7 +289,7 @@ class JenkinsHandler(RequestHandler):
             self.send_error(404)
             return
 
-        WebsocketHandler.sendAll(device, {'type': 'jenkins', **device.jenkins.toDict()})
+        WebsocketHandler.sendAll(device, {'type': 'jenkins', 'action': action, **device.jenkins.toDict()})
 
 def listen(port: int, _devices: Dict[str, Device]):
     global devices, slugs

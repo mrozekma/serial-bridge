@@ -241,6 +241,17 @@
                             self.jenkins.task = msg.task;
                             self.jenkins.result = null;
                         }
+                        switch(msg.action) {
+                            case 'build-start':
+                                self.term_draw_line(self.jenkins.build_name, 'start');
+                                break;
+                            case 'build-stop':
+                                self.term_draw_line(self.jenkins.build_name, 'end');
+                                break;
+                            case 'stage-push':
+                                self.term_draw_line(self.jenkins.stage);
+                                break;
+                        }
                         break;
                     case 'data':
                         if(self.show_new_data) {
@@ -472,6 +483,23 @@
             jenkins_close: function() {
                 Object.keys(this.jenkins).forEach(k => this.jenkins[k] = null);
             },
+            term_draw_line: function(label, caps) {
+                // https://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x622.html
+                const leftCap = {start: 'l', end: 'm', undefined: 'q'}[caps];
+                const rightCap = {start: 'k', end: 'j', undefined: 'q'}[caps];
+                const line = 'q';
+
+                for(const term of this.terminals.values()) {
+                    let thisLabel = label;
+                    let sideLen = (term.cols - thisLabel.length - 2) / 2;
+                    if(sideLen < 1) {
+                        // Reserve 2 characters for the end caps, 2 for the space around the label, and 3 for the ellipsis. The rest of the line is available for the label
+                        thisLabel = label.substr(0, term.cols - 2 - 2 - 3) + '...';
+                        sideLen = 1;
+                    }
+                    term.write("\r\n\r\n\x1b[1;36m\x1b(0" + leftCap + line.repeat(Math.floor(sideLen) - 1) + "\x1b(B " + thisLabel + " \x1b(0" + line.repeat(Math.ceil(sideLen) - 1) + rightCap + "\x1b(B\x1b[0m\r\n\r\n");
+                }
+            }
         },
     }
 </script>
