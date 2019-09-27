@@ -1,5 +1,0 @@
-blinker
-jsmin
-pyserial
-python-slugify
-tornado
