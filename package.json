@@ -1,24 +1,36 @@
 {
 	"name": "serial-bridge",
-	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"serve": "vue-cli-service serve",
-		"build": "vue-cli-service build"
+		"build": "yarn server:build && yarn client:build",
+		"serve": "concurrently -c bgRed.black,bgGreen.black -n server,client yarn:server:serve yarn:client:serve",
+		"server:build": "webpack",
+		"server:serve": "nodemon src/server/server.ts",
+		"client:serve": "vue-cli-service serve",
+		"client:build": "vue-cli-service build"
+	},
+	"nodemonConfig": {
+		"watch": [
+			"src/server"
+		]
 	},
 	"dependencies": {
 		"core-js": "^2.6.5",
 		"vue": "^2.6.10",
-		"vue-router": "^3.0.3"
+		"vue-router": "^3.0.3",
+		"webpack-node-externals": "^1.7.2"
 	},
 	"devDependencies": {
 		"@ky-is/vue-cli-plugin-tabs": "^1.1.0",
 		"@vue/cli-plugin-babel": "^3.11.0",
 		"@vue/cli-plugin-typescript": "^3.11.0",
 		"@vue/cli-service": "^3.11.0",
+		"concurrently": "^4.1.2",
 		"less": "^3.0.4",
 		"less-loader": "^5.0.0",
+		"nodemon": "^1.19.3",
 		"typescript": "^3.4.3",
-		"vue-template-compiler": "^2.6.10"
+		"vue-template-compiler": "^2.6.10",
+		"webpack-cli": "^3.3.9"
 	}
 }
