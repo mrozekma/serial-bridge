@@ -5,7 +5,7 @@
 		"build": "yarn server:build && yarn client:build",
 		"serve": "concurrently -c bgRed.black,bgGreen.black -n server,client yarn:server:serve yarn:client:serve",
 		"server:build": "webpack",
-		"server:serve": "nodemon src/server/server.ts",
+		"server:serve": "nodemon -r esm src/server/server.ts",
 		"client:serve": "vue-cli-service serve",
 		"client:build": "vue-cli-service build"
 	},
@@ -15,17 +15,26 @@
 		]
 	},
 	"dependencies": {
+		"@feathersjs/express": "^4.3.3",
+		"@feathersjs/feathers": "^4.3.3",
+		"@feathersjs/rest-client": "^4.3.3",
+		"@feathersjs/socketio": "^4.3.3",
+		"@feathersjs/socketio-client": "^4.3.3",
 		"core-js": "^2.6.5",
+		"cors": "^2.8.5",
+		"socket.io-client": "^2.3.0",
 		"vue": "^2.6.10",
 		"vue-router": "^3.0.3",
 		"webpack-node-externals": "^1.7.2"
 	},
 	"devDependencies": {
 		"@ky-is/vue-cli-plugin-tabs": "^1.1.0",
+		"@types/cors": "^2.8.6",
 		"@vue/cli-plugin-babel": "^3.11.0",
 		"@vue/cli-plugin-typescript": "^3.11.0",
 		"@vue/cli-service": "^3.11.0",
 		"concurrently": "^4.1.2",
+		"esm": "^3.2.25",
 		"less": "^3.0.4",
 		"less-loader": "^5.0.0",
 		"nodemon": "^1.19.3",
