@@ -9,5 +9,5 @@ type MethodNames = Pick<feathers.ServiceMethods<any>, KnownKeys<feathers.Service
 type M<Chosen extends keyof MethodNames> = Pick<MethodNames, Chosen>;
 
 export interface Services {
-	'/test': M<'get'>,
+	'/test': M<'get' | 'update'> & {events: string[]},
 };
