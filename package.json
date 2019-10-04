@@ -4,15 +4,20 @@
 	"scripts": {
 		"build": "yarn server:build && yarn client:build",
 		"serve": "concurrently -c bgRed.black,bgGreen.black -n server,client yarn:server:serve yarn:client:serve",
-		"server:build": "webpack",
-		"server:serve": "nodemon -r esm src/server/server.ts",
+		"server:build": "cross-env NODE_ENV=production webpack",
+		"server:run": "node -r esm -r ts-node/register src/server/server.ts",
+		"server:serve": "webpack --watch",
+		"client:build": "vue-cli-service build",
 		"client:serve": "vue-cli-service serve",
-		"client:build": "vue-cli-service build"
+		"postinstall": "patch-package"
 	},
 	"nodemonConfig": {
 		"watch": [
 			"src/server"
-		]
+		],
+		"execMap": {
+			"ts": "node"
+		}
 	},
 	"dependencies": {
 		"@feathersjs/express": "^4.3.3",
@@ -22,7 +27,11 @@
 		"@feathersjs/socketio-client": "^4.3.3",
 		"core-js": "^2.6.5",
 		"cors": "^2.8.5",
+		"json5": "^2.1.0",
+		"ora": "^4.0.2",
+		"serialport": "^7.1.5",
 		"socket.io-client": "^2.3.0",
+		"typesafe-joi": "^2.0.6",
 		"vue": "^2.6.10",
 		"vue-router": "^3.0.3",
 		"webpack-node-externals": "^1.7.2"
@@ -30,15 +39,25 @@
 	"devDependencies": {
 		"@ky-is/vue-cli-plugin-tabs": "^1.1.0",
 		"@types/cors": "^2.8.6",
+		"@types/json5": "^0.0.30",
+		"@types/node": "^12.7.9",
+		"@types/serialport": "^7.0.4",
 		"@vue/cli-plugin-babel": "^3.11.0",
 		"@vue/cli-plugin-typescript": "^3.11.0",
 		"@vue/cli-service": "^3.11.0",
 		"concurrently": "^4.1.2",
+		"cross-env": "^6.0.3",
 		"esm": "^3.2.25",
 		"less": "^3.0.4",
 		"less-loader": "^5.0.0",
 		"nodemon": "^1.19.3",
-		"typescript": "^3.4.3",
+		"nodemon-webpack-plugin": "^4.1.1",
+		"patch-package": "^6.2.0",
+		"postinstall-postinstall": "^2.0.0",
+		"raw-loader": "^3.1.0",
+		"ts-loader": "^6.2.0",
+		"ts-node": "^8.4.1",
+		"typescript": "^3.7.0-beta",
 		"vue-template-compiler": "^2.6.10",
 		"webpack-cli": "^3.3.9"
 	}

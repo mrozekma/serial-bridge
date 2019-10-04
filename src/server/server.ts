@@ -1,55 +1,33 @@
-import cors from 'cors';
-import feathers from '@feathersjs/feathers';
-import express from '@feathersjs/express';
-import socketio from '@feathersjs/socketio';
-import '@feathersjs/transport-commons'; // Adds channel typing to express.Application
+import ora from 'ora';
 
-import { NotFound } from '@feathersjs/errors';
-import { create } from 'domain';
+import banner from 'raw-loader!./banner.txt';
+import { loadConfig, Config } from './config';
+import Device from './device';
 
-const app = express(feathers()); //<Services>());
-app.use(express.static('dist/client'));
+// From DefinePlugin
+declare const BUILD_VERSION: string, BUILD_DATE: string;
 
-//TODO Figure out how to only allow CORS for REST endpoints
-// app.use(cors());
+function spinner<T>(label: string, fn: () => Promise<T>): Promise<T> {
+	const promise = fn();
+	ora.promise(promise).start(label);
+	return promise;
+}
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.configure(express.rest());
+function makeDevice(deviceConfig: Config['devices'][number]): Device {
+	const device = new Device(deviceConfig.name);
+	for(const nodeConfig of deviceConfig.nodes) {
+		const node = device.addNode(nodeConfig.name, nodeConfig["com port"], nodeConfig["baud rate"], nodeConfig["byte size"], nodeConfig.parity, nodeConfig.stop, nodeConfig["tcp port"], nodeConfig["web links"], nodeConfig.ssh);
+		// node.serialEnabled = true;
+		// node.tcpEnabled = true;
+	}
+	return device;
+}
 
-app.configure(socketio(io => {
-	io.on('connection', socket => {
-		console.log('connection');
-		// socket.on('client-to-server', data => {
-		// 	console.log('client-to-server', data);
-		// 	socket.emit('server-to-client');
-		// });
-		// app.channel('chan').join(socket);
-	});
-}));
-
-app.use('test', {
-	events: ['custom'],
-	async update(x: any) {
-		console.log('update', x);
-		return 'ret';
-	},
-});
-
-app.on('connection', connection =>
-	app.channel('everybody').join(connection)
-);
-// app.publish(data => { console.log('publish', data); return app.channel('everybody'); });
-app.service('test').publish((data: any) => app.channel('everybody'));
-
-app.use(express.notFound());
-app.use(express.errorHandler());
-app.listen(8081);
-console.log('Ready');
-
-app.service('test').on('updated', (x: any) => console.log('updated', x));
-
-setInterval(() => {
-	app.service('test').update('server', {});
-	app.service('test').emit('custom', 'test');
-}, 1000);
+(async () => {
+	console.log(`${banner}\n${BUILD_VERSION}\nBuilt ${BUILD_DATE}\n`);
+	const config = await spinner("Load configuration", loadConfig);
+	const devices: Device[] = await spinner("Load device information", async () => config.devices.map(makeDevice));
+	if(config["web port"] !== undefined) {
+		// await spinner("Load web interface", ...);
+	}
+})().catch(console.error);
