@@ -784,11 +784,6 @@
     cssnano-preset-default "^4.0.0"
     postcss "^7.0.0"
 
-"@ky-is/vue-cli-plugin-tabs@^1.1.0":
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/@ky-is/vue-cli-plugin-tabs/-/vue-cli-plugin-tabs-1.1.0.tgz#afc4856cbefe5007ddbe99dc0a2852e4d3880fb4"
-  integrity sha512-8jncihZe8HIXEn2xyRtkDNYAkXQ1MnbI1hWpPJQCcHV4cITqfBdOgk01397ic7g8LhRnuPtiLfDa0aX30vRcyw==
-
 "@mrmlnc/readdir-enhanced@^2.2.1":
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/@mrmlnc/readdir-enhanced/-/readdir-enhanced-2.2.1.tgz#524af240d1a360527b730475ecfa1344aa540dde"

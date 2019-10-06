@@ -3,7 +3,7 @@ const child_process = require('child_process');
 const NodemonPlugin = require('nodemon-webpack-plugin');
 const path = require('path');
 const webpack = require('webpack');
-// const nodeExternals = require('webpack-node-externals');
+const nodeExternals = require('webpack-node-externals');
 
 const gitDesc = child_process.execSync('git describe --all --long --abbrev=40 --dirty', { cwd: __dirname, encoding: 'utf8' });
 const definePlugin = new webpack.DefinePlugin({
@@ -40,5 +40,8 @@ module.exports = {
 	plugins: [
 		definePlugin,
 		new NodemonPlugin(),
+	],
+	externals: [
+		nodeExternals({ modulesFromFile: true }),
 	],
 };
