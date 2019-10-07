@@ -2,7 +2,7 @@ import Vue from 'vue';
 import feathers from '@feathersjs/feathers';
 import socketio from '@feathersjs/socketio-client';
 import io from 'socket.io-client';
-import { Services, DeviceJson } from '../services';
+import { ClientServices as Services, DeviceJson } from '../services';
 
 const app = feathers<Services>();
 const socket = io(window.location.protocol + '//' + (process.env.VUE_APP_SERVER_PORT ? `${window.location.hostname}:${process.env.VUE_APP_SERVER_PORT}` : window.location.host));

@@ -4,7 +4,7 @@ import socketio from '@feathersjs/socketio';
 import '@feathersjs/transport-commons'; // Adds channel typing to express.Application
 import { Request, Response, NextFunction } from 'express-serve-static-core';
 
-import { Services } from '@/services';
+import { ServerServices as Services } from '@/services';
 
 export function makeWebserver(attachFn?: (app: Application<Services>) => void): Application<Services> {
 	const app = express(feathers<Services>());

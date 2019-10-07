@@ -2,22 +2,37 @@ import feathers from '@feathersjs/feathers';
 
 import Device from './server/device';
 
+// Variant of feathers.ServiceMethods with some narrower return types
+interface ServiceMethods<T> {
+	find (params?: feathers.Params): Promise<T[]>;
+	get (id: feathers.Id, params?: feathers.Params): Promise<T>;
+	create (data: Partial<T> | Array<Partial<T>>, params?: feathers.Params): Promise<T>;
+	update (id: feathers.NullableId, data: T, params?: feathers.Params): Promise<T>;
+	patch (id: feathers.NullableId, data: Partial<T>, params?: feathers.Params): Promise<T>;
+	remove (id: feathers.NullableId, params?: feathers.Params): Promise<T>;
+}
+
 interface Common {
-	// install(app: Application<Services>): void;
-	// name: string;
 	events?: string[];
 }
 
-// https://stackoverflow.com/a/51956054/309308
-type KnownKeys<T> = {
-	[K in keyof T]: string extends K ? never : number extends K ? never : K
-} extends { [_ in keyof T]: infer U } ? U : never;
-
-type MethodNames<T> = Pick<feathers.ServiceMethods<T>, KnownKeys<feathers.ServiceMethods<T>>>;
-type M<Chosen extends keyof MethodNames<T>, T = any> = Pick<MethodNames<T>, Chosen>;
+/**
+ * This pulls the specified methods out of ServiceMethods.
+ * ServerClient specifies if we're on the server or client. Services on the server return actual class instances, while services on the client return JSON representations.
+ * Chosen is the list of implemented methods, as a string union.
+ * T is the optional type backing the service. Service methods return promises containing T or T[].
+ */
+type M<
+	ServerClient extends 'server' | 'client',
+	Chosen extends keyof ServiceMethods<T>,
+	T extends { toJSON: () => any } = any
+> = Pick<ServiceMethods<ServerClient extends 'server' ? T : ReturnType<T['toJSON']>>, Chosen>;
 
 export type DeviceJson = ReturnType<Device['toJSON']>;
 
-export interface Services {
-	'devices': Common & M<'find' | 'get' | 'update' /*, DeviceJson*/>,
+interface Services<ServerClient extends 'server' | 'client'> {
+	'devices': Common & M<ServerClient, 'find' | 'get' | 'update', Device>,
 };
+
+export type ServerServices = Services<'server'>;
+export type ClientServices = Services<'client'>;

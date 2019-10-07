@@ -6,7 +6,7 @@ import slugify from 'slugify';
 import banner from 'raw-loader!./banner.txt';
 import { loadConfig, Config } from './config';
 import Device from './device';
-import { Services } from '@/services';
+import { ServerServices as Services } from '@/services';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_DATE: string;
