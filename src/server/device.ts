@@ -26,6 +26,11 @@ class Node {
 		this.tcpServer = net.createServer(socket => this.onTcpConnect(socket));
 	}
 
+	toJSON() {
+		const { name, path, baudRate, byteSize, parity, stopBits, tcpPort } = this;
+		return { name, path, baudRate, byteSize, parity, stopBits, tcpPort };
+	}
+
 	get serialEnabled(): boolean {
 		return this.serialConn.isOpen;
 	}
@@ -60,11 +65,20 @@ type NodeCtorArgs = typeof Node extends new (device: Device, ...args: infer T) =
 export default class Device {
 	private nodes: Node[] = [];
 
-	constructor(private name: string) {}
+	constructor(public readonly id: string, public readonly name: string) {}
 
 	addNode(...args: NodeCtorArgs): Node {
 		const node = new Node(this, ...args);
 		this.nodes.push(node);
 		return node;
+	}
+
+	toJSON() {
+		const { id, name, nodes } = this;
+		return {
+			id,
+			name,
+			nodes: nodes.map(node => node.toJSON()), // This is done manually for typing reasons
+		};
 	}
 }

@@ -7,7 +7,6 @@ module.exports = {
 	},
 
 	outputDir: 'dist/client',
-	publicPath: '',
 	chainWebpack: config => {
 		config.entry('app').clear().add('./src/client/client.ts');
 		config.plugin('define').tap(args => {

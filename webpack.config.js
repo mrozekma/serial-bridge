@@ -13,7 +13,9 @@ const definePlugin = new webpack.DefinePlugin({
 
 module.exports = {
 	mode: process.env.NODE_ENV || 'development',
-	entry: './src/server/server.ts',
+	entry: {
+		server: './src/server/server.ts',
+	},
 	target: 'node',
 	output: {
 		path: path.resolve(__dirname, 'dist', 'server'),
@@ -39,7 +41,9 @@ module.exports = {
 	},
 	plugins: [
 		definePlugin,
-		new NodemonPlugin(),
+		new NodemonPlugin({
+			script: './dist/server/server.js',
+		}),
 	],
 	externals: [
 		nodeExternals({ modulesFromFile: true }),
