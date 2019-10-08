@@ -82,6 +82,7 @@
 		pointer-events: none;
 		font-size: 16pt;
 		color: #fff;
+		padding: 0 10px;
 	}
 
 	.ant-menu-submenu, .ant-menu-item {

@@ -27,8 +27,8 @@ function makeDevice(deviceConfig: Config['devices'][number], existingIds?: Set<s
 	const device = new Device(id, deviceConfig.name);
 	for(const nodeConfig of deviceConfig.nodes) {
 		const node = device.addNode(nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh);
-		// node.serialEnabled = true;
-		// node.tcpEnabled = true;
+		node.serialPort.open();
+		node.tcpPort.open();
 	}
 	return device;
 }

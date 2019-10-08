@@ -1,5 +1,6 @@
-import SerialPort from 'serialport';
+import RealSerialPort from 'serialport';
 
+import chalk from 'chalk';
 import net from 'net';
 
 interface SSHInfo {
@@ -8,55 +9,123 @@ interface SSHInfo {
 	password: string;
 }
 
-class Node {
-	private readonly serialConn: SerialPort;
-	private readonly tcpServer: net.Server;
+abstract class Port {
+	protected state: {
+		open: true;
+	} | {
+		open: false;
+		reason: string;
+	} = {
+		open: false,
+		reason: 'Never opened',
+	};
 
-	constructor(private device: Device, private name: string, private path: string, private baudRate: number,
-		private byteSize: 5 | 6 | 7 | 8, private parity: 'even' | 'odd' | 'none', private stopBits: 1 | 2,
-		private tcpPort: number, private webLinks: string[], private ssh: SSHInfo | undefined)
-	{
-		this.serialConn = new SerialPort(path, {
+	get isOpen() {
+		return this.state.open;
+	}
+
+	get whyClosed() {
+		if(this.state.open) {
+			throw new Error("Not closed");
+		} else {
+			return this.state.reason;
+		}
+	}
+
+	open() {
+		this.openImpl();
+		// Leave it to the implementation to update this.state when the port is actually open
+	}
+
+	close(reason?: string) {
+		if(reason) {
+			this.state = {
+				open: false,
+				reason,
+			};
+		}
+		this.closeImpl();
+	}
+
+	abstract openImpl(): void;
+	abstract closeImpl(): void;
+}
+
+class SerialPort extends Port {
+	private readonly serialConn: RealSerialPort;
+
+	constructor(path: string, private baudRate: number, private byteSize: 5 | 6 | 7 | 8, private parity: 'even' | 'odd' | 'none', private stopBits: 1 | 2) {
+		super();
+		this.serialConn = new RealSerialPort(path, {
 			baudRate,
 			parity,
 			stopBits,
 			dataBits: byteSize,
 			autoOpen: false,
 		});
-		this.tcpServer = net.createServer(socket => this.onTcpConnect(socket));
+		this.serialConn.on('open', () => this.state = { open: true });
+		this.serialConn.on('close', err => {
+			if(this.isOpen) {
+				this.state = {
+					open: false,
+					reason: err.disconnected ? "Disconnected" : `Error: ${err}`,
+				};
+			}
+		});
+	}
+
+	on(...args: Parameters<RealSerialPort['on']>) { this.serialConn.on(...args); }
+	off(...args: Parameters<RealSerialPort['off']>) { this.serialConn.off(...args); }
+	openImpl() { this.serialConn.open(); }
+	closeImpl() { this.serialConn.close(); }
+	write(data: Buffer) { this.serialConn.write(data); }
+}
+
+class TcpPort extends Port {
+	private readonly tcpServer: net.Server;
+
+	constructor(private port: number, onConnect: (socket: net.Socket) => void) {
+		super();
+		this.tcpServer = net.createServer(onConnect);
+	}
+
+	openImpl() { this.tcpServer.listen(this.port); }
+	closeImpl() { this.tcpServer.close(); }
+}
+
+class Node {
+	public readonly serialPort: SerialPort;
+	public readonly tcpPort: TcpPort;
+
+	constructor(private device: Device, private name: string, private path: string, private baudRate: number,
+		private byteSize: 5 | 6 | 7 | 8, private parity: 'even' | 'odd' | 'none', private stopBits: 1 | 2,
+		private tcpPortNumber: number, private webLinks: string[], private ssh: SSHInfo | undefined)
+	{
+		this.serialPort = new SerialPort(path, baudRate, byteSize, parity, stopBits);
+		this.tcpPort = new TcpPort(tcpPortNumber, socket => this.onTcpConnect(socket));
+		// this.serialConn.on('data', buf => this.onSerialData(buf));
 	}
 
 	toJSON() {
-		const { name, path, baudRate, byteSize, parity, stopBits, tcpPort } = this;
+		const { name, path, baudRate, byteSize, parity, stopBits, tcpPortNumber: tcpPort } = this;
 		return { name, path, baudRate, byteSize, parity, stopBits, tcpPort };
 	}
 
-	get serialEnabled(): boolean {
-		return this.serialConn.isOpen;
-	}
-
-	set serialEnabled(b: boolean) {
-		if(b) {
-			this.serialConn.open();
-		} else {
-			this.serialConn.close();
-		}
-	}
-
-	get tcpEnabled(): boolean {
-		return this.tcpServer.listening;
-	}
-
-	set tcpEnabled(b: boolean) {
-		if(b) {
-			this.tcpServer.listen(this.tcpPort);
-		} else {
-			this.tcpServer.close();
-		}
+	private log(message: string, ...args: any[]) {
+		console.log(chalk.bgRed.bold(`${this.device.name}.${this.name}`) + ' ' + message, ...args);
 	}
 
 	private onTcpConnect(socket: net.Socket) {
-		console.log('tcp connect', socket)
+		let address = socket.address();
+		if(typeof address !== 'string') {
+			address = `${address.address}:${address.port}`;
+		}
+		this.log(`${address} connected`);
+		// Bi-directional pipe between the socket and the node's serial port
+		socket.on('data', buf => this.serialPort.write(buf));
+		const socketWrite = (buf: Buffer) => socket.write(buf);
+		this.serialPort.on('data', socketWrite);
+		socket.on('close', () => { this.log(`${address} disconnected`); this.serialPort.off('data', socketWrite) });
 	}
 }
 
