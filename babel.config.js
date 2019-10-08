@@ -7,7 +7,7 @@ module.exports = {
 			"languages": ["batch"],
 			"plugins": ["line-numbers", "normalize-whitespace"],
 			"theme": "okaidia",
-			"css": true
-		}]
-	]
+			"css": true,
+		}],
+	],
 };
