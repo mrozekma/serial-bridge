@@ -34,7 +34,7 @@ export function unwrapPromise<T>(promise: Promise<T>): PromiseResult<T> {
 	return result as PromiseResult<T>;
 }
 
-const devices: Promise<DeviceJson[]> = app.service('devices').find();
+const devices: Promise<DeviceJson[]> = app.service('api/devices').find();
 
 const data = {
 	app,

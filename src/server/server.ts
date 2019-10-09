@@ -35,7 +35,7 @@ function makeDevice(deviceConfig: Config['devices'][number], existingIds?: Set<s
 
 function makeServices(app: Application<Services>, devices: Device[]): Services {
 	return {
-		devices: {
+		'api/devices': {
 			async find(params) {
 				return devices;
 			},
@@ -58,6 +58,7 @@ function makeServices(app: Application<Services>, devices: Device[]): Services {
 	console.log(`${banner}\n${BUILD_VERSION}\nBuilt ${BUILD_DATE}\n`);
 	const config = await spinner("Load configuration", loadConfig);
 	const devices: Device[] = await spinner("Load device information", async () => {
+		//TODO Check for duplicate device/node names
 		const ids = new Set<string>();
 		return config.devices.map(deviceConfig => makeDevice(deviceConfig, ids));
 	});

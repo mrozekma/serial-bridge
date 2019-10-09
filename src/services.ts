@@ -31,7 +31,7 @@ type M<
 export type DeviceJson = ReturnType<Device['toJSON']>;
 
 interface Services<ServerClient extends 'server' | 'client'> {
-	'devices': Common & M<ServerClient, 'find' | 'get' | 'update', Device>,
+	'api/devices': Common & M<ServerClient, 'find' | 'get' | 'update', Device>,
 };
 
 export type ServerServices = Services<'server'>;

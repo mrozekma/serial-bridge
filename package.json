@@ -33,6 +33,7 @@
 		"core-js": "^2.6.5",
 		"cors": "^2.8.5",
 		"deep-rename-keys": "^0.2.1",
+		"jquery": "^3.4.1",
 		"json5": "^2.1.0",
 		"ora": "^4.0.2",
 		"prismjs": "^1.17.1",
@@ -41,11 +42,13 @@
 		"socket.io-client": "^2.3.0",
 		"typesafe-joi": "^2.0.6",
 		"vue": "^2.6.10",
+		"vue-golden-layout": "^1.6.0",
 		"vue-router": "^3.0.3",
 		"webpack-node-externals": "^1.7.2"
 	},
 	"devDependencies": {
 		"@types/cors": "^2.8.6",
+		"@types/jquery": "^3.3.31",
 		"@types/json5": "^0.0.30",
 		"@types/node": "^12.7.9",
 		"@types/prismjs": "^1.16.0",
@@ -66,6 +69,7 @@
 		"ts-loader": "^6.2.0",
 		"ts-node": "^8.4.1",
 		"typescript": "^3.7.0-beta",
+		"vue-property-decorator": "^8.2.2",
 		"vue-template-compiler": "^2.6.10",
 		"webpack": "^4.41.0",
 		"webpack-cli": "^3.3.9"
