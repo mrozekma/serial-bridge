@@ -1,15 +1,19 @@
 <template>
 	<div class="term-padding-wrapper">
-		<div ref="term" class="term">
-		</div>
+		<div ref="term" class="term"/>
 	</div>
 </template>
 
 <script lang="ts">
-	import Vue from 'vue';
+	import Vue, { PropType } from 'vue';
 
+	import { DeviceJson } from '@/services';
+
+	type Node = DeviceJson['nodes'][number];
+
+	import GoldenLayout from 'golden-layout';
 	import { Terminal } from 'xterm';
-	import { FitAddon } from 'xterm-addon-fit';
+	import { FitAddon, ITerminalDimensions } from 'xterm-addon-fit';
 	import 'xterm/css/xterm.css';
 	//TODO xterm-addon-search
 
@@ -26,15 +30,17 @@
 			}
 		}
 
-		proposeDimensions() {
+		//@ts-ignore The interface claims proposeDimensions() can't return undefined, but it can and does in FitAddon
+		proposeDimensions(): ITerminalDimensions | undefined {
 			// Terminal lines are 17px tall, so if the terminal height doesn't exactly divide that we're left with a gap on the bottom.
 			// The alternative is to draw one line too many and hide the overflow. This works except that the bottom part of the scrolbar can get a little cut off.
 			// I hate both, but I generally hate the latter less. Choose depending on how big the gap will be
 			let { rows, cols } = this.getFloatDimensions();
+			console.log(rows, cols);
 			if(rows - Math.floor(rows) > .2) {
 				rows = Math.ceil(rows);
 			}
-			return {
+			return (isNaN(rows) || isNaN(cols)) ? undefined : {
 				rows: Math.floor(rows),
 				cols: Math.floor(cols),
 			};
@@ -42,6 +48,16 @@
 	}
 
 	const component = Vue.extend({
+		props: {
+			node: {
+				type: Object as PropType<Node>,
+				required: true,
+			},
+			layout: {
+				type: Promise as PropType<Promise<GoldenLayout>>,
+				required: true,
+			},
+		},
 		data() {
 			return {
 				terminal: new Terminal({
@@ -51,12 +67,15 @@
 				fitAddon: new SbFit(),
 			};
 		},
-		mounted() {
+		async mounted() {
 			this.terminal.loadAddon(this.fitAddon);
+			const layout = await this.layout;
 			this.terminal.open(this.$refs.term as HTMLElement);
 			this.fit();
-			for(let i = 1; i <= 400; i++)
-			this.terminal.writeln(`Test line ${i}`);
+			layout.on('stateChanged', () => {console.log('stateChanged', (this as any)._uid); this.fit()});
+			this.terminal.writeln(`This is the terminal for ${this.node.name}`);
+			for(let i = 1; i <= 30; i++)
+				this.terminal.writeln(`Test line ${i}`);
 		},
 		methods: {
 			fit() {

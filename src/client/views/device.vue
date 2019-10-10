@@ -1,21 +1,12 @@
 <template>
 	<div>
-		<sb-navbar :brand="deviceName"></sb-navbar>
+		<sb-navbar :brand="deviceName"/>
 		<main>
 			<template v-if="device.state == 'pending'">
 				<!-- TODO -->
 			</template>
 			<a-alert v-else-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
-			<golden-layout v-else class="gl-root" v-model="layout" @initialised="glReady = true" :key="glDrawToggle">
-				<gl-row>
-					<!-- TODO These columns persist even if all components are dragged out of them -->
-					<gl-col v-for="col in nodesByColumn" :key="col[0].name">
-						<gl-component v-for="node in col" :key="node.name">
-							<sb-terminal ref="termComponents" v-if="glReady" :node="node"/>
-						</gl-component>
-					</gl-col>
-				</gl-row>
-			</golden-layout>
+			<sb-layout v-if="nodes.length > 0" :nodes="nodes"/>
 		</main>
 	</div>
 </template>
@@ -26,14 +17,6 @@
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { DeviceJson } from '@/services';
 
-	import 'jquery'; // Needed by golden layout :(
-	import vgl from 'vue-golden-layout';
-	Vue.use(vgl);
-	import 'golden-layout/src/css/goldenlayout-light-theme.css';
-
-	//TODO Remove
-	import GoldenLayout from 'golden-layout';
-
 	type Node = DeviceJson['nodes'][number];
 	interface GlLayout {
 		left: Node | undefined;
@@ -42,9 +25,10 @@
 	}
 
 	import SbNavbar from '../components/navbar.vue';
+	import SbLayout from '../components/golden-layout.vue';
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
 	export default Vue.extend({
-		components: { SbNavbar, SbTerminal },
+		components: { SbNavbar, SbLayout, SbTerminal },
 		computed: {
 			...rootDataComputeds(),
 			deviceName(): string {
@@ -53,20 +37,20 @@
 			nodes(): Node[] {
 				return (this.device.state == 'resolved') ? this.device.value.nodes : [];
 			},
-			nodesByColumn(): Node[][] {
-				const nodes = this.nodes;
-				return Array.from((function*() {
-					let i = 0;
-					if(nodes.length % 2) {
-						// If odd, put the first node in a column alone
-						yield [ nodes[i++] ];
-					}
-					const rowLen = Math.floor(nodes.length / 2);
-					for(; i * 2 < nodes.length; i++) {
-						yield [ nodes[i], nodes[i + rowLen] ];
-					}
-				})());
-			},
+			// nodesByColumn(): Node[][] {
+			// 	const nodes = this.nodes;
+			// 	return Array.from((function*() {
+			// 		let i = 0;
+			// 		if(nodes.length % 2) {
+			// 			// If odd, put the first node in a column alone
+			// 			yield [ nodes[i++] ];
+			// 		}
+			// 		const rowLen = Math.floor(nodes.length / 2);
+			// 		for(; i * 2 < nodes.length; i++) {
+			// 			yield [ nodes[i], nodes[i + rowLen] ];
+			// 		}
+			// 	})());
+			// },
 		},
 		data() {
 			return {
@@ -74,22 +58,17 @@
 					state: 'pending', // Technically a lie, nothing is loading yet, but watch.$route will take care of it
 				} as PromiseResult<DeviceJson>,
 				layout: null, //TODO Persist this
-				glDrawToggle: false,
-				glReady: false,
 			};
 		},
-		watch: {
-			layout() {
-				// this.glDrawToggle = !this.glDrawToggle;
-
-				// When the layout changed, re-fit all terminals
-				const components = this.$refs.termComponents as SbTerminalVue[];
-				for(const c of components) {
-					c.fit();
-				}
-				console.log(JSON.stringify(GoldenLayout.unminifyConfig(this.layout)));
-			},
-		},
+		// watch: {
+		// 	layout() {
+		// 		// When the layout changed, re-fit all terminals
+		// 		const components = this.$refs.termComponents as SbTerminalVue[];
+		// 		for(const c of components) {
+		// 			c.fit();
+		// 		}
+		// 	},
+		// },
 		mounted() {
 			this.device = unwrapPromise(this.app.service('api/devices').get(this.$route.params.device));
 		},
@@ -97,13 +76,4 @@
 </script>
 
 <style lang="less" scoped>
-	.gl-root {
-		//TODO:
-		width: calc(100vw - 30px);
-		height: calc(100vh - 60px);
-
-		/deep/ .lm_tab {
-			// box-shadow: none;
-		}
-	}
 </style>
