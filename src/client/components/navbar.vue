@@ -4,14 +4,14 @@
 		<!-- <a-menu-item class="brand">Test</a-menu-item> -->
 		<a-sub-menu>
 			<template v-slot:title>
-				<router-link to="/">Devices</router-link>
+				<a href="/">Devices</a>
 			</template>
 			<a-menu-item v-if="devices.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
 			<a-menu-item v-else-if="devices.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
 			<a-menu-item v-else v-for="device in devices.value" :key="device.name">
-				<router-link :to="`/devices/${device.id}`">
+				<a :href="`/devices/${device.id}`">
 					{{ device.name }}
-				</router-link>
+				</a>
 			</a-menu-item>
 		</a-sub-menu>
 		<a-sub-menu>
@@ -88,13 +88,6 @@
 	.ant-menu-submenu, .ant-menu-item {
 		a:focus {
 			text-decoration: none;
-		}
-
-		a.router-link-active {
-			color: #1890ff;
-			&[href="/"] {
-				color: rgba(255, 255, 255, 0.65);
-			}
 		}
 
 		.ant-spin {

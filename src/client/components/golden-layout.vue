@@ -74,7 +74,6 @@
 				// el.$mount(container.getElement()[0]);
 				el.$mount();
 				container.getElement().append(el.$el);
-				container.on('itemDestroyed', () => el.$destroy());
 			});
 			this.gl.init();
 

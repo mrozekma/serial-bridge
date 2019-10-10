@@ -18,62 +18,37 @@
 	import { DeviceJson } from '@/services';
 
 	type Node = DeviceJson['nodes'][number];
-	interface GlLayout {
-		left: Node | undefined;
-		top: Node[];
-		bottom: Node[];
-	}
 
 	import SbNavbar from '../components/navbar.vue';
 	import SbLayout from '../components/golden-layout.vue';
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
 	export default Vue.extend({
 		components: { SbNavbar, SbLayout, SbTerminal },
+		props: {
+			id: {
+				type: String,
+				required: true,
+			},
+		},
 		computed: {
 			...rootDataComputeds(),
 			deviceName(): string {
-				return (this.device.state == 'resolved') ? this.device.value.name : this.$route.params.device;
+				return (this.device.state == 'resolved') ? this.device.value.name : this.id;
 			},
 			nodes(): Node[] {
 				return (this.device.state == 'resolved') ? this.device.value.nodes : [];
 			},
-			// nodesByColumn(): Node[][] {
-			// 	const nodes = this.nodes;
-			// 	return Array.from((function*() {
-			// 		let i = 0;
-			// 		if(nodes.length % 2) {
-			// 			// If odd, put the first node in a column alone
-			// 			yield [ nodes[i++] ];
-			// 		}
-			// 		const rowLen = Math.floor(nodes.length / 2);
-			// 		for(; i * 2 < nodes.length; i++) {
-			// 			yield [ nodes[i], nodes[i + rowLen] ];
-			// 		}
-			// 	})());
-			// },
 		},
 		data() {
 			return {
 				device: {
-					state: 'pending', // Technically a lie, nothing is loading yet, but watch.$route will take care of it
+					state: 'pending', // Technically a lie, nothing is loading yet, but mounted() will take care of it
 				} as PromiseResult<DeviceJson>,
 				layout: null, //TODO Persist this
 			};
 		},
-		// watch: {
-		// 	layout() {
-		// 		// When the layout changed, re-fit all terminals
-		// 		const components = this.$refs.termComponents as SbTerminalVue[];
-		// 		for(const c of components) {
-		// 			c.fit();
-		// 		}
-		// 	},
-		// },
 		mounted() {
-			this.device = unwrapPromise(this.app.service('api/devices').get(this.$route.params.device));
+			this.device = unwrapPromise(this.app.service('api/devices').get(this.id));
 		},
 	});
 </script>
-
-<style lang="less" scoped>
-</style>

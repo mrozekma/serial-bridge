@@ -36,7 +36,6 @@
 			// The alternative is to draw one line too many and hide the overflow. This works except that the bottom part of the scrolbar can get a little cut off.
 			// I hate both, but I generally hate the latter less. Choose depending on how big the gap will be
 			let { rows, cols } = this.getFloatDimensions();
-			console.log(rows, cols);
 			if(rows - Math.floor(rows) > .2) {
 				rows = Math.ceil(rows);
 			}
@@ -72,7 +71,7 @@
 			const layout = await this.layout;
 			this.terminal.open(this.$refs.term as HTMLElement);
 			this.fit();
-			layout.on('stateChanged', () => {console.log('stateChanged', (this as any)._uid); this.fit()});
+			layout.on('stateChanged', () => this.fit());
 			this.terminal.writeln(`This is the terminal for ${this.node.name}`);
 			for(let i = 1; i <= 30; i++)
 				this.terminal.writeln(`Test line ${i}`);
@@ -90,12 +89,10 @@
 <style lang="less" scoped>
 	.term-padding-wrapper {
 		height: 100%;
-		// background-color: #000;
 		overflow: hidden;
 	}
 
 	.term {
 		height: 100%;
-		// background-color: #000;
 	}
 </style>

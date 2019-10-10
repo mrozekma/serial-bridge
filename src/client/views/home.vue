@@ -9,14 +9,12 @@
 					<a-card v-for="i in 3" :key="i" :loading="true">foo</a-card>
 				</template>
 				<template v-else>
-					<router-link v-for="device in devices.value" :key="device.name" :to="`/devices/${device.id}`" v-slot="{ navigate }">
-						<a-card :title="device.name" hoverable @click="navigate">
-							Content
-							<template class="ant-card-actions" slot="actions">
-								<i class="fas fa-external-link-square-alt"></i>
-							</template>
-						</a-card>
-					</router-link>
+					<a-card v-for="device in devices.value" :key="device.name" :title="device.name" hoverable @click="loadDevice(device)">
+						Content
+						<template class="ant-card-actions" slot="actions">
+							<i class="fas fa-external-link-square-alt"></i>
+						</template>
+					</a-card>
 				</template>
 			</div>
 
@@ -53,6 +51,8 @@
 <script lang="ts">
 	import Vue from 'vue';
 
+	import { DeviceJson } from '@/services';
+
 	import Prism from 'prismjs';
 	// Prism is getting confused by the parentheses in "Program Files (x86)" and styling "x86" as a keyword, so this hack works around it by adding an earlier token for that whole string
 	Prism.languages.insertBefore('batch', 'command', { programFiles: /Program Files \(x86\)/ }, Prism.languages);
@@ -63,6 +63,11 @@
 		components: { SbNavbar },
 		computed: {
 			...rootDataComputeds(),
+		},
+		methods: {
+			loadDevice(device: DeviceJson) {
+				window.location.assign(`/devices/${device.id}`);
+			}
 		},
 	});
 </script>

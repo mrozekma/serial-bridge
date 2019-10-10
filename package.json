@@ -43,7 +43,6 @@
 		"socket.io-client": "^2.3.0",
 		"typesafe-joi": "^2.0.6",
 		"vue": "^2.6.10",
-		"vue-router": "^3.0.3",
 		"webpack-node-externals": "^1.7.2",
 		"xterm": "^4.1.0",
 		"xterm-addon-fit": "^0.2.1"
