@@ -44,7 +44,9 @@
 		"vue": "^2.6.10",
 		"vue-golden-layout": "^1.6.0",
 		"vue-router": "^3.0.3",
-		"webpack-node-externals": "^1.7.2"
+		"webpack-node-externals": "^1.7.2",
+		"xterm": "^4.1.0",
+		"xterm-addon-fit": "^0.2.1"
 	},
 	"devDependencies": {
 		"@types/cors": "^2.8.6",
