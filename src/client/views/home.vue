@@ -81,7 +81,6 @@
 		display: flex;
 		flex-wrap: wrap;
 		margin: -15px 0;
-		// width: calc(100% - 30px);
 
 		> .ant-card {
 			margin: 15px;

@@ -3,17 +3,13 @@ import feathers from '@feathersjs/feathers';
 import Device from './server/device';
 
 // Variant of feathers.ServiceMethods with some narrower return types
-interface ServiceMethods<T> {
-	find (params?: feathers.Params): Promise<T[]>;
-	get (id: feathers.Id, params?: feathers.Params): Promise<T>;
-	create (data: Partial<T> | Array<Partial<T>>, params?: feathers.Params): Promise<T>;
-	update (id: feathers.NullableId, data: T, params?: feathers.Params): Promise<T>;
-	patch (id: feathers.NullableId, data: Partial<T>, params?: feathers.Params): Promise<T>;
-	remove (id: feathers.NullableId, params?: feathers.Params): Promise<T>;
-}
-
-interface Common {
-	events?: string[];
+interface ServiceMethods<T> extends feathers.ServiceMethods<T> {
+	find(params?: feathers.Params): Promise<T[]>;
+	get(id: feathers.Id, params?: feathers.Params): Promise<T>;
+	create(data: Partial<T> | Array<Partial<T>>, params?: feathers.Params): Promise<T>;
+	update(id: feathers.NullableId, data: T, params?: feathers.Params): Promise<T>;
+	patch(id: feathers.NullableId, data: Partial<T>, params?: feathers.Params): Promise<T>;
+	remove(id: feathers.NullableId, params?: feathers.Params): Promise<T>;
 }
 
 /**
@@ -26,12 +22,29 @@ type M<
 	ServerClient extends 'server' | 'client',
 	Chosen extends keyof ServiceMethods<T>,
 	T extends { toJSON: () => any } = any
-> = Pick<ServiceMethods<ServerClient extends 'server' ? T : ReturnType<T['toJSON']>>, Chosen>;
+> = Pick<ServiceMethods<ServerClient extends 'server' ? T : ReturnType<T['toJSON']>>, Chosen> & {
+	events?: string[];
+};
 
 export type DeviceJson = ReturnType<Device['toJSON']>;
 
-interface Services<ServerClient extends 'server' | 'client'> {
-	'api/devices': Common & M<ServerClient, 'find' | 'get' | 'update', Device>,
+/**
+ * This defines the list of services and which methods they implement.
+ * This is used in the server to actually implement these methods.
+ */
+interface SCServiceDefinitions<ServerClient extends 'server' | 'client'> {
+	'api/devices': M<ServerClient, 'find' | 'get' | 'update', Device>;
+};
+
+// Since only the server needs SCServiceDefinitions, only that is exported here:
+export type ServiceDefinitions = SCServiceDefinitions<'server'>;
+
+/**
+ * This takes SCServiceDefinitions and adds on functions that are provided by feathers.
+ * This is what you get back when you call app.service().
+ */
+type Services<ServerClient extends 'server' | 'client'> = {
+	[K in keyof SCServiceDefinitions<ServerClient>]: SCServiceDefinitions<ServerClient>[K] & feathers.ServiceAddons<any>;
 };
 
 export type ServerServices = Services<'server'>;

@@ -17,9 +17,9 @@ export function makeWebserver(attachFn?: (app: Application<Services>) => void): 
 	app.configure(express.rest());
 
 	app.configure(socketio(io => {}));
-	app.on('connection', connection =>
-		app.channel('everybody').join(connection)
-	);
+	app.on('connection', connection => app.channel('everybody').join(connection));
+	// app.publish((data, hook) => app.channel('everybody'));
+	app.publish(data => { throw new Error(`Unexpected root-app publish: ${data}`); });
 
 	if(attachFn) {
 		attachFn(app);

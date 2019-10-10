@@ -2,6 +2,8 @@ import RealSerialPort from 'serialport';
 
 import chalk from 'chalk';
 import net from 'net';
+import { Application } from '@feathersjs/express';
+import { ServerServices as Services } from '@/services';
 
 interface SSHInfo {
 	host: string;
@@ -140,6 +142,10 @@ export default class Device {
 		const node = new Node(this, ...args);
 		this.nodes.push(node);
 		return node;
+	}
+
+	emit(app: Application<Services>, event: string, data: {} = {}) {
+		app.service('api/devices').emit('test', { device: this.id, ...data });
 	}
 
 	toJSON() {

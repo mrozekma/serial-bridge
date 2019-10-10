@@ -94,5 +94,8 @@
 
 	.term {
 		height: 100%;
+		/deep/ .xterm {
+			padding: 5px;
+		}
 	}
 </style>

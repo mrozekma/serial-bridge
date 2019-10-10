@@ -49,6 +49,7 @@
 		},
 		mounted() {
 			this.device = unwrapPromise(this.app.service('api/devices').get(this.id));
+			this.app.service('api/devices').on('test', x => console.log(x));
 		},
 	});
 </script>
