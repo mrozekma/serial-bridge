@@ -43,6 +43,7 @@
 						layout: layoutPromise,
 					},
 				});
+				comp.$mount();
 				this.terminals.set(node.name, comp as SbTerminalVue);
 			}
 
@@ -83,10 +84,8 @@
 			}, this.$el);
 			this.gl.on('initialised', () => layoutResolve(this.gl!));
 			this.gl.registerComponent('terminal', (container: GoldenLayout.Container, state: { nodeName: string }) => {
-				const el = this.getNodeTerminal(state.nodeName);
-				// el.$mount(container.getElement()[0]);
-				el.$mount();
-				container.getElement().append(el.$el);
+				const term = this.getNodeTerminal(state.nodeName);
+				container.getElement().append(term.$el);
 			});
 			this.gl.init();
 
