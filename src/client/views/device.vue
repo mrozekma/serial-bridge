@@ -6,7 +6,7 @@
 				<!-- TODO -->
 			</template>
 			<a-alert v-else-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
-			<sb-layout v-if="nodes.length > 0" :nodes="nodes"/>
+			<sb-layout ref="layout" v-if="nodes.length > 0" :nodes="nodes"/>
 		</main>
 	</div>
 </template>
@@ -20,7 +20,7 @@
 	type Node = DeviceJson['nodes'][number];
 
 	import SbNavbar from '../components/navbar.vue';
-	import SbLayout from '../components/golden-layout.vue';
+	import SbLayout, {SbLayoutVue } from '../components/golden-layout.vue';
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
 	export default Vue.extend({
 		components: { SbNavbar, SbLayout, SbTerminal },
@@ -44,12 +44,25 @@
 				device: {
 					state: 'pending', // Technically a lie, nothing is loading yet, but mounted() will take care of it
 				} as PromiseResult<DeviceJson>,
-				layout: null, //TODO Persist this
 			};
 		},
 		mounted() {
 			this.device = unwrapPromise(this.app.service('api/devices').get(this.id));
-			this.app.service('api/devices').on('test', x => console.log(x));
+			//TODO Automate this typing
+			interface Data { node: string; data: Buffer; }
+			this.app.service('api/devices').on('data', (data: Data) => {
+				// console.debug(data);
+				const terminal = this.getTerminal(data.node);
+				if(terminal) {
+					terminal.terminal.write(new Uint8Array(data.data));
+				}
+			});
+		},
+		methods: {
+			getTerminal(node: string): SbTerminalVue | undefined {
+				const layout = this.$refs.layout as SbLayoutVue | undefined;
+				return (layout && layout.ready) ? layout.getNodeTerminal(node) : undefined;
+			},
 		},
 	});
 </script>

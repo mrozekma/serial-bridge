@@ -72,9 +72,6 @@
 			this.terminal.open(this.$refs.term as HTMLElement);
 			this.fit();
 			layout.on('stateChanged', () => this.fit());
-			this.terminal.writeln(`This is the terminal for ${this.node.name}`);
-			for(let i = 1; i <= 30; i++)
-				this.terminal.writeln(`Test line ${i}`);
 		},
 		methods: {
 			fit() {

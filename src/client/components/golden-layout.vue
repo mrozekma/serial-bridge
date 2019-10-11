@@ -15,7 +15,7 @@
 	import 'golden-layout/src/css/goldenlayout-light-theme.css';
 
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
-	export default Vue.extend({
+	const component = Vue.extend({
 		props: {
 			nodes: {
 				type: Array as PropType<Node[]>,
@@ -25,11 +25,26 @@
 		data() {
 			return {
 				gl: undefined as GoldenLayout | undefined,
+				ready: false,
+				terminals: new Map<string, SbTerminalVue>(), // node name -> SbTerminal
 			};
 		},
 		mounted() {
 			let layoutResolve: (layout: GoldenLayout) => void;
 			const layoutPromise = new Promise<GoldenLayout>(resolve => layoutResolve = resolve);
+			layoutPromise.then(() => this.ready = true);
+
+			// Make an SbTerminal for each node
+			const termCtor = Vue.extend(SbTerminal);
+			for(const node of this.nodes) {
+				const comp = new termCtor({
+					propsData: {
+						node,
+						layout: layoutPromise,
+					},
+				});
+				this.terminals.set(node.name, comp as SbTerminalVue);
+			}
 
 			//TODO Load config from local storage
 			const nodeConfigs = this.nodes.map<GoldenLayout.ItemConfigType>(node => ({
@@ -37,8 +52,7 @@
 				componentName: 'terminal',
 				title: node.name,
 				componentState: {
-					node,
-					layout: layoutPromise,
+					nodeName: node.name,
 				},
 			}));
 
@@ -60,7 +74,6 @@
 				}
 			}()];
 
-			const termCtor = Vue.extend(SbTerminal);
 			this.gl = new GoldenLayout({
 				//TODO Other settings?
 				content: [{
@@ -69,8 +82,8 @@
 				}],
 			}, this.$el);
 			this.gl.on('initialised', () => layoutResolve(this.gl!));
-			this.gl.registerComponent('terminal', (container: GoldenLayout.Container, state: any) => {
-				const el = new termCtor({ propsData: state });
+			this.gl.registerComponent('terminal', (container: GoldenLayout.Container, state: { nodeName: string }) => {
+				const el = this.getNodeTerminal(state.nodeName);
 				// el.$mount(container.getElement()[0]);
 				el.$mount();
 				container.getElement().append(el.$el);
@@ -83,8 +96,19 @@
 			if(this.gl) {
 				this.gl.destroy();
 			}
-		}
+		},
+		methods: {
+			getNodeTerminal(node: string): SbTerminalVue {
+				const rtn = this.terminals.get(node);
+				if(rtn === undefined) {
+					throw new Error(`No terminal for node '${node}'`);
+				}
+				return rtn;
+			},
+		},
 	});
+	export type SbLayoutVue = InstanceType<typeof component>;
+	export default component;
 </script>
 
 <style lang="less" scoped>

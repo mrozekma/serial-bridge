@@ -13,7 +13,7 @@ const devicesRoute = /^\/devices\/([^/]+)\/?$/;
 function makeServices(app: Application<Services>, devices: Device[]): ServiceDefinitions {
 	return {
 		'api/devices': {
-			events: [ 'test' ],
+			events: [ 'data' ],
 			async find(params) {
 				return devices;
 			},
@@ -30,6 +30,15 @@ function makeServices(app: Application<Services>, devices: Device[]): ServiceDef
 			}
 		},
 	};
+}
+
+function attachNodeListeners(app: Application<Services>, devices: Device[]) {
+	for(const device of devices) {
+		for(const node of device.nodes) {
+			//TODO Type safety here?
+			node.serialPort.on('data', (data: Buffer) => device.emit(app, 'data', { node: node.name, data }));
+		}
+	}
 }
 
 export function makeWebserver(devices: Device[]): Application<Services> {
@@ -92,5 +101,6 @@ export function makeWebserver(devices: Device[]): Application<Services> {
 		return app.channel(`device/${id}`);
 	});
 
+	attachNodeListeners(app, devices);
 	return app;
 }

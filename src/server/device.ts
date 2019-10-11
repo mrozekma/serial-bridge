@@ -99,9 +99,9 @@ class Node {
 	public readonly serialPort: SerialPort;
 	public readonly tcpPort: TcpPort;
 
-	constructor(private device: Device, private name: string, private path: string, private baudRate: number,
-		private byteSize: 5 | 6 | 7 | 8, private parity: 'even' | 'odd' | 'none', private stopBits: 1 | 2,
-		private tcpPortNumber: number, private webLinks: string[], private ssh: SSHInfo | undefined)
+	constructor(public readonly device: Device, public readonly name: string, public readonly path: string, public readonly baudRate: number,
+		public readonly byteSize: 5 | 6 | 7 | 8, public readonly parity: 'even' | 'odd' | 'none', public readonly stopBits: 1 | 2,
+		public readonly tcpPortNumber: number, public readonly webLinks: string[], public readonly ssh: SSHInfo | undefined)
 	{
 		this.serialPort = new SerialPort(path, baudRate, byteSize, parity, stopBits);
 		this.tcpPort = new TcpPort(tcpPortNumber, socket => this.onTcpConnect(socket));
@@ -134,18 +134,22 @@ class Node {
 type NodeCtorArgs = typeof Node extends new (device: Device, ...args: infer T) => Node ? T : never;
 
 export default class Device {
-	private nodes: Node[] = [];
+	private _nodes: Node[] = [];
 
 	constructor(public readonly id: string, public readonly name: string) {}
 
+	get nodes(): Readonly<Node[]> {
+		return this._nodes;
+	}
+
 	addNode(...args: NodeCtorArgs): Node {
 		const node = new Node(this, ...args);
-		this.nodes.push(node);
+		this._nodes.push(node);
 		return node;
 	}
 
 	emit(app: Application<Services>, event: string, data: {} = {}) {
-		app.service('api/devices').emit('test', { device: this.id, ...data });
+		app.service('api/devices').emit(event, { device: this.id, ...data });
 	}
 
 	toJSON() {
