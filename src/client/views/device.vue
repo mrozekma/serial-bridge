@@ -15,7 +15,7 @@
 	import Vue from 'vue';
 
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
-	import { DeviceJson } from '@/services';
+	import { DeviceJson, ConnectionsJson } from '@/services';
 
 	type Node = DeviceJson['nodes'][number];
 
@@ -47,16 +47,24 @@
 			};
 		},
 		mounted() {
-			this.device = unwrapPromise(this.app.service('api/devices').get(this.id));
+			const devicesService = this.app.service('api/devices');
+			this.device = unwrapPromise(devicesService.get(this.id));
 			//TODO Automate this typing
-			interface Data { node: string; data: Buffer; }
-			this.app.service('api/devices').on('data', (data: Data) => {
-				// console.debug(data);
-				const terminal = this.getTerminal(data.node);
-				if(terminal) {
-					terminal.terminal.write(new Uint8Array(data.data));
-				}
-			});
+			devicesService
+				.on('updated', (data: { device: DeviceJson }) => {
+					console.log('updated', data);
+					this.device = {
+						state: 'resolved',
+						value: data.device,
+					}
+				})
+				.on('data', (data: { node: string; data: Buffer }) => {
+					// console.debug(data);
+					const terminal = this.getTerminal(data.node);
+					if(terminal) {
+						terminal.terminal.write(new Uint8Array(data.data));
+					}
+				});
 		},
 		methods: {
 			getTerminal(node: string): SbTerminalVue | undefined {

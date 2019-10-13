@@ -31,8 +31,18 @@ const deviceJoi = joi.object({
 	//TODO commands?
 });
 
+const userDirectoryJoi = joi.object({
+	url: joi.string(),
+	dn: joi.string(),
+	username: joi.string(),
+	password: joi.string(),
+	hostPattern: joi.string(),
+	gravatar: joi.string(),
+}).with('url', 'dn');
+
 const configJoi = joi.object({
 	webPort: joi.number().integer(),
+	userDirectory: userDirectoryJoi,
 	devices: joi.array().required().items(deviceJoi),
 }).required();
 

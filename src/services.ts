@@ -1,6 +1,7 @@
 import feathers from '@feathersjs/feathers';
 
 import Device from './server/device';
+import Connections from './server/connections';
 
 // Variant of feathers.ServiceMethods with some narrower return types
 interface ServiceMethods<T> extends feathers.ServiceMethods<T> {
@@ -27,6 +28,7 @@ type M<
 };
 
 export type DeviceJson = ReturnType<Device['toJSON']>;
+export type ConnectionsJson = ReturnType<Connections['toJSON']>;
 
 /**
  * This defines the list of services and which methods they implement.

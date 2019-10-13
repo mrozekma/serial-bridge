@@ -2,8 +2,10 @@ import feathers from '@feathersjs/feathers';
 import express, { Application } from '@feathersjs/express';
 import socketio from '@feathersjs/socketio';
 import '@feathersjs/transport-commons'; // Adds channel typing to express.Application
+import { Channel } from '@feathersjs/transport-commons/lib/channels/channel/base';
 import { Request, Response, NextFunction } from 'express-serve-static-core';
 import Url from 'url-parse';
+import chalk from 'chalk';
 
 import { ServerServices as Services, ServiceDefinitions } from '@/services';
 import Device from './device';
@@ -32,11 +34,15 @@ function makeServices(app: Application<Services>, devices: Device[]): ServiceDef
 	};
 }
 
-function attachNodeListeners(app: Application<Services>, devices: Device[]) {
+function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 	for(const device of devices) {
+		const sendUpdate = () => device.emit(app, 'updated', { device });
+		device.webConnections.on('connect', sendUpdate).on('disconnect', sendUpdate);
 		for(const node of device.nodes) {
 			//TODO Type safety here?
 			node.serialPort.on('data', (data: Buffer) => device.emit(app, 'data', { node: node.name, data }));
+			node.tcpConnections.on('connect', sendUpdate).on('disconnect', sendUpdate);
+			node.tcpConnections.on('connect', console.log);
 		}
 	}
 }
@@ -51,7 +57,12 @@ export function makeWebserver(devices: Device[]): Application<Services> {
 	app.use(express.urlencoded({ extended: true }));
 	app.configure(express.rest());
 
-	app.configure(socketio(io => {}));
+	app.configure(socketio(io => {
+		io.on('connection', socket => {
+			//@ts-ignore socket.feathers does exist even though it's not in the interface
+			socket.feathers.ip = socket.conn.remoteAddress;
+		});
+	}));
 	// app.on('connection', connection => app.channel('everybody').join(connection));
 	// app.publish((data, hook) => app.channel('everybody'));
 	app.publish(data => { throw new Error(`Unexpected root-app publish: ${data}`); });
@@ -84,23 +95,53 @@ export function makeWebserver(devices: Device[]): Application<Services> {
 		errorHandler(err, req, res, next);
 	});
 
-	// If a connection comes in from /device/:id, join that device's channel
 	app.on('connection', connection => {
-		const { pathname } = new Url((connection as any).headers.referer);
+		const conn: any = connection;
+		const { pathname } = new Url(conn.headers.referer);
+
+		// If a connection comes in from /, join the 'home' channel
+		if(pathname == '/') {
+			app.channel('home').join(connection);
+		}
+
+		// If a connection comes in from /device/:id, join that device's channel
 		const match = pathname.match(devicesRoute);
-		if(match && devices.find(device => device.id === match[1])) {
-			app.channel(`device/${match[1]}`).join(connection);
+		let device: Device | undefined;
+		if(match && (device = conn.device = devices.find(device => device.id === match[1]))) {
+			device.webConnections.addConnection(conn.ip)
+			app.channel(`device/${device.id}`).join(connection);
+		}
+
+		console.log(chalk.bgBlue.bold(` web (${device ? device.name : '-'}) `) + ` ${conn.ip} connected`);
+	});
+	app.on('disconnect', connection => {
+		const conn: any = connection;
+		if(conn.device) {
+			(conn.device as Device).webConnections.removeConnection(conn.ip);
 		}
 	});
 
+	// 'updated' device events go to the device's channel and the 'home' channel
+	app.service('api/devices').publish('updated', data => {
+		const id = data.id;
+		if(id === undefined) {
+			throw new Error('Device service event missing device ID');
+		}
+		return [
+			app.channel('home'),
+			app.channel(`device/${id}`),
+		];
+	});
+
+	// Other device events go to the device's channel
 	app.service('api/devices').publish(data => {
-		const id = data.device;
+		const id = data.id;
 		if(id === undefined) {
 			throw new Error('Device service event missing device ID');
 		}
 		return app.channel(`device/${id}`);
 	});
 
-	attachNodeListeners(app, devices);
+	attachDeviceListeners(app, devices);
 	return app;
 }

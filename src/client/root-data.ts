@@ -42,11 +42,21 @@ const data = {
 };
 
 type RootData = typeof data;
-export function rootDataComputeds(): { [K in keyof RootData]: (this: Vue) => RootData[K] } {
+export function rootDataComputeds(): {
+	[K in keyof RootData]: {
+		get: (this: Vue) => RootData[K],
+		set: (this: Vue, val: RootData[K]) => void,
+	}
+} {
 	const rtn: any = {};
 	for(const k in data) {
-		rtn[k] = function(this: Vue) {
-			return this.$root.$data[k];
+		rtn[k] = {
+			get(this: Vue) {
+				return this.$root.$data[k];
+			},
+			set(this: Vue, val: any) {
+				this.$root.$data[k] = val;
+			},
 		};
 	}
 	return rtn;

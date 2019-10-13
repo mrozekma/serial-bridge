@@ -1,9 +1,12 @@
 import RealSerialPort from 'serialport';
 
 import chalk from 'chalk';
+import { EventEmitter } from 'events';
 import net from 'net';
 import { Application } from '@feathersjs/express';
+
 import { ServerServices as Services } from '@/services';
+import Connections from './connections';
 
 interface SSHInfo {
 	host: string;
@@ -95,9 +98,20 @@ class TcpPort extends Port {
 	closeImpl() { this.tcpServer.close(); }
 }
 
+interface OnOff {
+	on: (event: string, cb: (...args: any[]) => void) => void;
+	off: (event: string, cb: (...args: any[]) => void) => void;
+}
+
+function socketListenTo(socket: net.Socket, target: OnOff, event: string, listener: (...args: any[]) => void) {
+	target.on(event, listener);
+	socket.on('close', () => target.off(event, listener));
+}
+
 class Node {
 	public readonly serialPort: SerialPort;
 	public readonly tcpPort: TcpPort;
+	public readonly tcpConnections: Connections;
 
 	constructor(public readonly device: Device, public readonly name: string, public readonly path: string, public readonly baudRate: number,
 		public readonly byteSize: 5 | 6 | 7 | 8, public readonly parity: 'even' | 'odd' | 'none', public readonly stopBits: 1 | 2,
@@ -105,29 +119,35 @@ class Node {
 	{
 		this.serialPort = new SerialPort(path, baudRate, byteSize, parity, stopBits);
 		this.tcpPort = new TcpPort(tcpPortNumber, socket => this.onTcpConnect(socket));
-		// this.serialConn.on('data', buf => this.onSerialData(buf));
+		this.tcpConnections = new Connections();
 	}
 
 	toJSON() {
-		const { name, path, baudRate, byteSize, parity, stopBits, tcpPortNumber: tcpPort } = this;
-		return { name, path, baudRate, byteSize, parity, stopBits, tcpPort };
+		const { name, path, baudRate, byteSize, parity, stopBits, tcpPortNumber: tcpPort, tcpConnections } = this;
+		return {
+			name, path, baudRate, byteSize, parity, stopBits, tcpPort,
+			tcpConnections: tcpConnections.toJSON(),
+		};
 	}
 
 	private log(message: string, ...args: any[]) {
-		console.log(chalk.bgRed.bold(`${this.device.name}.${this.name}`) + ' ' + message, ...args);
+		console.log(chalk.bgRed.bold(` ${this.device.name}.${this.name} `) + ' ' + message, ...args);
 	}
 
 	private onTcpConnect(socket: net.Socket) {
 		let address = socket.address();
 		if(typeof address !== 'string') {
-			address = `${address.address}:${address.port}`;
+			address = address.address;
 		}
 		this.log(`${address} connected`);
+		this.tcpConnections.addConnection(address);
+		socket.on('close', () => {
+			this.log(`${address} disconnected`);
+			this.tcpConnections.removeConnection(address as string);
+		});
 		// Bi-directional pipe between the socket and the node's serial port
 		socket.on('data', buf => this.serialPort.write(buf));
-		const socketWrite = (buf: Buffer) => socket.write(buf);
-		this.serialPort.on('data', socketWrite);
-		socket.on('close', () => { this.log(`${address} disconnected`); this.serialPort.off('data', socketWrite) });
+		socketListenTo(socket, this.serialPort, 'data', (buf: Buffer) => socket.write(buf));
 	}
 }
 
@@ -135,8 +155,11 @@ type NodeCtorArgs = typeof Node extends new (device: Device, ...args: infer T) =
 
 export default class Device {
 	private _nodes: Node[] = [];
+	public readonly webConnections: Connections;
 
-	constructor(public readonly id: string, public readonly name: string) {}
+	constructor(public readonly id: string, public readonly name: string) {
+		this.webConnections = new Connections();
+	}
 
 	get nodes(): Readonly<Node[]> {
 		return this._nodes;
@@ -149,7 +172,7 @@ export default class Device {
 	}
 
 	emit(app: Application<Services>, event: string, data: {} = {}) {
-		app.service('api/devices').emit(event, { device: this.id, ...data });
+		app.service('api/devices').emit(event, { id: this.id, ...data });
 	}
 
 	toJSON() {
@@ -158,6 +181,7 @@ export default class Device {
 			id,
 			name,
 			nodes: nodes.map(node => node.toJSON()), // This is done manually for typing reasons
+			webConnections: this.webConnections.toJSON(),
 		};
 	}
 }

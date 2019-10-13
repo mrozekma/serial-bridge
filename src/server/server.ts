@@ -4,6 +4,7 @@ import slugify from 'slugify';
 import banner from 'raw-loader!./banner.txt';
 import { loadConfig, Config } from './config';
 import Device from './device';
+import { configureUserFactory } from './connections';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_DATE: string;
@@ -33,6 +34,7 @@ function makeDevice(deviceConfig: Config['devices'][number], existingIds?: Set<s
 (async () => {
 	console.log(`${banner}\n${BUILD_VERSION}\nBuilt ${BUILD_DATE}\n`);
 	const config = await spinner("Load configuration", loadConfig);
+	configureUserFactory(config.userDirectory);
 	const devices: Device[] = await spinner("Load device information", async () => {
 		//TODO Check for duplicate device/node names
 		const ids = new Set<string>();
