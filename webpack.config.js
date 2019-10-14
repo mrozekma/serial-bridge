@@ -43,6 +43,7 @@ module.exports = {
 		definePlugin,
 		new NodemonPlugin({
 			script: './dist/server/server.js',
+			nodeArgs: [ '--inspect' ],
 		}),
 	],
 	externals: [

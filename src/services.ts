@@ -1,7 +1,8 @@
 import feathers from '@feathersjs/feathers';
 
 import Device from './server/device';
-import Connections from './server/connections';
+import Connections, { User } from './server/connections';
+import { Config } from './server/config';
 
 // Variant of feathers.ServiceMethods with some narrower return types
 interface ServiceMethods<T> extends feathers.ServiceMethods<T> {
@@ -22,8 +23,8 @@ interface ServiceMethods<T> extends feathers.ServiceMethods<T> {
 type M<
 	ServerClient extends 'server' | 'client',
 	Chosen extends keyof ServiceMethods<T>,
-	T extends { toJSON: () => any } = any
-> = Pick<ServiceMethods<ServerClient extends 'server' ? T : ReturnType<T['toJSON']>>, Chosen> & {
+	T = any
+> = Pick<ServiceMethods<ServerClient extends 'server' ? T : (T extends { toJSON: () => any } ? ReturnType<T['toJSON']> : T)>, Chosen> & {
 	events?: string[];
 };
 
@@ -36,6 +37,8 @@ export type ConnectionsJson = ReturnType<Connections['toJSON']>;
  */
 interface SCServiceDefinitions<ServerClient extends 'server' | 'client'> {
 	'api/devices': M<ServerClient, 'find' | 'get' | 'update', Device>;
+	'api/config': M<ServerClient, 'get', Config>; //TODO Typing this as 'Config' is wrong, it's really Config | a child of Config
+	'api/users': M<ServerClient, 'get' | 'patch', User>;
 };
 
 // Since only the server needs SCServiceDefinitions, only that is exported here:

@@ -24,11 +24,42 @@
 						</template>
 						<template>
 							<b>Ports</b>
-							<a-table :columns="nodesColumns" :dataSource="device.nodes" size="small" :pagination="false"/>
+							<a-table :columns="nodesColumns" :dataSource="device.nodes" :rowKey="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'None'}"/>
 						</template>
 					</a-card>
 				</template>
 			</div>
+
+			<h1>You</h1>
+			<a-alert v-if="userDirectoryConfig.state == 'rejected'" type="error" message="Failed to load user directory config" :description="userDirectoryConfig.error.message" showIcon/>
+			<a-alert v-else-if="currentUser.state == 'rejected'" type="error" message="Failed to load current user info" :description="currentUser.error.message" showIcon/>
+			<a-spin v-else-if="userDirectoryConfig.state == 'pending' || currentUser.state == 'pending'"/>
+			<template v-else>
+				A list of who is connected to each device/port is displayed in several places in the UI.<br>
+				<template v-if="userDirectoryConfig.value.hostPattern">
+					Serial Bridge attempts to guess who you are based on your hostname: <code>{{ currentUser.value.host }}</code>.<br>
+					If this isn't working, you can manually specify your name here.
+				</template>
+				<template v-else>
+					Serial Bridge isn't configured with a user directory, so by default it just displays your hostname: <code>{{ currentUser.value.host }}</code>.<br>
+					You can manually specify your name here.
+				</template>
+				<template v-if="userDirectoryConfig.value.gravatar">
+					You can also specify an e-mail address to show an avatar.
+				</template>
+
+				<a-form layout="inline" @submit.prevent="updateUser">
+					<a-form-item label="Name" v-bind="formFeedback">
+						<a-input v-model="currentUser.value.displayName" @change="changeUserInfo = undefined"/>
+					</a-form-item>
+					<a-form-item v-if="userDirectoryConfig.value.gravatar" label="E-mail" v-bind="formFeedback">
+						<a-input v-model="currentUser.value.email" @change="changeUserInfo = undefined"/>
+					</a-form-item>
+					<a-form-item>
+						<a-button type="primary" html-type="submit" :disabled="changeUserInfo && changeUserInfo.state == 'pending'">Update</a-button>
+					</a-form-item>
+				</a-form>
+			</template>
 
 			<h1>Setup</h1>
 			Some terminal windows have <i class="fas fa-external-link-alt"></i> and/or <i class="fas fa-terminal"></i> icons to open telnet, raw TCP, and SSH connections. To customize which application handles the links:
@@ -62,8 +93,9 @@
 
 <script lang="ts">
 	import Vue from 'vue';
+	import { Application } from '@feathersjs/feathers';
 
-	import { DeviceJson } from '@/services';
+	import { DeviceJson, ClientServices as Services } from '@/services';
 
 	import Prism from 'prismjs';
 	// Prism is getting confused by the parentheses in "Program Files (x86)" and styling "x86" as a keyword, so this hack works around it by adding an earlier token for that whole string
@@ -125,7 +157,7 @@
 	}];
 
 	import SbNavbar from '../components/navbar.vue';
-	import { rootDataComputeds } from '../root-data';
+	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	export default Vue.extend({
 		components: { SbNavbar },
 		computed: {
@@ -138,10 +170,36 @@
 					}))
 					: [];
 			},
+			formFeedback() {
+				const rtn: any = {
+					hasFeedback: false,
+				};
+				if(this.changeUserInfo) {
+					rtn.hasFeedback = true;
+					switch(this.changeUserInfo.state) {
+						case 'pending':
+							rtn.validateStatus = 'validating';
+							break;
+						case 'resolved':
+							rtn.validateStatus = 'success';
+							break;
+						case 'rejected':
+							console.error(this.changeUserInfo.error);
+							rtn.validateStatus = 'error';
+							rtn.help = this.changeUserInfo.error.message;
+							break;
+					}
+				}
+				return rtn;
+			},
 		},
 		data() {
+			const app = this.$root.$data.app as Application<Services>;
 			return {
 				nodesColumns,
+				userDirectoryConfig: unwrapPromise(app.service('api/config').get('userDirectory')),
+				currentUser: unwrapPromise(app.service('api/users').get('self')),
+				changeUserInfo: undefined as PromiseResult<any> | undefined,
 			};
 		},
 		mounted() {
@@ -161,6 +219,11 @@
 					window.open(`/devices/${device.id}`, '_blank');
 				} else {
 					window.location.assign(`/devices/${device.id}`);
+				}
+			},
+			updateUser() {
+				if(this.currentUser.state == 'resolved') {
+					this.changeUserInfo = unwrapPromise(this.app.service('api/users').patch('self', this.currentUser.value));
 				}
 			},
 		},

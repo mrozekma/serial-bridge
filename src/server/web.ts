@@ -2,17 +2,18 @@ import feathers from '@feathersjs/feathers';
 import express, { Application } from '@feathersjs/express';
 import socketio from '@feathersjs/socketio';
 import '@feathersjs/transport-commons'; // Adds channel typing to express.Application
-import { Channel } from '@feathersjs/transport-commons/lib/channels/channel/base';
 import { Request, Response, NextFunction } from 'express-serve-static-core';
 import Url from 'url-parse';
 import chalk from 'chalk';
 
 import { ServerServices as Services, ServiceDefinitions } from '@/services';
+import { Config, stripSecure } from './config';
 import Device from './device';
+import { getUser, setUserInfo } from './connections';
 
 const devicesRoute = /^\/devices\/([^/]+)\/?$/;
 
-function makeServices(app: Application<Services>, devices: Device[]): ServiceDefinitions {
+function makeServices(app: Application<Services>, config: Config, devices: Device[]): ServiceDefinitions {
 	return {
 		'api/devices': {
 			events: [ 'data' ],
@@ -31,6 +32,40 @@ function makeServices(app: Application<Services>, devices: Device[]): ServiceDef
 				throw new Error('Unimplemented');
 			}
 		},
+
+		'api/config': {
+			async get(id, params) {
+				const all = stripSecure(config);
+				if(id == 'all') {
+					return all;
+				} else if(all.hasOwnProperty(id)) {
+					return (all as any)[id];
+				} else {
+					throw new Error(`Config not found: ${id}`);
+				}
+			},
+		},
+
+		'api/users': {
+			async get(id, params) {
+				if(id != 'self') {
+					throw new Error("Can only request 'self'");
+				} else if(!params || !params.connection || !params.connection.ip) {
+					throw new Error("No connection");
+				} else {
+					return getUser(params.connection.ip);
+				}
+			},
+			async patch(id, data, params) {
+				if(id === null) {
+					throw new Error("Null ID");
+				} else if(!data.displayName || data.displayName.length == 0) {
+					throw new Error("Bad data");
+				}
+				const user = await this.get(id, params);
+				return await setUserInfo(user.host, data.displayName, data.email && data.email.length > 0 ? data.email : undefined);
+			},
+		},
 	};
 }
 
@@ -42,12 +77,11 @@ function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 			//TODO Type safety here?
 			node.serialPort.on('data', (data: Buffer) => device.emit(app, 'data', { node: node.name, data }));
 			node.tcpConnections.on('connect', sendUpdate).on('disconnect', sendUpdate);
-			node.tcpConnections.on('connect', console.log);
 		}
 	}
 }
 
-export function makeWebserver(devices: Device[]): Application<Services> {
+export function makeWebserver(config: Config, devices: Device[]): Application<Services> {
 	const app = express(feathers<Services>());
 
 	//TODO Figure out how to only allow CORS for REST endpoints
@@ -65,7 +99,7 @@ export function makeWebserver(devices: Device[]): Application<Services> {
 	}));
 	// app.on('connection', connection => app.channel('everybody').join(connection));
 	// app.publish((data, hook) => app.channel('everybody'));
-	app.publish(data => { throw new Error(`Unexpected root-app publish: ${data}`); });
+	app.publish(data => []);
 
 	// Register a rewriter for /devices/:id for all valid IDs
 	app.use((req: Request<any>, res: Response, next: NextFunction) => {
@@ -77,7 +111,7 @@ export function makeWebserver(devices: Device[]): Application<Services> {
 	});
 
 	// Register services
-	const services = makeServices(app, devices);
+	const services = makeServices(app, config, devices);
 	for(const [ name, service ] of Object.entries(services)) {
 		app.use(name, service);
 	}

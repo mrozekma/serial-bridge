@@ -65,3 +65,21 @@ export async function loadConfig() {
 	return value;
 }
 export type Config = ReturnType<typeof loadConfig> extends Promise<infer T> ? T : never;
+
+export function stripSecure(config: Config): object {
+	const rtn: Config = JSON.parse(JSON.stringify(config));
+	if(rtn.userDirectory) {
+		delete rtn.userDirectory.username;
+		delete rtn.userDirectory.password;
+	}
+	for(const device of rtn.devices) {
+		for(const node of device.nodes) {
+			// Arguably these aren't secret since the device UI provides links that include them
+			if(node.ssh) {
+				delete node.ssh.username;
+				delete node.ssh.password;
+			}
+		}
+	}
+	return rtn;
+}

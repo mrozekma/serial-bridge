@@ -3,6 +3,7 @@ import slugify from 'slugify';
 
 import banner from 'raw-loader!./banner.txt';
 import { loadConfig, Config } from './config';
+import db from './db';
 import Device from './device';
 import { configureUserFactory } from './connections';
 
@@ -43,7 +44,7 @@ function makeDevice(deviceConfig: Config['devices'][number], existingIds?: Set<s
 	if(config.webPort !== undefined) {
 		const app = await spinner("Make webserver", async () => {
 			const { makeWebserver } = await import(/* webpackChunkName: 'web' */ './web');
-			return makeWebserver(devices);
+			return makeWebserver(config, devices);
 		});
 		app.listen(config.webPort);
 		console.log(`Listening on ${config.webPort}`);

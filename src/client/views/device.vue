@@ -52,7 +52,6 @@
 			//TODO Automate this typing
 			devicesService
 				.on('updated', (data: { device: DeviceJson }) => {
-					console.log('updated', data);
 					this.device = {
 						state: 'resolved',
 						value: data.device,
