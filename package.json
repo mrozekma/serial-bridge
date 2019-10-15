@@ -28,6 +28,7 @@
 		"@fortawesome/fontawesome-free": "^5.11.2",
 		"@hapi/joi": "15.0.1",
 		"activedirectory": "^0.7.2",
+		"animate.css": "^3.7.2",
 		"ant-design-vue": "1.3.16",
 		"async-mutex": "^0.1.4",
 		"babel-plugin-prismjs": "^1.1.1",

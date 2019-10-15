@@ -7,16 +7,17 @@ import Url from 'url-parse';
 import chalk from 'chalk';
 
 import { ServerServices as Services, ServiceDefinitions } from '@/services';
-import { Config, stripSecure, JsConfig, iterCommands } from './config';
+import { Config, stripSecure, JsConfig } from './config';
 import Device from './device';
 import { getUser, setUserInfo } from './connections';
+import Command, { iterCommands } from './command';
 
 const devicesRoute = /^\/devices\/([^/]+)\/?$/;
 
-function makeServices(app: Application<Services>, config: Config, jsConfig: JsConfig, devices: Device[]): ServiceDefinitions {
+function makeServices(app: Application<Services>, config: Config, devices: Device[], commands: Command[]): ServiceDefinitions {
 	const services: ServiceDefinitions = {
 		'api/devices': {
-			events: [ 'updated', 'data' ],
+			events: [ 'updated', 'data', 'command' ],
 			async find(params) {
 				return devices;
 			},
@@ -27,20 +28,6 @@ function makeServices(app: Application<Services>, config: Config, jsConfig: JsCo
 				}
 				throw new Error(`Device not found: ${id}`);
 			},
-			async patch(id, data, params) {
-				if(id === null) {
-					throw new Error("Null ID");
-				} else if(params === undefined || params.query === undefined) {
-					throw new Error("Missing query");
-				}
-				const device = await this.get(id);
-				switch(params.query.action) {
-					case 'runCommand':
-						services['api/commands'].find()
-						break;
-				}
-				return device;
-			}
 		},
 
 		'api/config': {
@@ -79,18 +66,27 @@ function makeServices(app: Application<Services>, config: Config, jsConfig: JsCo
 
 		'api/commands': {
 			async find(params) {
-				return jsConfig.commands || [];
+				return commands;
 			},
 			async get(id, params) {
-				if(jsConfig.commands) {
-					for(const command of iterCommands(jsConfig.commands)) {
-						if(command.name === id) {
-							return command;
-						}
+				for(const command of iterCommands(commands)) {
+					if(command.name === id) {
+						return command;
 					}
 				}
 				throw new Error(`Command not found: ${id}`);
 			},
+			async patch(id, data, params) { // Using 'patch' to run commands. CRUD is dumb
+				if(id === null) {
+					throw new Error("Null ID");
+				} else if(!params || !params.connection || !params.connection.device) {
+					throw new Error("Missing device");
+				}
+				const command = await this.get(id);
+				const device: Device = params.connection.device;
+				await command.run(app, device, params.socketId);
+				return command;
+			}
 		},
 	};
 	return services;
@@ -108,7 +104,7 @@ function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 	}
 }
 
-export function makeWebserver(config: Config, jsConfig: JsConfig, devices: Device[]): Application<Services> {
+export function makeWebserver(config: Config, devices: Device[], commands: Command[]): Application<Services> {
 	const app = express(feathers<Services>());
 
 	//TODO Figure out how to only allow CORS for REST endpoints
@@ -120,8 +116,14 @@ export function makeWebserver(config: Config, jsConfig: JsConfig, devices: Devic
 
 	app.configure(socketio(io => {
 		io.on('connection', socket => {
-			//@ts-ignore socket.feathers does exist even though it's not in the interface
-			socket.feathers.ip = socket.conn.remoteAddress;
+			Object.assign(
+				//@ts-ignore socket.feathers does exist even though it's not in the interface
+				socket.feathers,
+				{
+					socketId: socket.id,
+					ip: socket.conn.remoteAddress,
+				}
+			);
 		});
 	}));
 	// app.on('connection', connection => app.channel('everybody').join(connection));
@@ -138,7 +140,7 @@ export function makeWebserver(config: Config, jsConfig: JsConfig, devices: Devic
 	});
 
 	// Register services
-	const services = makeServices(app, config, jsConfig, devices);
+	const services = makeServices(app, config, devices, commands);
 	for(const [ name, service ] of Object.entries(services)) {
 		app.use(name, service);
 	}
@@ -173,6 +175,11 @@ export function makeWebserver(config: Config, jsConfig: JsConfig, devices: Devic
 			app.channel(`device/${device.id}`).join(connection);
 		}
 
+		// If a connection is over socketio, join a channel just for that socket
+		if(conn.socketId) {
+			app.channel(`socket/${conn.socketId}`).join(connection);
+		}
+
 		console.log(chalk.bgBlue.bold(` web (${device ? device.name : '-'}) `) + ` ${conn.ip} connected`);
 	});
 	app.on('disconnect', connection => {
@@ -196,11 +203,16 @@ export function makeWebserver(config: Config, jsConfig: JsConfig, devices: Devic
 
 	// Other device events go to the device's channel
 	app.service('api/devices').publish(data => {
-		const id = data.id;
-		if(id === undefined) {
+		const { id, to } = data;
+		if(to) {
+			// Send message directly to the specified socket; only that client will receive it
+			return app.channel(`socket/${to}`);
+		} else if(id) {
+			// Send message to the device's channel; all clients connected to the device will receive it
+			return app.channel(`device/${id}`);
+		} else {
 			throw new Error('Device service event missing device ID');
 		}
-		return app.channel(`device/${id}`);
 	});
 
 	attachDeviceListeners(app, devices);

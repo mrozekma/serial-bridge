@@ -66,8 +66,8 @@
 			...rootDataComputeds(),
 		},
 		methods: {
-			runCommand(name: string) {
-				console.log('runCommand', name);
+			runCommand(name: string, label: string, icon?: string) {
+				this.$emit('runCommand', name, label, icon);
 			},
 		},
 	});

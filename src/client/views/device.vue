@@ -1,12 +1,23 @@
 <template>
 	<div>
-		<sb-navbar :brand="deviceName" :commands="commands"/>
+		<sb-navbar :brand="deviceName" :commands="commands" @runCommand="runCommand"/>
 		<main>
 			<template v-if="device.state == 'pending'">
 				<!-- TODO -->
 			</template>
 			<a-alert v-else-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
 			<sb-layout ref="layout" v-if="nodes.length > 0" :nodes="nodes"/>
+			<div class="notifications">
+				<transition enter-active-class="animated slideInUp faster" leave-active-class="animated slideOutDown faster">
+					<div v-if="runningCommand" class="command-state">
+						<i v-if="runningCommand.icon" :class="runningCommand.icon"/>
+						<span class="label">{{ runningCommand.label }}</span>
+						<i v-if="runningCommand.state == 'done'" class="fas fa-check-circle" style="color: #52c41a"></i>
+						<i v-else-if="runningCommand.state == 'failed'" class="fas fa-times-circle" style="color: #f5222d"></i>
+						<a-spin v-else size="small"/>
+					</div>
+				</transition>
+			</div>
 		</main>
 	</div>
 </template>
@@ -47,6 +58,13 @@
 				commands: {
 					state: 'pending',
 				} as PromiseResult<CommandJson[]>,
+				runningCommand: undefined as {
+					name: string;
+					label: string;
+					icon?: string;
+					state: 'pending' | 'running' | 'done' | 'failed';
+					errorMessage?: string;
+				} | undefined,
 			};
 		},
 		mounted() {
@@ -61,10 +79,15 @@
 					}
 				})
 				.on('data', (data: { node: string; data: Buffer }) => {
-					// console.debug(data);
 					const terminal = this.getTerminal(data.node);
 					if(terminal) {
 						terminal.terminal.write(new Uint8Array(data.data));
+					}
+				})
+				.on('command', (data: any) => {
+					if(this.runningCommand && data.command === this.runningCommand.name) {
+						this.runningCommand.state = data.state;
+						this.runningCommand.errorMessage = data.error;
 					}
 				});
 
@@ -75,6 +98,67 @@
 				const layout = this.$refs.layout as SbLayoutVue | undefined;
 				return (layout && layout.ready) ? layout.getNodeTerminal(node) : undefined;
 			},
+			async runCommand(name: string, label: string, icon?: string) {
+				while(this.runningCommand) {
+					// Sleep 1s
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+
+				this.runningCommand = {
+					name, label, icon,
+					state: 'pending',
+					errorMessage: undefined,
+				};
+				try {
+					await this.app.service('api/commands').patch(name, {});
+					setTimeout(() => this.runningCommand = undefined, 2000);
+				} catch(e) {
+					console.error(e);
+					this.$error({
+						title: "Command failed",
+						content: `Failed to execute '${label}': ${e.message}`,
+						onOk: () => {
+							this.runningCommand = undefined;
+						},
+					});
+				}
+			},
 		},
 	});
 </script>
+
+<style lang="less" scoped>
+	.notifications {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 10px;
+		display: flex;
+		overflow-y: hidden;
+
+		> * {
+			margin-left: auto;
+			margin-right: auto;
+		}
+
+		.command-state {
+			background-color: #fff;
+			border: 1px solid rgba(0, 0, 0, 0.65);
+			// width: 200px;
+			// height: 50px;
+			padding: 5px 10px;
+			border-radius: 5px;
+
+			display: grid;
+			grid-template-areas: "icon label state";
+			grid-template-columns: auto 1fr auto;
+			align-items: center;
+			gap: 4px;
+
+			.label {
+				font-weight: bold;
+				padding-right: 10px;
+			}
+		}
+	}
+</style>

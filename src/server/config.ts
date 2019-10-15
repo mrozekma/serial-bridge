@@ -68,15 +68,13 @@ export async function loadJsonConfig() {
 }
 export type Config = ReturnType<typeof loadJsonConfig> extends Promise<infer T> ? T : never;
 
-type Command = {
-	name: string;
+interface Command {
 	label: string;
 	icon?: string;
-} & ({
-	command: () => void;
-} | {
-	submenu: Command[];
-});
+	// Exactly one of 'fn' or 'submenu' will be set, but encoding that in the type makes it a hassle to actually use
+	fn?: () => Promise<void>;
+	submenu?: Command[];
+}
 export interface JsConfig {
 	commands?: Command[];
 }
@@ -95,32 +93,12 @@ export async function loadJsConfig(): Promise<JsConfig> {
 	const context = vm.createContext({
 		console,
 		require: __non_webpack_require__,
+		setTimeout,
 	});
 	vm.runInContext(buf.toString('utf8'), context, { filename });
 	//TODO Check that 'context' satisfies the JsConfig interface. I suspect there's no good way to automate this
-	//TODO Check command name uniqueness
-
-	if(context.commands) {
-		let i = 1;
-		for(const command of iterCommands(context.commands)) {
-			if(!command.name) {
-				command.name = `command${i++}`;
-			}
-		}
-	}
 	return context;
 }
-
-export function* iterCommands(commands: Command[]): IterableIterator<Command> {
-	for(const command of commands) {
-		yield command;
-		const submenu = (command as any).submenu as Command[] | undefined;
-		if(submenu) {
-			yield* iterCommands(submenu);
-		}
-	}
-}
-
 
 export function stripSecure(config: Config): object {
 	const rtn: Config = JSON.parse(JSON.stringify(config));

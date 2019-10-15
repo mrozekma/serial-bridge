@@ -6,7 +6,7 @@
 		</template>
 		<sb-command-menu v-for="entry in props.submenu" :key="entry.name" v-bind="entry"/>
 	</a-sub-menu>
-	<a-menu-item v-else @click="parent.runCommand(props.name)">
+	<a-menu-item v-else @click="parent.runCommand(props.name, props.label, props.icon)">
 		<i v-if="props.icon" :class="props.icon"></i>
 		{{ props.label }}
 	</a-menu-item>

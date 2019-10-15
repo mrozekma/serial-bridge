@@ -176,15 +176,43 @@ export default class Device {
 		app.service('api/devices').emit(event, { id: this.id, ...data });
 	}
 
-	runCommand(app: Application<Services>, name: string, fn: () => Promise<void>) {
-		this.emit(app, 'command', { name, status: 'pending' });
+	runCommand(app: Application<Services>, name: string, fn: (api?: any) => Promise<void>, originSocketId?: string) {
+		const sendUpdate = (state: string, rest: { [K: string]: any } = {}) => {
+			if(originSocketId) {
+				this.emit(app, 'command', {
+					to: originSocketId,
+					command: name,
+					state,
+					...rest,
+				});
+			}
+		};
+
+		const api = {
+			send: (nodeName: string, message: Buffer | string) => {
+				const node = this.nodes.find(node => node.name === nodeName);
+				if(!node) {
+					throw new Error(`Tried to send to non-existent node '${nodeName}'`);
+				}
+				if(typeof message === 'string') {
+					message = Buffer.from(message, 'utf8');
+				}
+				node.serialPort.write(message);
+			},
+			sendln(nodeName: string, message: string) {
+				this.send(nodeName, message + '\r\n');
+			},
+		};
+
+		sendUpdate('pending');
 		return this.commandMutex.runExclusive(async () => {
-			this.emit(app, 'command', { name, status: 'running' });
+			sendUpdate('running');
 			try {
-				await fn();
-				this.emit(app, 'command', { name, status: 'done' });
+				await fn(api);
+				sendUpdate('done');
 			} catch(e) {
-				this.emit(app, 'command', { name, status: 'failed', error: e });
+				sendUpdate('failed', { error: e });
+				throw e;
 			}
 		});
 	}

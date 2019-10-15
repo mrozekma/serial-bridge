@@ -2,7 +2,8 @@ import feathers from '@feathersjs/feathers';
 
 import Device from './server/device';
 import Connections, { User } from './server/connections';
-import { Config, JsConfig } from './server/config';
+import { Config } from './server/config';
+import Command from './server/command';
 
 // Variant of feathers.ServiceMethods with some narrower return types
 interface ServiceMethods<T> extends feathers.ServiceMethods<T> {
@@ -30,17 +31,17 @@ type M<
 
 export type DeviceJson = ReturnType<Device['toJSON']>;
 export type ConnectionsJson = ReturnType<Connections['toJSON']>;
-export type CommandJson = Exclude<JsConfig['commands'], undefined>[number];
+export type CommandJson = ReturnType<Command['toJSON']>;
 
 /**
  * This defines the list of services and which methods they implement.
  * This is used in the server to actually implement these methods.
  */
 interface SCServiceDefinitions<ServerClient extends 'server' | 'client'> {
-	'api/devices': M<ServerClient, 'find' | 'get' | 'patch', Device>;
+	'api/devices': M<ServerClient, 'find' | 'get', Device>;
 	'api/config': M<ServerClient, 'get', Config>; //TODO Typing this as 'Config' is wrong, it's really Config | a child of Config
 	'api/users': M<ServerClient, 'get' | 'patch', User>;
-	'api/commands': M<ServerClient, 'find' | 'get', CommandJson>;
+	'api/commands': M<ServerClient, 'find' | 'get' | 'patch', Command>;
 };
 
 // Since only the server needs SCServiceDefinitions, only that is exported here:

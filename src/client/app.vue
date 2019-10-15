@@ -13,6 +13,8 @@
 	import '@fortawesome/fontawesome-free';
 	import '@fortawesome/fontawesome-free/css/all.css';
 
+	import 'animate.css/animate.css';
+
 	// I'm avoiding a SPA here because it's convenient to start fresh when switching devices, so this is essentially a manual basic vue-router
 	import HomeView from './views/home.vue';
 	import DeviceView from './views/device.vue';
