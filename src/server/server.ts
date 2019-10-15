@@ -2,7 +2,7 @@ import ora from 'ora';
 import slugify from 'slugify';
 
 import banner from 'raw-loader!./banner.txt';
-import { loadConfig, Config } from './config';
+import { loadJsonConfig, loadJsConfig, Config } from './config';
 import db from './db';
 import Device from './device';
 import { configureUserFactory } from './connections';
@@ -34,7 +34,8 @@ function makeDevice(deviceConfig: Config['devices'][number], existingIds?: Set<s
 
 (async () => {
 	console.log(`${banner}\n${BUILD_VERSION}\nBuilt ${BUILD_DATE}\n`);
-	const config = await spinner("Load configuration", loadConfig);
+	const config = await spinner("Load static configuration", loadJsonConfig);
+	const jsConfig = await spinner("Load dynamic configuration", loadJsConfig);
 	configureUserFactory(config.userDirectory);
 	const devices: Device[] = await spinner("Load device information", async () => {
 		//TODO Check for duplicate device/node names
@@ -44,7 +45,7 @@ function makeDevice(deviceConfig: Config['devices'][number], existingIds?: Set<s
 	if(config.webPort !== undefined) {
 		const app = await spinner("Make webserver", async () => {
 			const { makeWebserver } = await import(/* webpackChunkName: 'web' */ './web');
-			return makeWebserver(config, devices);
+			return makeWebserver(config, jsConfig, devices);
 		});
 		app.listen(config.webPort);
 		console.log(`Listening on ${config.webPort}`);

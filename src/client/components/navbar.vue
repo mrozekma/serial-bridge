@@ -15,6 +15,12 @@
 			</a-menu-item>
 		</a-sub-menu>
 		<a-sub-menu>
+			<template v-slot:title>Commands</template>
+			<a-menu-item v-if="commands.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
+			<a-menu-item v-else-if="commands.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
+			<sb-command-menu v-else v-for="entry in commands.value" :key="entry.name" v-bind="entry"/>
+		</a-sub-menu>
+		<a-sub-menu>
 			<template v-slot:title>Menu 2</template>
 			<a-menu-item>One</a-menu-item>
 			<a-sub-menu>
@@ -34,7 +40,6 @@
 			<template v-slot:title>Menu 3</template>
 			<a-menu-item>One</a-menu-item>
 		</a-sub-menu>
-		<!-- <portal-target name="navbar"></portal-target> -->
 	</a-menu>
 </template>
 
@@ -47,14 +52,23 @@
 	placements.bottomLeft.offset = [0, 0];
 	placements.rightTop.offset = [0, 0];
 
-	import { rootDataComputeds } from '../root-data';
+	import { rootDataComputeds, PromiseResult } from '../root-data';
+	import { CommandJson } from '@/services';
 
+	import SbCommandMenu from '../components/command-menu.vue';
 	export default Vue.extend({
+		components: { SbCommandMenu },
 		props: {
 			brand: String as PropType<String | undefined>,
+			commands: Object as PropType<PromiseResult<CommandJson[]>>,
 		},
 		computed: {
 			...rootDataComputeds(),
+		},
+		methods: {
+			runCommand(name: string) {
+				console.log('runCommand', name);
+			},
 		},
 	});
 </script>
@@ -92,6 +106,10 @@
 
 		.ant-spin {
 			margin-right: 5px;
+		}
+
+		i {
+			margin-right: 2px;
 		}
 	}
 

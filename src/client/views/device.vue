@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<sb-navbar :brand="deviceName"/>
+		<sb-navbar :brand="deviceName" :commands="commands"/>
 		<main>
 			<template v-if="device.state == 'pending'">
 				<!-- TODO -->
@@ -15,7 +15,7 @@
 	import Vue from 'vue';
 
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
-	import { DeviceJson, ConnectionsJson } from '@/services';
+	import { DeviceJson, ConnectionsJson, CommandJson } from '@/services';
 
 	type Node = DeviceJson['nodes'][number];
 
@@ -44,6 +44,9 @@
 				device: {
 					state: 'pending', // Technically a lie, nothing is loading yet, but mounted() will take care of it
 				} as PromiseResult<DeviceJson>,
+				commands: {
+					state: 'pending',
+				} as PromiseResult<CommandJson[]>,
 			};
 		},
 		mounted() {
@@ -64,6 +67,8 @@
 						terminal.terminal.write(new Uint8Array(data.data));
 					}
 				});
+
+			this.commands = unwrapPromise(this.app.service('api/commands').find());
 		},
 		methods: {
 			getTerminal(node: string): SbTerminalVue | undefined {

@@ -7,16 +7,16 @@ import Url from 'url-parse';
 import chalk from 'chalk';
 
 import { ServerServices as Services, ServiceDefinitions } from '@/services';
-import { Config, stripSecure } from './config';
+import { Config, stripSecure, JsConfig, iterCommands } from './config';
 import Device from './device';
 import { getUser, setUserInfo } from './connections';
 
 const devicesRoute = /^\/devices\/([^/]+)\/?$/;
 
-function makeServices(app: Application<Services>, config: Config, devices: Device[]): ServiceDefinitions {
-	return {
+function makeServices(app: Application<Services>, config: Config, jsConfig: JsConfig, devices: Device[]): ServiceDefinitions {
+	const services: ServiceDefinitions = {
 		'api/devices': {
-			events: [ 'data' ],
+			events: [ 'updated', 'data' ],
 			async find(params) {
 				return devices;
 			},
@@ -27,9 +27,19 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				}
 				throw new Error(`Device not found: ${id}`);
 			},
-			async update(id, data, params) {
-				//TODO
-				throw new Error('Unimplemented');
+			async patch(id, data, params) {
+				if(id === null) {
+					throw new Error("Null ID");
+				} else if(params === undefined || params.query === undefined) {
+					throw new Error("Missing query");
+				}
+				const device = await this.get(id);
+				switch(params.query.action) {
+					case 'runCommand':
+						services['api/commands'].find()
+						break;
+				}
+				return device;
 			}
 		},
 
@@ -66,7 +76,24 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				return await setUserInfo(user.host, data.displayName, data.email && data.email.length > 0 ? data.email : undefined);
 			},
 		},
+
+		'api/commands': {
+			async find(params) {
+				return jsConfig.commands || [];
+			},
+			async get(id, params) {
+				if(jsConfig.commands) {
+					for(const command of iterCommands(jsConfig.commands)) {
+						if(command.name === id) {
+							return command;
+						}
+					}
+				}
+				throw new Error(`Command not found: ${id}`);
+			},
+		},
 	};
+	return services;
 }
 
 function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
@@ -81,7 +108,7 @@ function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 	}
 }
 
-export function makeWebserver(config: Config, devices: Device[]): Application<Services> {
+export function makeWebserver(config: Config, jsConfig: JsConfig, devices: Device[]): Application<Services> {
 	const app = express(feathers<Services>());
 
 	//TODO Figure out how to only allow CORS for REST endpoints
@@ -111,7 +138,7 @@ export function makeWebserver(config: Config, devices: Device[]): Application<Se
 	});
 
 	// Register services
-	const services = makeServices(app, config, devices);
+	const services = makeServices(app, config, jsConfig, devices);
 	for(const [ name, service ] of Object.entries(services)) {
 		app.use(name, service);
 	}

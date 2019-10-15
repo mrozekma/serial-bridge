@@ -1,7 +1,7 @@
 import RealSerialPort from 'serialport';
 
 import chalk from 'chalk';
-import { EventEmitter } from 'events';
+import { Mutex } from 'async-mutex';
 import net from 'net';
 import { Application } from '@feathersjs/express';
 
@@ -156,6 +156,7 @@ type NodeCtorArgs = typeof Node extends new (device: Device, ...args: infer T) =
 export default class Device {
 	private _nodes: Node[] = [];
 	public readonly webConnections: Connections;
+	private readonly commandMutex = new Mutex();
 
 	constructor(public readonly id: string, public readonly name: string) {
 		this.webConnections = new Connections();
@@ -173,6 +174,19 @@ export default class Device {
 
 	emit(app: Application<Services>, event: string, data: {} = {}) {
 		app.service('api/devices').emit(event, { id: this.id, ...data });
+	}
+
+	runCommand(app: Application<Services>, name: string, fn: () => Promise<void>) {
+		this.emit(app, 'command', { name, status: 'pending' });
+		return this.commandMutex.runExclusive(async () => {
+			this.emit(app, 'command', { name, status: 'running' });
+			try {
+				await fn();
+				this.emit(app, 'command', { name, status: 'done' });
+			} catch(e) {
+				this.emit(app, 'command', { name, status: 'failed', error: e });
+			}
+		});
 	}
 
 	toJSON() {

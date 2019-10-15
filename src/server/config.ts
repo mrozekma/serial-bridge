@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import pathlib from 'path';
+import vm from 'vm';
 
 import * as joi from 'typesafe-joi';
 //@ts-ignore No declaration file
@@ -51,20 +52,75 @@ function renameConfigKeys(obj: object) {
 	return deepRenameKeys(obj, (key: string) => key.replace(/ [a-z]/g, substring => substring[1].toUpperCase()));
 }
 
-const configFilename = (process.env.NODE_ENV === 'development')
-	? pathlib.join(__dirname, '..', '..', 'config.json') // We're in serial-bridge/dist/server; config is serial-bridge/config.json
-	: pathlib.join(pathlib.dirname(process.argv[1]), 'config.json'); // Same directory as main script
+const rootDir = (process.env.NODE_ENV === 'development')
+	? pathlib.join(__dirname, '..', '..') // We're in serial-bridge/dist/server
+	: pathlib.join(pathlib.dirname(process.argv[1])); // Same directory as main script
 
-export async function loadConfig() {
-	const buf = await fs.readFile(configFilename);
+export async function loadJsonConfig() {
+	const filename = pathlib.join(rootDir, 'config.json');
+	const buf = await fs.readFile(filename);
 	const obj = renameConfigKeys(json5.parse(buf.toString('utf8')));
 	const { error, value } = configJoi.validate(obj);
 	if(error) {
-		throw new Error(`Failed to parse configuration file ${configFilename}: ${error.message}`);
+		throw new Error(`Failed to parse configuration file ${filename}: ${error.message}`);
 	}
 	return value;
 }
-export type Config = ReturnType<typeof loadConfig> extends Promise<infer T> ? T : never;
+export type Config = ReturnType<typeof loadJsonConfig> extends Promise<infer T> ? T : never;
+
+type Command = {
+	name: string;
+	label: string;
+	icon?: string;
+} & ({
+	command: () => void;
+} | {
+	submenu: Command[];
+});
+export interface JsConfig {
+	commands?: Command[];
+}
+export async function loadJsConfig(): Promise<JsConfig> {
+	const filename = pathlib.resolve(pathlib.join(rootDir, 'config.js'));
+	let buf: Buffer;
+	try {
+		buf = await fs.readFile(filename);
+	} catch(e) {
+		if(e.code == 'ENOENT') {
+			// This file is optional
+			return {};
+		}
+		throw e;
+	}
+	const context = vm.createContext({
+		console,
+		require: __non_webpack_require__,
+	});
+	vm.runInContext(buf.toString('utf8'), context, { filename });
+	//TODO Check that 'context' satisfies the JsConfig interface. I suspect there's no good way to automate this
+	//TODO Check command name uniqueness
+
+	if(context.commands) {
+		let i = 1;
+		for(const command of iterCommands(context.commands)) {
+			if(!command.name) {
+				command.name = `command${i++}`;
+			}
+		}
+	}
+	return context;
+}
+
+export function* iterCommands(commands: Command[]): IterableIterator<Command> {
+	for(const command of commands) {
+		yield command;
+		const submenu = (command as any).submenu as Command[] | undefined;
+		if(submenu) {
+			yield* iterCommands(submenu);
+		}
+	}
+}
+
 
 export function stripSecure(config: Config): object {
 	const rtn: Config = JSON.parse(JSON.stringify(config));
