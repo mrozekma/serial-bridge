@@ -17,7 +17,7 @@ const devicesRoute = /^\/devices\/([^/]+)\/?$/;
 function makeServices(app: Application<Services>, config: Config, devices: Device[], commands: Command[]): ServiceDefinitions {
 	const services: ServiceDefinitions = {
 		'api/devices': {
-			events: [ 'updated', 'data', 'command' ],
+			events: [ 'updated', 'data', 'command', 'term-line' ],
 			async find(params) {
 				return devices;
 			},

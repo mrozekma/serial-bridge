@@ -202,6 +202,9 @@ export default class Device {
 			sendln(nodeName: string, message: string) {
 				this.send(nodeName, message + '\r\n');
 			},
+			termLine: (label: string, caps: 'start' | 'end' | undefined) => {
+				this.emit(app, 'term-line', { label, caps });
+			},
 		};
 
 		sendUpdate('pending');

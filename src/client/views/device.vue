@@ -89,7 +89,12 @@
 						this.runningCommand.state = data.state;
 						this.runningCommand.errorMessage = data.error;
 					}
-				});
+				})
+				.on('term-line', (data: { label: string; caps: 'start' | 'end' | undefined }) => {
+					if(data.label && (data.caps === 'start' || data.caps === 'end' || data.caps === undefined)) {
+						this.drawTermLine(data.label, data.caps);
+					}
+				})
 
 			this.commands = unwrapPromise(this.app.service('api/commands').find());
 		},
@@ -121,6 +126,23 @@
 							this.runningCommand = undefined;
 						},
 					});
+				}
+			},
+			async drawTermLine(label: string, caps: 'start' | 'end' | undefined) {
+				// https://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x622.html
+				const leftCap = {start: 'l', end: 'm', none: 'q'}[caps || 'none'];
+				const rightCap = {start: 'k', end: 'j', none: 'q'}[caps || 'none'];
+				const line = 'q';
+				for(const node of this.nodes) {
+					const term = this.getTerminal(node.name)!.terminal;
+					let thisLabel = label;
+					let sideLen = (term.cols - thisLabel.length - 2) / 2;
+					if(sideLen < 1) {
+						// Reserve 2 characters for the end caps, 2 for the space around the label, and 3 for the ellipsis. The rest of the line is available for the label
+						thisLabel = label.substr(0, term.cols - 2 - 2 - 3) + '...';
+						sideLen = 1;
+					}
+					term.write("\r\n\r\n\x1b[1;36m\x1b(0" + leftCap + line.repeat(Math.floor(sideLen) - 1) + "\x1b(B " + thisLabel + " \x1b(0" + line.repeat(Math.ceil(sideLen) - 1) + rightCap + "\x1b(B\x1b[0m\r\n\r\n");
 				}
 			},
 		},
