@@ -11,16 +11,7 @@ import { Config } from './config';
 import db from './db';
 
 const dnsReverse = promisify(dns.reverse);
-// const adLookup = promisify((ad: ActiveDirectory, username: string, cb: (err: Error | null, result: any) => void) => ad.findUser(username, cb));
-
-//TODO Remove this, just for testing
-async function adLookup(ad: ActiveDirectory, username: string) {
-	return {
-		displayName: 'Michael Mrozek',
-		// displayName: 'Michael Mrozek long long long long long long long long',
-		mail: 'mrozekma@mrozekma.com',
-	};
-}
+const adLookup = promisify((ad: ActiveDirectory, username: string, cb: (err: Error | null, result: any) => void) => ad.findUser(username, cb));
 
 export interface User {
 	host: string;
@@ -78,6 +69,7 @@ class UserFactory {
 	}
 
 	private async makeUser(host: string): Promise<User> {
+		host = host.replace(/^::ffff:/, ''); // ::ffff:a.b.c.d is an IPv4 address over IPv6
 		let user: User;
 
 		if(db.exists(`/hosts/${host}`)) {
@@ -89,20 +81,23 @@ class UserFactory {
 			};
 
 			try {
-				if(!this.hostPattern || !this.ad) {
+				if(!this.hostPattern) {
 					throw new Error("No way to deduce username");
 				}
 				const hosts = isIp(host) ? await dnsReverse(host) : [ host ];
 				for(const host of hosts) {
+					user.host = host;
 					const match = host.match(this.hostPattern);
 					if(match) {
 						user.username = match[1];
-						const userInfo = await adLookup(this.ad, user.username);
-						if(!userInfo) {
-							throw new Error("User not found in active directory");
+						if(this.ad) {
+							const userInfo = await adLookup(this.ad, user.username);
+							if(!userInfo) {
+								throw new Error("User not found in active directory");
+							}
+							user.realName = userInfo.displayName;
+							user.email = userInfo.mail;
 						}
-						user.realName = userInfo.displayName;
-						user.email = userInfo.mail;
 						break;
 					}
 				}

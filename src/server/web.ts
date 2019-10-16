@@ -45,6 +45,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 
 		'api/users': {
 			async get(id, params) {
+				//TODO Allow specifying the host
 				if(id != 'self') {
 					throw new Error("Can only request 'self'");
 				} else if(!params || !params.connection || !params.connection.ip) {

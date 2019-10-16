@@ -13,7 +13,7 @@
 						<template v-if="connections.length > 0">
 							<b>Connections</b>
 							<a-timeline>
-								<a-timeline-item v-for="connection in connections" :key="connection.key">
+								<a-timeline-item v-for="connection in connections" :key="connection.host">
 									<template slot="dot">
 										<a-avatar v-if="connection.gravatar" shape="square" size="small" :src="connection.gravatar"/>
 										<a-avatar v-else shape="square" size="small" icon="user"/>

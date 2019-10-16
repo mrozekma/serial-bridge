@@ -1,7 +1,7 @@
 import { DeviceJson } from '@/services';
 
 export interface Connection {
-	key: string;
+	host: string;
 	nodes: string[];
 	name: string;
 	gravatar: string | undefined;
@@ -12,7 +12,7 @@ export function getDeviceConnections(device: DeviceJson): IterableIterator<Conne
 	for(const { user } of device.webConnections) {
 		if(!connectionsByHost.has(user.host)) {
 			connectionsByHost.set(user.host, {
-				key: user.host,
+				host: user.host,
 				nodes: [ 'Web' ],
 				name: user.displayName,
 				gravatar: user.gravatar,
@@ -24,7 +24,7 @@ export function getDeviceConnections(device: DeviceJson): IterableIterator<Conne
 			let connection = connectionsByHost.get(user.host);
 			if(!connection) {
 				connectionsByHost.set(user.host, connection = {
-					key: user.host,
+					host: user.host,
 					nodes: [],
 					name: user.displayName,
 					gravatar: user.gravatar,

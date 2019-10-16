@@ -2,9 +2,13 @@
 	<div>
 		<sb-navbar :brand="deviceName" :commands="commands" @runCommand="runCommand" @resetTerms="resetTerms"/>
 		<div class="menu-right">
-			<a-tooltip v-for="connection in connections" :key="connection.key" placement="bottomRight">
+			<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
 				<template slot="title">
-					{{ connection.name }} <a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
+					<div class="connection name">{{ connection.name }}</div>
+					<div class="connection host" v-if="connection.host != connection.name">{{ connection.host }}</div>
+					<div class="connection nodes">
+						<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
+					</div>
 				</template>
 				<a-avatar v-if="connection.gravatar" shape="square" :src="connection.gravatar"/>
 				<a-avatar v-else shape="square" icon="user"/>
@@ -219,7 +223,18 @@
 </style>
 
 <style lang="less">
-	.ant-tooltip .ant-tag {
-		margin-left: 5px;
+	.ant-tooltip {
+		.connection.name {
+			font-weight: bold;
+		}
+
+		.connection.host {
+			margin-top: -4px;
+			font-size: smaller;
+		}
+
+		.ant-tag:not(:first-child) {
+			margin-left: 5px;
+		}
 	}
 </style>
