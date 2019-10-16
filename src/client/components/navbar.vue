@@ -1,7 +1,6 @@
 <template>
 	<a-menu mode="horizontal" theme="dark" :selectable="false" openTransitionName="none" openAnimation="none">
-		<a-menu-item v-if="brand" class="brand">{{ brand }}</a-menu-item>
-		<!-- <a-menu-item class="brand">Test</a-menu-item> -->
+		<a-menu-item class="brand">{{ brand }}</a-menu-item>
 		<a-sub-menu>
 			<template v-slot:title>
 				<a href="/">Devices</a>
@@ -14,32 +13,17 @@
 				</a>
 			</a-menu-item>
 		</a-sub-menu>
-		<a-sub-menu>
-			<template v-slot:title>Commands</template>
-			<a-menu-item v-if="commands.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
-			<a-menu-item v-else-if="commands.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
-			<sb-command-menu v-else v-for="entry in commands.value" :key="entry.name" v-bind="entry"/>
-		</a-sub-menu>
-		<a-sub-menu>
-			<template v-slot:title>Menu 2</template>
-			<a-menu-item>One</a-menu-item>
-			<a-sub-menu>
-				<template v-slot:title>Two</template>
-				<a-menu-item>One</a-menu-item>
-				<a-menu-item>Two</a-menu-item>
-				<a-menu-item>Three</a-menu-item>
+		<!-- TODO I would really like to figure out how to move this into a slot, but antd's menu class is very finnicky -->
+		<template v-if="commands">
+			<a-sub-menu title="Commands">
+				<a-menu-item v-if="commands.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
+				<a-menu-item v-else-if="commands.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
+				<sb-command-menu v-else v-for="entry in commands.value" :key="entry.name" v-bind="entry"/>
 			</a-sub-menu>
-			<a-sub-menu>
-				<template v-slot:title>Three</template>
-				<a-menu-item>One</a-menu-item>
-				<a-menu-item>Two</a-menu-item>
-				<a-menu-item>Three</a-menu-item>
+			<a-sub-menu title="View">
+				<a-menu-item @click="$emit('resetTerms')">Clear</a-menu-item>
 			</a-sub-menu>
-		</a-sub-menu>
-		<a-sub-menu>
-			<template v-slot:title>Menu 3</template>
-			<a-menu-item>One</a-menu-item>
-		</a-sub-menu>
+		</template>
 	</a-menu>
 </template>
 
@@ -59,14 +43,17 @@
 	export default Vue.extend({
 		components: { SbCommandMenu },
 		props: {
-			brand: String as PropType<String | undefined>,
+			brand: {
+				type: String as PropType<String | undefined>,
+				default: 'Serial Bridge',
+			},
 			commands: Object as PropType<PromiseResult<CommandJson[]>>,
 		},
 		computed: {
 			...rootDataComputeds(),
 		},
 		methods: {
-			runCommand(name: string, label: string, icon?: string) {
+			runCommand(name: string, label: string, icon?: string) { // This is called by command-menu directly
 				this.$emit('runCommand', name, label, icon);
 			},
 		},

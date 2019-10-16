@@ -1,7 +1,7 @@
 import feathers from '@feathersjs/feathers';
 
 import Device from './server/device';
-import Connections, { User } from './server/connections';
+import { User, Connection } from './server/connections';
 import { Config } from './server/config';
 import Command from './server/command';
 
@@ -30,8 +30,8 @@ type M<
 };
 
 export type DeviceJson = ReturnType<Device['toJSON']>;
-export type ConnectionsJson = ReturnType<Connections['toJSON']>;
 export type CommandJson = ReturnType<Command['toJSON']>;
+export type ConnectionJson = Connection;
 
 /**
  * This defines the list of services and which methods they implement.

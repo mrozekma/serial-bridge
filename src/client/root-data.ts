@@ -62,4 +62,16 @@ export function rootDataComputeds(): {
 	return rtn;
 }
 
+export function rootDataUpdater(this: Vue) {
+	const rootData = this.$data as RootData;
+	rootData.app.service('api/devices').on('updated', (data: { device: DeviceJson }) => {
+		if(rootData.devices.state == 'resolved') {
+			const idx = rootData.devices.value.findIndex(device => device.id == data.device.id);
+			if(idx >= 0) {
+				this.$set(rootData.devices.value, idx, data.device);
+			}
+		}
+	});
+}
+
 export default data;

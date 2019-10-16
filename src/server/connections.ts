@@ -147,7 +147,7 @@ export function setUserInfo(host: string, displayName: string, email: string | u
 	return userFactory.setUserInfo(host, displayName, email);
 }
 
-interface Connection {
+export interface Connection {
 	host: string;
 	user: User;
 	//TODO timestamps

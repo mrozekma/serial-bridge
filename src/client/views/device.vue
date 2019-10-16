@@ -1,6 +1,15 @@
 <template>
 	<div>
-		<sb-navbar :brand="deviceName" :commands="commands" @runCommand="runCommand"/>
+		<sb-navbar :brand="deviceName" :commands="commands" @runCommand="runCommand" @resetTerms="resetTerms"/>
+		<div class="menu-right">
+			<a-tooltip v-for="connection in connections" :key="connection.key" placement="bottomRight">
+				<template slot="title">
+					{{ connection.name }} <a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
+				</template>
+				<a-avatar v-if="connection.gravatar" shape="square" :src="connection.gravatar"/>
+				<a-avatar v-else shape="square" icon="user"/>
+			</a-tooltip>
+		</div>
 		<main>
 			<template v-if="device.state == 'pending'">
 				<!-- TODO -->
@@ -26,7 +35,8 @@
 	import Vue from 'vue';
 
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
-	import { DeviceJson, ConnectionsJson, CommandJson } from '@/services';
+	import { Connection, getDeviceConnections } from '../connections';
+	import { DeviceJson, CommandJson, ConnectionJson } from '@/services';
 
 	type Node = DeviceJson['nodes'][number];
 
@@ -48,6 +58,9 @@
 			},
 			nodes(): Node[] {
 				return (this.device.state == 'resolved') ? this.device.value.nodes : [];
+			},
+			connections(): Connection[] {
+				return (this.device.state == 'resolved') ? [...getDeviceConnections(this.device.value)] : [];
 			},
 		},
 		data() {
@@ -145,11 +158,31 @@
 					term.write("\r\n\r\n\x1b[1;36m\x1b(0" + leftCap + line.repeat(Math.floor(sideLen) - 1) + "\x1b(B " + thisLabel + " \x1b(0" + line.repeat(Math.ceil(sideLen) - 1) + rightCap + "\x1b(B\x1b[0m\r\n\r\n");
 				}
 			},
+			resetTerms() {
+				for(const node of this.nodes) {
+					this.getTerminal(node.name)!.terminal.reset();
+				}
+			},
 		},
 	});
 </script>
 
 <style lang="less" scoped>
+	.menu-right {
+		position: absolute;
+		top: 6px;
+		right: 16px;
+		color: rgba(255, 255, 255, 0.65);
+		font-size: 14pt;
+
+		> * {
+			margin-right: 8px;
+			&:hover {
+				color: #fff;
+			}
+		}
+	}
+
 	.notifications {
 		position: absolute;
 		left: 0;
@@ -182,5 +215,11 @@
 				padding-right: 10px;
 			}
 		}
+	}
+</style>
+
+<style lang="less">
+	.ant-tooltip .ant-tag {
+		margin-left: 5px;
 	}
 </style>

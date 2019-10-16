@@ -95,51 +95,16 @@
 	import Vue from 'vue';
 	import { Application } from '@feathersjs/feathers';
 
+	import { Connection, getDeviceConnections } from '../connections';
 	import { DeviceJson, ClientServices as Services } from '@/services';
 
 	import Prism from 'prismjs';
 	// Prism is getting confused by the parentheses in "Program Files (x86)" and styling "x86" as a keyword, so this hack works around it by adding an earlier token for that whole string
 	Prism.languages.insertBefore('batch', 'command', { programFiles: /Program Files \(x86\)/ }, Prism.languages);
 
-	interface Connection {
-		key: string;
-		nodes: string[];
-		name: string;
-		gravatar: string | undefined;
-	}
-
 	interface AnnotatedDevice {
 		device: DeviceJson;
 		connections: Connection[];
-	}
-
-	function getDeviceConnections(device: DeviceJson): IterableIterator<Connection> {
-		const connectionsByHost = new Map<string, Connection>();
-		for(const { user } of device.webConnections) {
-			if(!connectionsByHost.has(user.host)) {
-				connectionsByHost.set(user.host, {
-					key: user.host,
-					nodes: [ 'Web' ],
-					name: user.displayName,
-					gravatar: user.gravatar,
-				});
-			}
-		}
-		for(const node of device.nodes) {
-			for(const { user } of node.tcpConnections) {
-				let connection = connectionsByHost.get(user.host);
-				if(!connection) {
-					connectionsByHost.set(user.host, connection = {
-						key: user.host,
-						nodes: [],
-						name: user.displayName,
-						gravatar: user.gravatar,
-					});
-				}
-				connection.nodes.push(node.name);
-			}
-		}
-		return connectionsByHost.values();
 	}
 
 	const nodesColumns = [{
@@ -201,17 +166,6 @@
 				currentUser: unwrapPromise(app.service('api/users').get('self')),
 				changeUserInfo: undefined as PromiseResult<any> | undefined,
 			};
-		},
-		mounted() {
-			// Should this be in the root component instead?
-			this.app.service('api/devices').on('updated', (data: { device: DeviceJson }) => {
-				if(this.devices.state == 'resolved') {
-					const idx = this.devices.value.findIndex(device => device.id == data.device.id);
-					if(idx >= 0) {
-						this.$set(this.devices.value, idx, data.device);
-					}
-				}
-			});
 		},
 		methods: {
 			loadDevice(device: DeviceJson, newTab: boolean = false) {
