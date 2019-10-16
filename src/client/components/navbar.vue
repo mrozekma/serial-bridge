@@ -87,8 +87,11 @@
 	}
 
 	.ant-menu-submenu, .ant-menu-item {
-		a:focus {
-			text-decoration: none;
+		a {
+			color: rgba(255, 255, 255, 0.65);
+			&:focus {
+				text-decoration: none;
+			}
 		}
 
 		.ant-spin {
