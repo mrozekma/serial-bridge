@@ -102,7 +102,7 @@ class UserFactory {
 					}
 				}
 			} catch(e) {
-				console.error(e);
+				// console.error(e);
 			}
 
 			user.displayName = user.realName || user.username || user.host;

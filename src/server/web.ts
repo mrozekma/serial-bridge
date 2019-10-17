@@ -8,7 +8,7 @@ import chalk from 'chalk';
 import pathlib from 'path';
 
 import { ServerServices as Services, ServiceDefinitions } from '@/services';
-import { Config, stripSecure, JsConfig } from './config';
+import { Config, stripSecure } from './config';
 import Device from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';

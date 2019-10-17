@@ -2,7 +2,7 @@ import ora from 'ora';
 import slugify from 'slugify';
 
 import banner from 'raw-loader!./banner.txt';
-import { loadJsonConfig, loadJsConfig, Config, JsConfig } from './config';
+import { loadConfig, Config } from './config';
 import Device from './device';
 import { configureUserFactory } from './connections';
 import IdGenerator from './id-generator';
@@ -28,13 +28,14 @@ function makeDevice(deviceConfig: Config['devices'][number], idGen: IdGenerator)
 	return device;
 }
 
-function makeCommand(commandConfig: Exclude<JsConfig['commands'], undefined>[number], idGen: IdGenerator): Command {
+// commandConfig here is type 'any' because the Joi schema for config.commands doesn't have proper inference because it's recursive, so Config['commands'] has type 'never[]'
+function makeCommand(commandConfig: any, idGen: IdGenerator): Command {
 	const name = idGen.gen();
 	const { label, icon, fn, submenu } = commandConfig;
 	if(fn) {
 		return new Command(name, label, icon, fn);
 	} else if(submenu) {
-		const subInsts = submenu.map(config => makeCommand(config, idGen));
+		const subInsts = submenu.map((config: any) => makeCommand(config, idGen));
 		return new Command(name, label, icon, subInsts);
 	} else {
 		throw new Error(`Command ${name} has neither fn nor submenu`);
@@ -43,8 +44,7 @@ function makeCommand(commandConfig: Exclude<JsConfig['commands'], undefined>[num
 
 (async () => {
 	console.log(`${banner}\n${BUILD_VERSION}\nBuilt ${BUILD_DATE}\n`);
-	const config = await spinner("Load static configuration", loadJsonConfig);
-	const jsConfig = await spinner("Load dynamic configuration", loadJsConfig);
+	const config = await spinner("Load configuration", loadConfig);
 	configureUserFactory(config.userDirectory);
 	const devices: Device[] = await spinner("Load device information", async () => {
 		//TODO Check for duplicate device/node names
@@ -54,7 +54,7 @@ function makeCommand(commandConfig: Exclude<JsConfig['commands'], undefined>[num
 	if(config.webPort !== undefined) {
 		const commands: Command[] = await spinner("Load commands", async () => {
 			const idGen = new IdGenerator('command');
-			return jsConfig.commands ? jsConfig.commands.map(commandConfig => makeCommand(commandConfig, idGen)) : [];
+			return config.commands ? config.commands.map(commandConfig => makeCommand(commandConfig, idGen)) : [];
 		});
 		const app = await spinner("Make webserver", async () => {
 			const { makeWebserver } = await import(/* webpackChunkName: 'web' */ './web');

@@ -5,7 +5,6 @@ import vm from 'vm';
 import * as joi from 'typesafe-joi';
 //@ts-ignore No declaration file
 import deepRenameKeys from 'deep-rename-keys';
-import json5 from 'json5';
 
 const nodeJoi = joi.object({
 	name: joi.string().required(),
@@ -41,10 +40,19 @@ const userDirectoryJoi = joi.object({
 	gravatar: joi.string(),
 }).with('url', 'dn');
 
+// Automatic typing on this doesn't work because it's recursive. The 'Command' interface is defined manually below
+const commandJoi: any = joi.object({
+	label: joi.string().required(),
+	icon: joi.string(),
+	fn: joi.func().maxArity(1),
+	submenu: joi.array().items(joi.lazy(() => commandJoi)),
+}).xor('fn', 'submenu');
+
 const configJoi = joi.object({
 	webPort: joi.number().integer(),
 	userDirectory: userDirectoryJoi,
 	devices: joi.array().required().items(deviceJoi),
+	commands: joi.array().required().items(commandJoi),
 }).required();
 
 // Serial Bridge 1's config file had keys with spaces in it, so for backwards compatibility, convert 'foo bar' to 'fooBar'
@@ -56,10 +64,20 @@ const rootDir = (process.env.NODE_ENV === 'development')
 	? pathlib.join(__dirname, '..', '..') // We're in serial-bridge/dist/server
 	: pathlib.join(pathlib.dirname(process.argv[1])); // Same directory as main script
 
-export async function loadJsonConfig() {
-	const filename = pathlib.join(rootDir, 'config.json');
+export async function loadConfig() {
+	const filename = pathlib.resolve(pathlib.join(rootDir, 'config.js'));
 	const buf = await fs.readFile(filename);
-	const obj = renameConfigKeys(json5.parse(buf.toString('utf8')));
+	const context = vm.createContext({
+		console,
+		require: __non_webpack_require__,
+		setTimeout,
+	});
+	vm.runInContext(buf.toString('utf8'), context, { filename });
+
+	if(typeof context.config !== 'object') {
+		throw new Error(`Failed to parse configuration file ${filename}: 'config' variable is not an object`);
+	}
+	const obj = renameConfigKeys(context.config);
 	const { error, value } = configJoi.validate(obj);
 	if(error) {
 		throw new Error(`Failed to parse configuration file ${filename}: ${error.message}`);
@@ -74,38 +92,15 @@ export async function loadJsonConfig() {
 	}
 	return value;
 }
-export type Config = ReturnType<typeof loadJsonConfig> extends Promise<infer T> ? T : never;
+export type Config = ReturnType<typeof loadConfig> extends Promise<infer T> ? T : never;
 
-interface Command {
+// This needs to be kept in-sync with 'commandJoi' above
+export interface Command {
 	label: string;
 	icon?: string;
 	// Exactly one of 'fn' or 'submenu' will be set, but encoding that in the type makes it a hassle to actually use
 	fn?: () => Promise<void>;
 	submenu?: Command[];
-}
-export interface JsConfig {
-	commands?: Command[];
-}
-export async function loadJsConfig(): Promise<JsConfig> {
-	const filename = pathlib.resolve(pathlib.join(rootDir, 'config.js'));
-	let buf: Buffer;
-	try {
-		buf = await fs.readFile(filename);
-	} catch(e) {
-		if(e.code == 'ENOENT') {
-			// This file is optional
-			return {};
-		}
-		throw e;
-	}
-	const context = vm.createContext({
-		console,
-		require: __non_webpack_require__,
-		setTimeout,
-	});
-	vm.runInContext(buf.toString('utf8'), context, { filename });
-	//TODO Check that 'context' satisfies the JsConfig interface. I suspect there's no good way to automate this
-	return context;
 }
 
 export function stripSecure(config: Config): object {
