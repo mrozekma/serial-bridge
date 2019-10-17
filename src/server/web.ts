@@ -5,6 +5,7 @@ import '@feathersjs/transport-commons'; // Adds channel typing to express.Applic
 import { Request, Response, NextFunction } from 'express-serve-static-core';
 import Url from 'url-parse';
 import chalk from 'chalk';
+import pathlib from 'path';
 
 import { ServerServices as Services, ServiceDefinitions } from '@/services';
 import { Config, stripSecure, JsConfig } from './config';
@@ -146,7 +147,11 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 		app.use(name, service);
 	}
 
-	app.use(express.static('dist/client'));
+	const staticDir = (process.env.NODE_ENV === 'development')
+		? pathlib.join(__dirname, '..', '..', 'dist', 'client')
+		: pathlib.join(pathlib.dirname(process.argv[1]), 'client');
+
+	app.use(express.static(staticDir));
 	app.use(express.notFound());
 	const errorHandler = express.errorHandler({
 		logger: undefined,
