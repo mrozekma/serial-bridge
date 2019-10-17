@@ -64,6 +64,14 @@ export async function loadJsonConfig() {
 	if(error) {
 		throw new Error(`Failed to parse configuration file ${filename}: ${error.message}`);
 	}
+	// Don't think there's a way to encode this in joi:
+	for(const device of value.devices) {
+		for(const node of device.nodes) {
+			if((node.webLinks as string[]).indexOf('ssh') >= 0 && !node.ssh) {
+				throw new Error(`Failed to parse configuration file ${filename}: Node ${device.name}.${node.name} specifies an SSH link with no SSH configuration block`);
+			}
+		}
+	}
 	return value;
 }
 export type Config = ReturnType<typeof loadJsonConfig> extends Promise<infer T> ? T : never;
@@ -108,7 +116,7 @@ export function stripSecure(config: Config): object {
 	}
 	for(const device of rtn.devices) {
 		for(const node of device.nodes) {
-			// Arguably these aren't secret since the device UI provides links that include them
+			// These aren't really secret since they're exposed in the device API
 			if(node.ssh) {
 				delete node.ssh.username;
 				delete node.ssh.password;

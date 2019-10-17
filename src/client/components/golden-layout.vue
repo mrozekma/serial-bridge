@@ -15,6 +15,7 @@
 	import 'golden-layout/src/css/goldenlayout-light-theme.css';
 
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
+	import SbTabLinks, { SbTabLinksVue } from '../components/tab-links.vue';
 	const component = Vue.extend({
 		props: {
 			nodes: {
@@ -87,6 +88,17 @@
 				const term = this.getNodeTerminal(state.nodeName);
 				container.getElement().append(term.$el);
 			});
+			const tabLinksCtor = Vue.extend(SbTabLinks);
+			this.gl.on('stackCreated', (stack: GoldenLayout.ContentItem) => {
+				const comp = new tabLinksCtor() as SbTabLinksVue;
+				comp.$mount();
+				//@ts-ignore Typing isn't quite right here, it thinks stack.header doesn't exist
+				stack.header.controlsContainer.prepend(...comp.$el.children);
+				stack.on('activeContentItemChanged', (contentItem: GoldenLayout.ContentItem) => {
+					const config = contentItem.config as GoldenLayout.ComponentConfig;
+					comp.setNode(this.nodes.find(node => node.name == config.componentState.nodeName));
+				});
+			});
 			this.gl.init();
 
 			window.addEventListener('resize', () => this.gl!.updateSize());
@@ -112,12 +124,7 @@
 
 <style lang="less" scoped>
 	.gl {
-		//TODO:
-		width: calc(100vw - 30px);
+		width: calc(100vw - 10px);
 		height: calc(100vh - 60px);
-
-		/deep/ .lm_tab {
-			// box-shadow: none;
-		}
 	}
 </style>

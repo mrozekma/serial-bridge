@@ -123,9 +123,9 @@ class Node {
 	}
 
 	toJSON() {
-		const { name, path, baudRate, byteSize, parity, stopBits, tcpPortNumber: tcpPort, tcpConnections } = this;
+		const { name, path, baudRate, byteSize, parity, stopBits, tcpPortNumber: tcpPort, tcpConnections, webLinks, ssh } = this;
 		return {
-			name, path, baudRate, byteSize, parity, stopBits, tcpPort,
+			name, path, baudRate, byteSize, parity, stopBits, tcpPort, webLinks, ssh,
 			tcpConnections: tcpConnections.toJSON(),
 		};
 	}
