@@ -77,6 +77,7 @@ class SerialPort extends Port {
 				};
 			}
 		});
+		this.serialConn.on('error', console.error);
 	}
 
 	on(...args: Parameters<RealSerialPort['on']>) { this.serialConn.on(...args); }
@@ -92,6 +93,7 @@ class TcpPort extends Port {
 	constructor(private port: number, onConnect: (socket: net.Socket) => void) {
 		super();
 		this.tcpServer = net.createServer(onConnect);
+		this.tcpServer.on('error', console.error);
 	}
 
 	openImpl() { this.tcpServer.listen(this.port); }
@@ -144,7 +146,7 @@ class Node {
 		socket.on('close', () => {
 			this.log(`${address} disconnected`);
 			this.tcpConnections.removeConnection(address as string);
-		});
+		}).on('error', console.error);
 		// Bi-directional pipe between the socket and the node's serial port
 		socket.on('data', buf => this.serialPort.write(buf));
 		socketListenTo(socket, this.serialPort, 'data', (buf: Buffer) => socket.write(buf));
