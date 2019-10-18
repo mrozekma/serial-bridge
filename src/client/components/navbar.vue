@@ -13,7 +13,7 @@
 				</a>
 			</a-menu-item>
 		</a-sub-menu>
-		<!-- TODO I would really like to figure out how to move this into a slot, but antd's menu class is very finnicky -->
+		<!-- TODO I would really like to figure out how to move this into a slot, but antd's menu class is very finicky -->
 		<template v-if="commands && (commands.state != 'resolved' || commands.value.length > 0)">
 			<a-sub-menu title="Commands">
 				<a-menu-item v-if="commands.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
@@ -23,6 +23,7 @@
 		</template>
 		<a-sub-menu title="View">
 			<a-menu-item @click="$emit('resetTerms')">Clear</a-menu-item>
+			<a-menu-item @click="$emit('pauseTerms')">{{ !paused ? 'Pause' : 'Unpause' }}</a-menu-item>
 		</a-sub-menu>
 	</a-menu>
 </template>
@@ -48,6 +49,7 @@
 				default: 'Serial Bridge',
 			},
 			commands: Object as PropType<PromiseResult<CommandJson[]>>,
+			paused: Boolean,
 		},
 		computed: {
 			...rootDataComputeds(),

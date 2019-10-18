@@ -1,7 +1,10 @@
 <template>
 	<div>
-		<sb-navbar :brand="deviceName" :commands="commands" @runCommand="runCommand" @resetTerms="resetTerms"/>
+		<sb-navbar :brand="deviceName" :commands="commands" @runCommand="runCommand" @resetTerms="resetTerms" :paused="paused" @pauseTerms="paused = !paused"/>
 		<div class="menu-right">
+			<a-tooltip v-if="paused" placement="bottomRight" title="Output paused" class="pause-icon" @click="paused = false">
+				<i class="fas fa-pause-circle"></i>
+			</a-tooltip>
 			<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
 				<template slot="title">
 					<div class="connection name">{{ connection.name }}</div>
@@ -37,6 +40,7 @@
 
 <script lang="ts">
 	import Vue from 'vue';
+	import { ITheme } from 'xterm';
 
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { Connection, getDeviceConnections } from '../connections';
@@ -66,6 +70,25 @@
 			connections(): Connection[] {
 				return (this.device.state == 'resolved') ? [...getDeviceConnections(this.device.value)] : [];
 			},
+			termTheme(): ITheme {
+				const rtn: ITheme = {};
+				if(this.paused) {
+					rtn.background = '#002766';
+				}
+				return rtn;
+			}
+		},
+		watch: {
+			termTheme: {
+				handler() {
+					for(const node of this.nodes) {
+						const term = this.getTerminal(node.name)!.terminal;
+						term.setOption('theme', this.termTheme);
+					}
+				},
+				immediate: true,
+				deep: true,
+			}
 		},
 		data() {
 			return {
@@ -82,6 +105,7 @@
 					state: 'pending' | 'running' | 'done' | 'failed';
 					errorMessage?: string;
 				} | undefined,
+				paused: false,
 			};
 		},
 		mounted() {
@@ -97,7 +121,7 @@
 				})
 				.on('data', (data: { node: string; data: Buffer }) => {
 					const terminal = this.getTerminal(data.node);
-					if(terminal) {
+					if(!this.paused && terminal) {
 						terminal.terminal.write(new Uint8Array(data.data));
 					}
 				})
@@ -108,7 +132,7 @@
 					}
 				})
 				.on('term-line', (data: { label: string; caps: 'start' | 'end' | undefined }) => {
-					if(data.label && (data.caps === 'start' || data.caps === 'end' || data.caps === undefined)) {
+					if(!this.paused && data.label && (data.caps === 'start' || data.caps === 'end' || data.caps === undefined)) {
 						this.drawTermLine(data.label, data.caps);
 					}
 				})
@@ -174,7 +198,7 @@
 <style lang="less" scoped>
 	.menu-right {
 		position: absolute;
-		top: 6px;
+		top: 9px;
 		right: 16px;
 		color: rgba(255, 255, 255, 0.65);
 		font-size: 14pt;
@@ -184,6 +208,15 @@
 			&:hover {
 				color: #fff;
 			}
+		}
+
+		.pause-icon {
+			cursor: pointer;
+		}
+
+		> .ant-avatar {
+			position: relative;
+			top: -2px;
 		}
 	}
 
