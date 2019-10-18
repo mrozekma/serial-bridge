@@ -21,6 +21,7 @@ class UserFactory {
 	constructor(private readonly resolver?: (user: Partial<User>) => Promise<void>) {}
 
 	async getUser(host: string): Promise<User> {
+		host = host.replace(/^::ffff:/, ''); // ::ffff:a.b.c.d is an IPv4 address over IPv6
 		let user = this.userCache.get(host);
 		if(user) {
 			return user;
@@ -46,7 +47,6 @@ class UserFactory {
 	}
 
 	private async makeUser(host: string): Promise<User> {
-		host = host.replace(/^::ffff:/, ''); // ::ffff:a.b.c.d is an IPv4 address over IPv6
 		let user: Partial<User> = { host };
 
 		if(db.exists(`/hosts/${host}`)) {
