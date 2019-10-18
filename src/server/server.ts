@@ -13,7 +13,12 @@ declare const BUILD_VERSION: string, BUILD_DATE: string;
 
 function spinner<T>(label: string, fn: () => Promise<T>): Promise<T> {
 	const promise = fn();
-	ora.promise(promise).start(label);
+	// For some reason Ora causes a deadlock on Windows
+	if(process.platform == 'win32') {
+		console.log(label);
+	} else {
+		ora.promise(promise).start(label);
+	}
 	return promise;
 }
 
