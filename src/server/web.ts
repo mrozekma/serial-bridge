@@ -68,11 +68,9 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 			async patch(id, data, params) {
 				if(id === null) {
 					throw new Error("Null ID");
-				} else if(!data.displayName || data.displayName.length == 0) {
-					throw new Error("Bad data");
 				}
 				const user = await this.get(id, params);
-				return await setUserInfo(user.host, data.displayName, data.email && data.email.length > 0 ? data.email : undefined);
+				return await setUserInfo(user.host, data.displayName && data.displayName.length > 0 ? data.displayName : undefined, data.email && data.email.length > 0 ? data.email : undefined);
 			},
 		},
 

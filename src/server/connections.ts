@@ -31,19 +31,26 @@ class UserFactory {
 		return user;
 	}
 
-	async setUserInfo(host: string, displayName: string, email: string | undefined): Promise<User> {
-		const user = await this.getUser(host);
+	async setUserInfo(host: string, displayName: string | undefined, email: string | undefined): Promise<User> {
+		const user: Partial<User> = await this.getUser(host);
 		user.displayName = displayName;
 		user.email = email;
 		if(this.resolver) {
 			await this.resolver(user).catch(console.error);
 		}
-		db.push(`/hosts/${host}`, {
-			host: user.host,
-			displayName: user.displayName,
-			email: user.email,
-		});
-		return user;
+		if(displayName) {
+			db.push(`/hosts/${host}`, {
+				host: user.host,
+				displayName: user.displayName,
+				email: user.email,
+			});
+		} else {
+			db.delete(`/hosts/${host}`);
+			if(!user.displayName) {
+				user.displayName = host;
+			}
+		}
+		return user as User;
 	}
 
 	private async makeUser(host: string): Promise<User> {
@@ -92,7 +99,7 @@ export function getUser(host: string): Promise<User> {
 	return userFactory.getUser(host);
 }
 
-export function setUserInfo(host: string, displayName: string, email: string | undefined): Promise<User> {
+export function setUserInfo(host: string, displayName: string | undefined, email: string | undefined): Promise<User> {
 	if(!userFactory) {
 		throw new Error("No user factory configured");
 	}
