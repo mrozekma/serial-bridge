@@ -38,6 +38,7 @@ const devices: Promise<DeviceJson[]> = app.service('api/devices').find();
 
 const data = {
 	app,
+	connected: true,
 	devices: unwrapPromise(devices),
 };
 
@@ -64,6 +65,14 @@ export function rootDataComputeds(): {
 
 export function rootDataUpdater(this: Vue) {
 	const rootData = this.$data as RootData;
+
+	// Initially connected is set to true to avoid a flash of disconnected errors on page load
+	// After a couple seconds, set it false if the socket still isn't connected
+	const timeout = setTimeout(() => rootData.connected = false, 2000);
+	socket.once('connect', () => clearTimeout(timeout));
+	socket.on('connect', () => rootData.connected = true);
+	socket.on('disconnect', () => rootData.connected = false);
+
 	rootData.app.service('api/devices').on('updated', (data: { device: DeviceJson }) => {
 		if(rootData.devices.state == 'resolved') {
 			const idx = rootData.devices.value.findIndex(device => device.id == data.device.id);

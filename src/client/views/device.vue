@@ -2,6 +2,9 @@
 	<div>
 		<sb-navbar :brand="deviceName" :commands="commands" @runCommand="runCommand" @resetTerms="resetTerms" :paused="paused" @pauseTerms="paused = !paused"/>
 		<div class="menu-right">
+			<a-tooltip v-if="!connected" placement="bottomRight" title="Disconnected from server" class="disconnected-icon">
+				<i class="fas fa-network-wired"></i>
+			</a-tooltip>
 			<a-tooltip v-if="paused" placement="bottomRight" title="Output paused" class="pause-icon" @click="paused = false">
 				<i class="fas fa-pause-circle"></i>
 			</a-tooltip>
@@ -72,17 +75,35 @@
 			},
 			termTheme(): ITheme {
 				const rtn: ITheme = {};
-				if(this.paused) {
+				if(!this.connected) {
+					rtn.background = '#5c0011';
+				} else if(this.paused) {
 					rtn.background = '#002766';
 				}
 				return rtn;
 			}
 		},
 		watch: {
-			termTheme: {
+			connected: {
 				handler() {
+					if(this.connected) {
+						this.$notification.close('disconnected');
+					} else {
+						this.$notification.error({
+							key: 'disconnected',
+							duration: 0,
+							placement: 'bottomRight',
+							message: "Disconnected",
+							description: "Disconnected from server. Serial traffic during this time will not be displayed. Automatically trying to reconnect.",
+						});
+					}
+				},
+				immediate: true,
+			},
+			termTheme: {
+				async handler() {
 					for(const node of this.nodes) {
-						const term = this.getTerminal(node.name)!.terminal;
+						const term = (await this.getTerminal(node.name)).terminal;
 						term.setOption('theme', this.termTheme);
 					}
 				},
@@ -119,8 +140,8 @@
 						value: data.device,
 					}
 				})
-				.on('data', (data: { node: string; data: Buffer }) => {
-					const terminal = this.getTerminal(data.node);
+				.on('data', async (data: { node: string; data: Buffer }) => {
+					const terminal = await this.getTerminal(data.node);
 					if(!this.paused && terminal) {
 						terminal.terminal.write(new Uint8Array(data.data));
 					}
@@ -140,9 +161,15 @@
 			this.commands = unwrapPromise(this.app.service('api/commands').find());
 		},
 		methods: {
-			getTerminal(node: string): SbTerminalVue | undefined {
-				const layout = this.$refs.layout as SbLayoutVue | undefined;
-				return (layout && layout.ready) ? layout.getNodeTerminal(node) : undefined;
+			async getTerminal(node: string): Promise<SbTerminalVue> {
+				while(!this.$refs.layout) {
+					await new Promise(resolve => setTimeout(resolve, 100));
+				}
+				const layout = this.$refs.layout as SbLayoutVue;
+				while(!layout.ready) {
+					await new Promise(resolve => setTimeout(resolve, 100));
+				}
+				return layout.getNodeTerminal(node);
 			},
 			async runCommand(name: string, label: string, icon?: string) {
 				while(this.runningCommand) {
@@ -175,7 +202,7 @@
 				const rightCap = {start: 'k', end: 'j', none: 'q'}[caps || 'none'];
 				const line = 'q';
 				for(const node of this.nodes) {
-					const term = this.getTerminal(node.name)!.terminal;
+					const term = (await this.getTerminal(node.name)).terminal;
 					let thisLabel = label;
 					let sideLen = (term.cols - thisLabel.length - 2) / 2;
 					if(sideLen < 1) {
@@ -186,9 +213,9 @@
 					term.write("\r\n\r\n\x1b[1;36m\x1b(0" + leftCap + line.repeat(Math.floor(sideLen) - 1) + "\x1b(B " + thisLabel + " \x1b(0" + line.repeat(Math.ceil(sideLen) - 1) + rightCap + "\x1b(B\x1b[0m\r\n\r\n");
 				}
 			},
-			resetTerms() {
+			async resetTerms() {
 				for(const node of this.nodes) {
-					this.getTerminal(node.name)!.terminal.reset();
+					(await this.getTerminal(node.name)).terminal.reset();
 				}
 			},
 		},
@@ -208,6 +235,10 @@
 			&:hover {
 				color: #fff;
 			}
+		}
+
+		.disconnected-icon {
+			color: #f5222d;
 		}
 
 		.pause-icon {
