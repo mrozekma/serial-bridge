@@ -14,16 +14,16 @@
 			</a-menu-item>
 		</a-sub-menu>
 		<!-- TODO I would really like to figure out how to move this into a slot, but antd's menu class is very finnicky -->
-		<template v-if="commands">
+		<template v-if="commands && (commands.state != 'resolved' || commands.value.length > 0)">
 			<a-sub-menu title="Commands">
 				<a-menu-item v-if="commands.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
 				<a-menu-item v-else-if="commands.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
 				<sb-command-menu v-else v-for="entry in commands.value" :key="entry.name" v-bind="entry"/>
 			</a-sub-menu>
-			<a-sub-menu title="View">
-				<a-menu-item @click="$emit('resetTerms')">Clear</a-menu-item>
-			</a-sub-menu>
 		</template>
+		<a-sub-menu title="View">
+			<a-menu-item @click="$emit('resetTerms')">Clear</a-menu-item>
+		</a-sub-menu>
 	</a-menu>
 </template>
 

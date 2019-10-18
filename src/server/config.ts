@@ -48,7 +48,7 @@ const configJoi = joi.object({
 	webPort: joi.number().integer(),
 	users: usersJoi,
 	devices: joi.array().required().items(deviceJoi),
-	commands: joi.array().required().items(commandJoi),
+	commands: joi.array().items(commandJoi),
 }).required();
 
 // Serial Bridge 1's config file had keys with spaces in it, so for backwards compatibility, convert 'foo bar' to 'fooBar'
