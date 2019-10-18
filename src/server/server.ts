@@ -9,7 +9,7 @@ import IdGenerator from './id-generator';
 import Command from './command';
 
 // From DefinePlugin
-declare const BUILD_VERSION: string, BUILD_DATE: string;
+declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
 
 function spinner<T>(label: string, fn: () => Promise<T>): Promise<T> {
 	const promise = fn();
@@ -48,7 +48,7 @@ function makeCommand(commandConfig: any, idGen: IdGenerator): Command {
 }
 
 (async () => {
-	console.log(`${banner}\n${BUILD_VERSION}\nBuilt ${BUILD_DATE}\n`);
+	console.log(`${banner}\n${BUILD_VERSION} (${BUILD_FILE_HASH})\nBuilt ${BUILD_DATE}\n`);
 	const config = await spinner("Load configuration", loadConfig);
 	configureUserFactory(config.users ? config.users.identify as any : undefined);
 	const devices: Device[] = await spinner("Load device information", async () => {

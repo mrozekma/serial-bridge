@@ -2,6 +2,8 @@ import Vue from 'vue';
 import feathers from '@feathersjs/feathers';
 import socketio from '@feathersjs/socketio-client';
 import io from 'socket.io-client';
+import {} from 'ant-design-vue/types/notification';
+
 import { ClientServices as Services, DeviceJson } from '../services';
 
 const app = feathers<Services>();
@@ -72,6 +74,26 @@ export function rootDataUpdater(this: Vue) {
 	socket.once('connect', () => clearTimeout(timeout));
 	socket.on('connect', () => rootData.connected = true);
 	socket.on('disconnect', () => rootData.connected = false);
+
+	// Tell the user when the build has changed
+	let version: any = undefined;
+	socket.on('connect', async () => {
+		const newVersion = await rootData.app.service('api/config').get('version');
+		if(version && JSON.stringify(version) != JSON.stringify(newVersion)) {
+			this.$notification.close('version');
+			this.$notification.info({
+				key: 'version',
+				duration: 0,
+				placement: 'bottomRight',
+				message: "New Version",
+				description: "A new version of Serial Bridge is available. Click here to refresh the page.",
+				onClick() {
+					window.location.reload(true);
+				},
+			});
+		}
+		version = newVersion;
+	});
 
 	rootData.app.service('api/devices').on('updated', (data: { device: DeviceJson }) => {
 		if(rootData.devices.state == 'resolved') {

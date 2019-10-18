@@ -13,6 +13,9 @@ import Device from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
 
+// From DefinePlugin
+declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
+
 const devicesRoute = /^\/devices\/([^/]+)\/?$/;
 
 function makeServices(app: Application<Services>, config: Config, devices: Device[], commands: Command[]): ServiceDefinitions {
@@ -33,7 +36,14 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 
 		'api/config': {
 			async get(id, params) {
-				if(id == 'users') {
+				//HERE
+				if(id == 'version') {
+					return {
+						version: BUILD_VERSION,
+						fileHash: BUILD_FILE_HASH,
+						date: BUILD_DATE,
+					};
+				} else if(id == 'users') {
 					return {
 						identifySupport: config.users ? (config.users.identify !== undefined) : false,
 						avatarSupport: config.users ? config.users.avatarSupport : false,
