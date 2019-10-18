@@ -142,7 +142,8 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 
 	// Register a rewriter for /devices/:id for all valid IDs
 	app.use((req: Request<any>, res: Response, next: NextFunction) => {
-		const match = req.url.match(devicesRoute);
+		const { pathname } = new Url(req.url);
+		const match = pathname.match(devicesRoute);
 		if(match && devices.find(device => device.id === match[1])) {
 			req.url = '/';
 		}
