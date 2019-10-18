@@ -10,7 +10,7 @@
 						<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
 					</div>
 				</template>
-				<a-avatar v-if="connection.gravatar" shape="square" :src="connection.gravatar"/>
+				<a-avatar v-if="connection.avatar" shape="square" :src="connection.avatar"/>
 				<a-avatar v-else shape="square" icon="user"/>
 			</a-tooltip>
 		</div>

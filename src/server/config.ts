@@ -31,14 +31,10 @@ const deviceJoi = joi.object({
 	//TODO commands?
 });
 
-const userDirectoryJoi = joi.object({
-	url: joi.string(),
-	dn: joi.string(),
-	username: joi.string(),
-	password: joi.string(),
-	hostPattern: joi.string(),
-	gravatar: joi.string(),
-}).with('url', 'dn');
+const usersJoi = joi.object({
+	identify: joi.func().required(),
+	avatarSupport: joi.bool().default(false),
+});
 
 // Automatic typing on this doesn't work because it's recursive. The 'Command' interface is defined manually below
 const commandJoi: any = joi.object({
@@ -50,7 +46,7 @@ const commandJoi: any = joi.object({
 
 const configJoi = joi.object({
 	webPort: joi.number().integer(),
-	userDirectory: userDirectoryJoi,
+	users: usersJoi,
 	devices: joi.array().required().items(deviceJoi),
 	commands: joi.array().required().items(commandJoi),
 }).required();
@@ -101,22 +97,4 @@ export interface Command {
 	// Exactly one of 'fn' or 'submenu' will be set, but encoding that in the type makes it a hassle to actually use
 	fn?: () => Promise<void>;
 	submenu?: Command[];
-}
-
-export function stripSecure(config: Config): object {
-	const rtn: Config = JSON.parse(JSON.stringify(config));
-	if(rtn.userDirectory) {
-		delete rtn.userDirectory.username;
-		delete rtn.userDirectory.password;
-	}
-	for(const device of rtn.devices) {
-		for(const node of device.nodes) {
-			// These aren't really secret since they're exposed in the device API
-			if(node.ssh) {
-				delete node.ssh.username;
-				delete node.ssh.password;
-			}
-		}
-	}
-	return rtn;
 }

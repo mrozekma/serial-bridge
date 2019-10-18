@@ -45,7 +45,7 @@ function makeCommand(commandConfig: any, idGen: IdGenerator): Command {
 (async () => {
 	console.log(`${banner}\n${BUILD_VERSION}\nBuilt ${BUILD_DATE}\n`);
 	const config = await spinner("Load configuration", loadConfig);
-	configureUserFactory(config.userDirectory);
+	configureUserFactory(config.users ? config.users.identify as any : undefined);
 	const devices: Device[] = await spinner("Load device information", async () => {
 		//TODO Check for duplicate device/node names
 		const idGen = new IdGenerator();

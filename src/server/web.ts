@@ -8,7 +8,7 @@ import chalk from 'chalk';
 import pathlib from 'path';
 
 import { ServerServices as Services, ServiceDefinitions } from '@/services';
-import { Config, stripSecure } from './config';
+import { Config } from './config';
 import Device from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
@@ -33,11 +33,11 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 
 		'api/config': {
 			async get(id, params) {
-				const all = stripSecure(config);
-				if(id == 'all') {
-					return all;
-				} else if(all.hasOwnProperty(id)) {
-					return (all as any)[id];
+				if(id == 'users') {
+					return {
+						identifySupport: config.users ? (config.users.identify !== undefined) : false,
+						avatarSupport: config.users ? config.users.avatarSupport : false,
+					}
 				} else {
 					throw new Error(`Config not found: ${id}`);
 				}

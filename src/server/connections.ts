@@ -1,49 +1,24 @@
-//@ts-ignore No declaration file
-import ActiveDirectory from 'activedirectory';
 import isIp from 'is-ip';
 
-import crypto from 'crypto';
 import dns from 'dns';
 import { EventEmitter } from 'events';
 import { promisify } from 'util';
 
-import { Config } from './config';
 import db from './db';
 
 const dnsReverse = promisify(dns.reverse);
-const adLookup = promisify((ad: ActiveDirectory, username: string, cb: (err: Error | null, result: any) => void) => ad.findUser(username, cb));
 
 export interface User {
 	host: string;
-	username?: string;
-	realName?: string;
+	displayName: string;
 	email?: string;
-	gravatar?: string;
-	displayName: string; // This is either 'host', 'username', or 'realName', depending on the information available
+	avatar?: string;
 }
 
 class UserFactory {
-	private readonly hostPattern?: RegExp;
-	private readonly ad?: ActiveDirectory;
-	private readonly gravatarUrl?: string;
 	private readonly userCache = new Map<string, User>(); // host -> User
 
-	constructor(userDirectoryConfig: Config['userDirectory']) {
-		if(userDirectoryConfig) {
-			if(userDirectoryConfig.hostPattern) {
-				this.hostPattern = new RegExp(userDirectoryConfig.hostPattern);
-				if(userDirectoryConfig.url) {
-					this.ad = new ActiveDirectory({
-						url: userDirectoryConfig.url,
-						baseDN: userDirectoryConfig.dn,
-						username: userDirectoryConfig.username,
-						password: userDirectoryConfig.password,
-					});
-				}
-			}
-			this.gravatarUrl = userDirectoryConfig.gravatar;
-		}
-	}
+	constructor(private readonly resolver?: (user: Partial<User>) => Promise<void>) {}
 
 	async getUser(host: string): Promise<User> {
 		let user = this.userCache.get(host);
@@ -59,7 +34,9 @@ class UserFactory {
 		const user = await this.getUser(host);
 		user.displayName = displayName;
 		user.email = email;
-		this.setGravatar(user);
+		if(this.resolver) {
+			await this.resolver(user).catch(console.error);
+		}
 		db.push(`/hosts/${host}`, {
 			host: user.host,
 			displayName: user.displayName,
@@ -70,62 +47,42 @@ class UserFactory {
 
 	private async makeUser(host: string): Promise<User> {
 		host = host.replace(/^::ffff:/, ''); // ::ffff:a.b.c.d is an IPv4 address over IPv6
-		let user: User;
+		let user: Partial<User> = { host };
 
 		if(db.exists(`/hosts/${host}`)) {
+			// The DB contains the displayName and email; we still run the resolver to get the avatar
 			user = db.getData(`/hosts/${host}`);
-		} else {
-			user = {
-				host,
-				displayName: '',
-			};
-
-			try {
-				if(!this.hostPattern) {
-					throw new Error("No way to deduce username");
-				}
-				const hosts = isIp(host) ? await dnsReverse(host) : [ host ];
-				for(const host of hosts) {
-					user.host = host;
-					const match = host.match(this.hostPattern);
-					if(match) {
-						user.username = match[1];
-						if(this.ad) {
-							const userInfo = await adLookup(this.ad, user.username);
-							if(!userInfo) {
-								throw new Error("User not found in active directory");
-							}
-							user.realName = userInfo.displayName;
-							user.email = userInfo.mail;
-						}
+			if(this.resolver) {
+				await this.resolver(user).catch(console.error);
+			}
+		} else if(this.resolver) {
+			const hosts = isIp(host) ? await dnsReverse(host).catch(e => [ host ]) : [ host ];
+			console.log(hosts);
+			for(user.host of hosts) {
+				try {
+					await this.resolver(user);
+					if(user.displayName) {
 						break;
 					}
+				} catch(e) {
+					console.error(e);
 				}
-			} catch(e) {
-				// console.error(e);
 			}
-
-			user.displayName = user.realName || user.username || user.host;
 		}
 
-		this.setGravatar(user);
-		return user;
-	}
-
-	private setGravatar(user: User) {
-		if(user.email && this.gravatarUrl) {
-			const hash = crypto.createHash('md5').update(user.email.toLowerCase()).digest('hex');
-			user.gravatar = this.gravatarUrl.replace('HASH', hash);
-		} else {
-			user.gravatar = undefined;
+		// Set the display name to the host if still unset
+		if(!user.displayName) {
+			user.displayName = host;
 		}
+
+		return user as User;
 	}
 }
 
 let userFactory: UserFactory | undefined = undefined;
 
-export function configureUserFactory(userDirectoryConfig: Config['userDirectory']) {
-	userFactory = new UserFactory(userDirectoryConfig);
+export function configureUserFactory(resolver?: (user: Partial<User>) => Promise<void>) {
+	userFactory = new UserFactory(resolver);
 }
 
 export function getUser(host: string): Promise<User> {

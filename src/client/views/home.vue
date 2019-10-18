@@ -15,7 +15,7 @@
 							<a-timeline>
 								<a-timeline-item v-for="connection in connections" :key="connection.host">
 									<template slot="dot">
-										<a-avatar v-if="connection.gravatar" shape="square" size="small" :src="connection.gravatar"/>
+										<a-avatar v-if="connection.avatar" shape="square" size="small" :src="connection.avatar"/>
 										<a-avatar v-else shape="square" size="small" icon="user"/>
 									</template>
 									{{ connection.name }} <a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
@@ -31,12 +31,12 @@
 			</div>
 
 			<h1>You</h1>
-			<a-alert v-if="userDirectoryConfig.state == 'rejected'" type="error" message="Failed to load user directory config" :description="userDirectoryConfig.error.message" showIcon/>
+			<a-alert v-if="usersConfig.state == 'rejected'" type="error" message="Failed to load user directory config" :description="usersConfig.error.message" showIcon/>
 			<a-alert v-else-if="currentUser.state == 'rejected'" type="error" message="Failed to load current user info" :description="currentUser.error.message" showIcon/>
-			<a-spin v-else-if="userDirectoryConfig.state == 'pending' || currentUser.state == 'pending'"/>
+			<a-spin v-else-if="usersConfig.state == 'pending' || currentUser.state == 'pending'"/>
 			<template v-else>
 				A list of who is connected to each device/port is displayed in several places in the UI.<br>
-				<template v-if="userDirectoryConfig.value.hostPattern">
+				<template v-if="usersConfig.value.identifySupport">
 					Serial Bridge attempts to guess who you are based on your hostname: <code>{{ currentUser.value.host }}</code>.<br>
 					If this isn't working, you can manually specify your name here.
 				</template>
@@ -44,7 +44,7 @@
 					Serial Bridge isn't configured with a user directory, so by default it just displays your hostname: <code>{{ currentUser.value.host }}</code>.<br>
 					You can manually specify your name here.
 				</template>
-				<template v-if="userDirectoryConfig.value.gravatar">
+				<template v-if="usersConfig.value.avatarSupport">
 					You can also specify an e-mail address to show an avatar.
 				</template>
 
@@ -52,7 +52,7 @@
 					<a-form-item label="Name" v-bind="formFeedback">
 						<a-input v-model="currentUser.value.displayName" @change="changeUserInfo = undefined"/>
 					</a-form-item>
-					<a-form-item v-if="userDirectoryConfig.value.gravatar" label="E-mail" v-bind="formFeedback">
+					<a-form-item v-if="usersConfig.value.avatarSupport" label="E-mail" v-bind="formFeedback">
 						<a-input v-model="currentUser.value.email" @change="changeUserInfo = undefined"/>
 					</a-form-item>
 					<a-form-item>
@@ -162,7 +162,7 @@
 			const app = this.$root.$data.app as Application<Services>;
 			return {
 				nodesColumns,
-				userDirectoryConfig: unwrapPromise(app.service('api/config').get('userDirectory')),
+				usersConfig: unwrapPromise(app.service('api/config').get('users')),
 				currentUser: unwrapPromise(app.service('api/users').get('self')),
 				changeUserInfo: undefined as PromiseResult<any> | undefined,
 			};

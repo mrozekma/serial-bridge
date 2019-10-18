@@ -39,7 +39,7 @@ export type ConnectionJson = Connection;
  */
 interface SCServiceDefinitions<ServerClient extends 'server' | 'client'> {
 	'api/devices': M<ServerClient, 'find' | 'get', Device>;
-	'api/config': M<ServerClient, 'get', Config>; //TODO Typing this as 'Config' is wrong, it's really Config | a child of Config
+	'api/config': M<ServerClient, 'get'>;
 	'api/users': M<ServerClient, 'get' | 'patch', User>;
 	'api/commands': M<ServerClient, 'find' | 'get' | 'patch', Command>;
 };

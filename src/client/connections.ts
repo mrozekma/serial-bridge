@@ -4,7 +4,7 @@ export interface Connection {
 	host: string;
 	nodes: string[];
 	name: string;
-	gravatar: string | undefined;
+	avatar: string | undefined;
 }
 
 export function getDeviceConnections(device: DeviceJson): IterableIterator<Connection> {
@@ -15,7 +15,7 @@ export function getDeviceConnections(device: DeviceJson): IterableIterator<Conne
 				host: user.host,
 				nodes: [ 'Web' ],
 				name: user.displayName,
-				gravatar: user.gravatar,
+				avatar: user.avatar,
 			});
 		}
 	}
@@ -27,7 +27,7 @@ export function getDeviceConnections(device: DeviceJson): IterableIterator<Conne
 					host: user.host,
 					nodes: [],
 					name: user.displayName,
-					gravatar: user.gravatar,
+					avatar: user.avatar,
 				});
 			}
 			connection.nodes.push(node.name);
