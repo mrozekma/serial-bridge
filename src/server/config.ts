@@ -67,6 +67,7 @@ export async function loadConfig() {
 		console,
 		require: __non_webpack_require__,
 		setTimeout,
+		__filename: filename,
 	});
 	vm.runInContext(buf.toString('utf8'), context, { filename });
 

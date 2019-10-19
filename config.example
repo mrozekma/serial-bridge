@@ -1,1 +1,169 @@
-TODO
+// This file is executed by Serial Bridge in an independent Javascript context.
+// It's expected to declare a global variable named 'config', described below.
+// The keys are camel case, but for ease of transition from Serial Bridge 1, spaced names are also allowed (e.g. "webPort" and "web port" are both valid).
+
+// Delete this line:
+throw new Error(`Example configuration not yet filled in. Edit ${__filename}`);
+
+config = {
+	// Optional. The TCP port the web server should listen on. If undefined, the web server is not started.
+	webPort: 80,
+
+	// Optional.
+	users: {
+		// A function that attempts to identify a user given their hostname. See the "Users" section below for more information.
+		identify: functionName,
+
+		// A flag indicating if the identify function will attempt to specify user avatars. This affects the help text the user is shown on the homepage.
+		avatarSupport: true,
+	},
+
+	// An array of devices to connect to.
+	devices: [
+		{
+			name: "Device name",
+			// Individual ports on the device
+			nodes: [
+				{
+					name: "Node name",
+					comPort: "COM<n> or /dev/pty<n>",
+					baudRate: 115200,
+					byteSize: 8, // 5, 6, 7, 8. Default 8.
+					parity: 'none', // even, odd, none. Default none.
+					stop: 1, // 1 or 2. Default 1.
+					tcpPort: 10000,
+
+					// Optional. An array of links to show in a node's titlebar that provide quick access to that node.
+					// If undefined, no links will be shown.
+					webLinks: [
+						'telnet', // Open the node's TCP port in the system's default telnet client.
+						'raw', // Open the node's TCP port in Putty's "raw" mode. This is Putty-specific and requires extra setup explained on the homepage.
+						'ssh', // Connect to the node over SSH. This is Putty-specific and requires extra setup explained on the homepage. It also requires a separate 'ssh' configuration block
+					],
+
+					// Optional unless 'ssh' is in webLinks.
+					ssh: {
+						host: "hostname",
+						// The username and password are optional.
+						username: "username",
+						password: "password",
+					},
+				},
+			],
+		}
+	],
+
+	// Optional. An array of commands the user can run from a menu on the device page.
+	commands: [
+		{
+			// Label to display in the menu item.
+			label: "Command name",
+
+			// Icon to display in the menu item. See the "Commands" section below for more information.
+			icon: 'fas fa-smile',
+
+			// Exactly one of 'fn' or 'submenu' must be provided:
+
+			// Function to execute when the user clicks this command. See the "Commands" section below for more information.
+			fn: functionName,
+
+			// Array of commands to display beneath this submenu.
+			// Note that these can also be submenus, nested indefinitely.
+			submenu: [
+				{
+					label: "Sub-command",
+					// etc.
+				},
+			],
+		},
+	],
+};
+
+// That's the end of the configuration block; what follows is some extra information/examples:
+
+////////////////////////////////////////////////////////////////////////////////
+// USERS:
+
+// config.users.identify is a function that will be passed a single object containing the key 'host',
+// a string that will be the user's IP address or (if available) DNS name.
+// The function should set the following additional keys on that object, if available:
+//
+//     * displayName: The user's real name.
+//     * email: The user's e-mail address.
+//     * avatar: The URL to the user's avatar.
+//
+// This function can be asynchronous if needed.
+
+// The 'lookupUser' function below is an example identify function that finds a user in Active Directory.
+// It uses Gravatar for the avatar provider, but this part is separate and optional.
+
+const ActiveDirectory = require('activedirectory');
+const crypto = require('crypto');
+const { promisify } = require('util');
+
+const ad = new ActiveDirectory({
+	url: "ldap://example.com:389",
+	baseDN: "dc=example,dc=com",
+	username: "cn=username,dc=example,dc=com",
+	password: "password",
+});
+const adLookup = promisify((username, cb) => ad.findUser(username, cb));
+
+async function lookupUser(user) {
+	// At this point user.host is the only key guaranteed to be set.
+	// user.displayName and user.email might also be set if the user provided them manually.
+	if(!user.displayName) {
+		// Figure out the username based on the hostname. Here we assume the hostname convention is "<username>-desktop":
+		const match = user.host.match(/^(.+)-desktop$/);
+		if(!match) {
+			return;
+		}
+		const username = match[1];
+		// Set the displayName to the username for now in case this is the best we can do.
+		user.displayName = username;
+
+		// Try to find the user in Active Directory
+		const adUser = await adLookup(username);
+		if(!adUser) {
+			return;
+		}
+		// Update the displayName to the user's real name, and set the e-mail.
+		user.displayName = adUser.displayName;
+		if(adUser.mail) {
+			user.email = adUser.mail;
+		}
+	}
+
+	// If we have the user's e-mail (either it was passed in or we just got it from AD), set their avatar to a Gravatar URL.
+	if(user.email) {
+		const hash = crypto.createHash('md5').update(user.email.toLowerCase()).digest('hex');
+		user.avatar = `https://www.gravatar.com/avatar/${hash}`;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// COMMANDS:
+
+// When setting a command's icon, look it up on FontAwesome: https://fontawesome.com/icons?m=free .
+// Set the string to the icon's full class. For example,
+// https://fontawesome.com/icons/smile?style=solid is 'fas fa-smile'.
+
+// A command's function is allowed to be asynchronous, and takes a single object argument
+// containing functions to interact with the device. These functions are:
+//
+//     send(nodeName: string, message: Buffer | string) -- Send the specified data to the specified node.
+//     sendln(nodeName: string, message: string) -- Send the specified data to the specified node, and append '\r\n'.
+//     drawTermLine(label: string, caps?: 'start' | 'end') -- Draw a colored line in every terminal to delineate an event. 'caps' indicate how the end of the line should look:
+//                                                            'start':   ┌─── Label ───┐
+//                                                            undefined: ──── Label ────
+//                                                            'end':     └─── Label ───┘
+
+// This sample command sends data to the node named 'power'
+const command = {
+	label: 'Power On',
+	icon: 'fas fa-plug',
+	async fn(api) {
+		api.drawTermLine("Power on");
+		api.send('power', 'set power = true')
+	},
+}
