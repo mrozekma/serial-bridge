@@ -1,6 +1,16 @@
 <template>
 	<div>
-		<sb-navbar :brand="deviceName" :commands="commands" @runCommand="runCommand" @resetTerms="resetTerms" :paused="paused" @pauseTerms="paused = !paused"/>
+		<sb-navbar :brand="deviceName">
+			<a-sub-menu v-if="commands && (commands.state != 'resolved' || commands.value.length > 0)" title="Commands">
+				<a-menu-item v-if="commands.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
+				<a-menu-item v-else-if="commands.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
+				<sb-command-menu v-else v-for="entry in commands.value" :key="entry.name" v-bind="entry"/>
+			</a-sub-menu>
+			<a-sub-menu title="View">
+				<a-menu-item @click="resetTerms">Clear</a-menu-item>
+				<a-menu-item @click="paused = !paused">{{ !paused ? 'Pause' : 'Unpause' }}</a-menu-item>
+			</a-sub-menu>
+		</sb-navbar>
 		<div class="menu-right">
 			<a-tooltip v-if="!connected" placement="bottomRight" title="Disconnected from server" class="disconnected-icon">
 				<i class="fas fa-network-wired"></i>
@@ -51,11 +61,12 @@
 
 	type Node = DeviceJson['nodes'][number];
 
+	import SbCommandMenu from '../components/command-menu.vue';
 	import SbNavbar from '../components/navbar.vue';
 	import SbLayout, {SbLayoutVue } from '../components/golden-layout.vue';
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
 	export default Vue.extend({
-		components: { SbNavbar, SbLayout, SbTerminal },
+		components: { SbCommandMenu, SbNavbar, SbLayout, SbTerminal },
 		props: {
 			id: {
 				type: String,
