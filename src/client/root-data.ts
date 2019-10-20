@@ -81,6 +81,7 @@ export function rootDataUpdater(this: Vue) {
 		const newVersion = await rootData.app.service('api/config').get('version');
 		if(version && JSON.stringify(version) != JSON.stringify(newVersion)) {
 			this.$notification.close('version');
+			let userClosed = false;
 			this.$notification.info({
 				key: 'version',
 				duration: 0,
@@ -88,8 +89,14 @@ export function rootDataUpdater(this: Vue) {
 				message: "New Version",
 				description: "A new version of Serial Bridge is available. Click here to refresh the page.",
 				onClick() {
-					window.location.reload(true);
+					if(!userClosed) {
+						window.location.reload(true);
+					}
 				},
+				onClose(e: any) {
+					// onClick() still gets called when the user clicks the close button, but onClose() gets called first
+					userClosed = true;
+				}
 			});
 		}
 		version = newVersion;
