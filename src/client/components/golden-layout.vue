@@ -76,20 +76,28 @@
 				}
 			}()];
 
-			this.gl = new GoldenLayout({
-				//TODO Other settings?
+			const gl = this.gl = new GoldenLayout({
 				content: [{
 					type: 'row',
 					content: row,
 				}],
+				labels: {
+					close: 'Close',
+					maximise: 'Maximize',
+					minimise: 'Minimize',
+					popout: 'Open in new window',
+					//@ts-ignore This isn't in the interface or the docs, but it exists
+					popin: 'Pop back in to main window',
+					tabDropdown: 'Additional tabs',
+				},
 			}, this.$el);
-			this.gl.on('initialised', () => layoutResolve(this.gl!));
-			this.gl.registerComponent('terminal', (container: GoldenLayout.Container, state: { nodeName: string }) => {
+			gl.on('initialised', () => layoutResolve(gl));
+			gl.registerComponent('terminal', (container: GoldenLayout.Container, state: { nodeName: string }) => {
 				const term = this.getNodeTerminal(state.nodeName);
 				container.getElement().append(term.$el);
 			});
 			const tabLinksCtor = Vue.extend(SbTabLinks);
-			this.gl.on('stackCreated', (stack: GoldenLayout.ContentItem) => {
+			gl.on('stackCreated', (stack: GoldenLayout.ContentItem) => {
 				const comp = new tabLinksCtor() as SbTabLinksVue;
 				comp.$mount();
 				//@ts-ignore Typing isn't quite right here, it thinks stack.header doesn't exist
@@ -99,7 +107,7 @@
 					comp.setNode(this.nodes.find(node => node.name == config.componentState.nodeName));
 				});
 			});
-			this.gl.init();
+			gl.init();
 
 			window.addEventListener('resize', () => this.gl!.updateSize());
 		},
