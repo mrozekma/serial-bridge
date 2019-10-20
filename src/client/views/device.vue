@@ -15,7 +15,10 @@
 					<i class="fal fa-wifi-slash"></i>
 				</a-tooltip>
 				<a-tooltip v-if="paused" placement="bottomRight" title="Output paused" class="pause-icon" @click="paused = false">
-					<i class="fas fa-pause-circle"></i>
+					<i class="fal fa-pause-circle"></i>
+				</a-tooltip>
+				<a-tooltip v-if="focusedNode" placement="bottomRight" :title="`Sending keystrokes to ${focusedNode}`">
+					<i class="fal fa-edit"></i>
 				</a-tooltip>
 				<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
 					<template slot="title">
@@ -35,7 +38,7 @@
 				<!-- TODO -->
 			</template>
 			<a-alert v-else-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
-			<sb-layout ref="layout" v-if="nodes.length > 0" :nodes="nodes"/>
+			<sb-layout ref="layout" v-if="nodes.length > 0" :nodes="nodes" @stdin="termStdin" @focus="node => focusedNode = node" @blur="focusedNode = undefined"/>
 			<div class="notifications">
 				<transition enter-active-class="animated slideInUp faster" leave-active-class="animated slideOutDown faster">
 					<div v-if="runningCommand" class="command-state">
@@ -84,12 +87,19 @@
 			connections(): Connection[] {
 				return (this.device.state == 'resolved') ? [...getDeviceConnections(this.device.value)] : [];
 			},
-			termTheme(): ITheme {
-				const rtn: ITheme = {};
+			termThemes() {
+				const rtn: { [NodeName: string]: ITheme } = {};
 				if(!this.connected) {
-					rtn.background = '#5c0011';
+					for(const node of this.nodes) {
+						rtn[node.name] = { background: '#5c0011' };
+					}
 				} else if(this.paused) {
-					rtn.background = '#002766';
+					for(const node of this.nodes) {
+						rtn[node.name] = { background: '#002766' };
+					}
+				}
+				if(this.focusedNode) {
+					rtn[this.focusedNode] = { background: '#262626' };
 				}
 				return rtn;
 			}
@@ -111,11 +121,11 @@
 				},
 				immediate: true,
 			},
-			termTheme: {
+			termThemes: {
 				async handler() {
 					for(const node of this.nodes) {
 						const term = (await this.getTerminal(node.name)).terminal;
-						term.setOption('theme', this.termTheme);
+						term.setOption('theme', this.termThemes[node.name]);
 					}
 				},
 				immediate: true,
@@ -138,6 +148,7 @@
 					errorMessage?: string;
 				} | undefined,
 				paused: false,
+				focusedNode: undefined as string | undefined,
 			};
 		},
 		mounted() {
@@ -229,20 +240,25 @@
 					(await this.getTerminal(node.name)).terminal.reset();
 				}
 			},
+			termStdin(nodeName: string, data: string) {
+				if(data == '\r') {
+					data = '\r\n';
+				}
+				if(this.device.state == 'resolved') {
+					this.socket.emit('node-stdin', this.device.value.id, nodeName, data);
+				}
+			},
 		},
 	});
 </script>
 
 <style lang="less" scoped>
 	.disconnected-icon {
-		margin-right: 40px;
 		color: #f5222d;
 	}
 
 	.pause-icon {
-		margin-right: 40px;
 		cursor: pointer;
-		color: #1890ff;
 	}
 
 	.notifications {

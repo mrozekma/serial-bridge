@@ -40,6 +40,7 @@ const devices: Promise<DeviceJson[]> = app.service('api/devices').find();
 
 const data = {
 	app,
+	socket,
 	connected: true,
 	devices: unwrapPromise(devices),
 };

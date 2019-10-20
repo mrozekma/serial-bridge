@@ -45,6 +45,9 @@
 					},
 				});
 				comp.$mount();
+				comp.$on('stdin', (data: string) => this.$emit('stdin', node.name, data));
+				comp.$on('focus', () => this.$emit('focus', node.name));
+				comp.$on('blur', () => this.$emit('blur', node.name));
 				this.terminals.set(node.name, comp as SbTerminalVue);
 			}
 

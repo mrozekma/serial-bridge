@@ -102,6 +102,19 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 	return services;
 }
 
+function makeRawListeners(socket: SocketIO.Socket, devices: Device[], commands: Command[]) {
+	//TODO I think there are some other events shoehorned into services that should be moved here
+	socket.on('node-stdin', (deviceId: string, nodeName: string, data: string) => {
+		const device = devices.find(device => device.id == deviceId);
+		if(device) {
+			const node = device.nodes.find(node => node.name == nodeName);
+			if(node) {
+				node.serialPort.write(Buffer.from(data, 'utf8'));
+			}
+		}
+	});
+}
+
 function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 	for(const device of devices) {
 		const sendUpdate = () => device.emit(app, 'updated', { device });
@@ -134,6 +147,7 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 					ip: socket.conn.remoteAddress,
 				}
 			);
+			makeRawListeners(socket, devices, commands);
 		});
 	}));
 	// app.on('connection', connection => app.channel('everybody').join(connection));

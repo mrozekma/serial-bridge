@@ -2,7 +2,6 @@ import feathers from '@feathersjs/feathers';
 
 import Device from './server/device';
 import { User, Connection } from './server/connections';
-import { Config } from './server/config';
 import Command from './server/command';
 
 // Variant of feathers.ServiceMethods with some narrower return types

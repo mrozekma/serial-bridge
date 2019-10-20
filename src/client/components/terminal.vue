@@ -61,7 +61,6 @@
 			return {
 				terminal: new Terminal({
 					scrollback: 5000,
-					disableStdin: true, //TODO For now
 				}),
 				fitAddon: new SbFit(),
 			};
@@ -72,6 +71,11 @@
 			this.terminal.open(this.$refs.term as HTMLElement);
 			this.fit();
 			layout.on('stateChanged', () => this.fit());
+			//@ts-ignore Poking around in xterm internals
+			this.terminal._core.onFocus(() => this.$emit('focus'));
+			//@ts-ignore Poking around in xterm internals
+			this.terminal._core.onBlur(() => this.$emit('blur'));
+			this.terminal.onData((data: string) => this.$emit('stdin', data));
 		},
 		methods: {
 			fit() {
