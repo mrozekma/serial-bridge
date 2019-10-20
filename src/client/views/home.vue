@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<sb-navbar></sb-navbar>
+		<sb-navbar/>
 		<main>
 			<h1>Devices</h1>
 			<a-alert v-if="devices.state == 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>

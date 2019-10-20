@@ -14,6 +14,9 @@
 			</a-menu-item>
 		</a-sub-menu>
 		<slot/>
+		<a-menu-item class="right">
+			<slot name="right"/>
+		</a-menu-item>
 	</a-menu>
 </template>
 
@@ -23,7 +26,7 @@
 	// Not a fan of the gaps between submenus
 	//@ts-ignore
 	import placements from 'ant-design-vue/es/vc-menu/placements';
-	placements.bottomLeft.offset = [0, 0];
+	placements.bottomLeft.offset = [0, 2];
 	placements.rightTop.offset = [0, 0];
 
 	import { rootDataComputeds, PromiseResult } from '../root-data';
@@ -50,6 +53,12 @@
 		> .ant-menu-item,
 		> .ant-menu-submenu {
 			border-bottom: 2px solid transparent !important;
+
+			// Not sure what these antd styles are supposed to be doing, but they're making stuff look bad, so override them
+			.ant-avatar i {
+				margin-right: auto;
+				font-size: 18px;
+			}
 		}
 
 		> .ant-menu-item:hover,
@@ -60,7 +69,25 @@
 		> .ant-menu-submenu-open,
 		> .ant-menu-item-selected,
 		> .ant-menu-submenu-selected {
-			border-bottom: 2px solid #1890ff !important;
+			&:not(.right) {
+				border-bottom: 2px solid #1890ff !important;
+			}
+		}
+
+		.right {
+			float: right;
+
+			> * {
+				margin-right: 8px;
+				&:hover {
+					color: #fff;
+				}
+			}
+			> i {
+				position: relative;
+				top: 6px;
+				font-size: 28px;
+			}
 		}
 	}
 

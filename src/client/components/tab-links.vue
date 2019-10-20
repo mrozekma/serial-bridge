@@ -83,6 +83,7 @@
 		position: relative;
 		top: -2px;
 		font-size: 8pt;
+		color: #000;
 	}
 
 	li.spacer {

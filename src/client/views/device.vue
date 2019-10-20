@@ -10,26 +10,26 @@
 				<a-menu-item @click="resetTerms">Clear</a-menu-item>
 				<a-menu-item @click="paused = !paused">{{ !paused ? 'Pause' : 'Unpause' }}</a-menu-item>
 			</a-sub-menu>
+			<template v-slot:right>
+				<a-tooltip v-if="!connected" placement="bottomRight" title="Disconnected from server" class="disconnected-icon">
+					<i class="fal fa-wifi-slash"></i>
+				</a-tooltip>
+				<a-tooltip v-if="paused" placement="bottomRight" title="Output paused" class="pause-icon" @click="paused = false">
+					<i class="fas fa-pause-circle"></i>
+				</a-tooltip>
+				<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
+					<template slot="title">
+						<div class="connection name">{{ connection.name }}</div>
+						<div class="connection host" v-if="connection.host != connection.name">{{ connection.host }}</div>
+						<div class="connection nodes">
+							<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
+						</div>
+					</template>
+					<a-avatar v-if="connection.avatar" shape="square" :src="connection.avatar"/>
+					<a-avatar v-else shape="square" icon="user"/>
+				</a-tooltip>
+			</template>
 		</sb-navbar>
-		<div class="menu-right">
-			<a-tooltip v-if="!connected" placement="bottomRight" title="Disconnected from server" class="disconnected-icon">
-				<i class="fas fa-network-wired"></i>
-			</a-tooltip>
-			<a-tooltip v-if="paused" placement="bottomRight" title="Output paused" class="pause-icon" @click="paused = false">
-				<i class="fas fa-pause-circle"></i>
-			</a-tooltip>
-			<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
-				<template slot="title">
-					<div class="connection name">{{ connection.name }}</div>
-					<div class="connection host" v-if="connection.host != connection.name">{{ connection.host }}</div>
-					<div class="connection nodes">
-						<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
-					</div>
-				</template>
-				<a-avatar v-if="connection.avatar" shape="square" :src="connection.avatar"/>
-				<a-avatar v-else shape="square" icon="user"/>
-			</a-tooltip>
-		</div>
 		<main>
 			<template v-if="device.state == 'pending'">
 				<!-- TODO -->
@@ -234,32 +234,14 @@
 </script>
 
 <style lang="less" scoped>
-	.menu-right {
-		position: absolute;
-		top: 9px;
-		right: 16px;
-		color: rgba(255, 255, 255, 0.65);
-		font-size: 14pt;
+	.disconnected-icon {
+		margin-right: 40px;
+		color: #f5222d;
+	}
 
-		> * {
-			margin-right: 8px;
-			&:hover {
-				color: #fff;
-			}
-		}
-
-		.disconnected-icon {
-			color: #f5222d;
-		}
-
-		.pause-icon {
-			cursor: pointer;
-		}
-
-		> .ant-avatar {
-			position: relative;
-			top: -2px;
-		}
+	.pause-icon {
+		margin-right: 40px;
+		cursor: pointer;
 	}
 
 	.notifications {
