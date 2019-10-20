@@ -10,8 +10,10 @@
 	Vue.use(Antd);
 	import 'ant-design-vue/dist/antd.css';
 
-	import '@fortawesome/fontawesome-free';
-	import '@fortawesome/fontawesome-free/css/all.css';
+	// I ended up using FontAwesome Pro, which I have a license for, but using the pro NPM registry would make it impossible for anyone else to build Serial Bridge from source.
+	// Instead I downloaded the files and put them in public/fontawesome; the CSS is pulled into the page via public/index.html.
+	// import '@fortawesome/fontawesome-free';
+	// import '@fortawesome/fontawesome-free/css/all.css';
 
 	import 'animate.css/animate.css';
 

@@ -24,9 +24,9 @@
 		url: (node: Node) => string;
 	}
 	const links: Link[] = [
-		{ name: 'telnet', description: 'Telnet', icon: 'fas fa-external-link-alt', url: node => `telnet://${window.location.hostname}:${node.tcpPort}` },
-		{ name: 'raw',    description: 'Raw',    icon: 'fas fa-external-link-alt', url: node => `putty:-raw ${window.location.hostname} -P ${node.tcpPort}` },
-		{ name: 'ssh',    description: 'SSH',    icon: 'fas fa-terminal',          url: node => {
+		{ name: 'telnet', description: 'Telnet', icon: 'far fa-external-link-alt', url: node => `telnet://${window.location.hostname}:${node.tcpPort}` },
+		{ name: 'raw',    description: 'Raw',    icon: 'far fa-external-link-alt', url: node => `putty:-raw ${window.location.hostname} -P ${node.tcpPort}` },
+		{ name: 'ssh',    description: 'SSH',    icon: 'far fa-terminal',          url: node => {
 			const { host, username, password } = node.ssh!;
 			const args = [ host ];
 			if(username) { args.push(`-l ${username}`); }

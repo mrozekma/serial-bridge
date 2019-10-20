@@ -41,7 +41,6 @@
 		"url-parse": "^1.4.7"
 	},
 	"devDependencies": {
-		"@fortawesome/fontawesome-free": "^5.11.2",
 		"@types/cors": "^2.8.6",
 		"@types/jquery": "^3.3.31",
 		"@types/json5": "^0.0.30",

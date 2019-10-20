@@ -242,6 +242,7 @@
 	.pause-icon {
 		margin-right: 40px;
 		cursor: pointer;
+		color: #1890ff;
 	}
 
 	.notifications {
