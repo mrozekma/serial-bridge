@@ -1,6 +1,7 @@
 <template>
 	<div class="term-padding-wrapper">
-		<div ref="term" class="term"/>
+		<div v-show="node.state.open" ref="term" class="term"/>
+		<a-alert v-if="!node.state.open" message="Port closed" :description="node.state.reason" type="info" showIcon/>
 	</div>
 </template>
 
@@ -48,14 +49,8 @@
 
 	const component = Vue.extend({
 		props: {
-			node: {
-				type: Object as PropType<Node>,
-				required: true,
-			},
-			layout: {
-				type: Promise as PropType<Promise<GoldenLayout>>,
-				required: true,
-			},
+			node: Object as PropType<Node>,
+			layout: Promise as PropType<Promise<GoldenLayout>>,
 		},
 		data() {
 			return {
@@ -64,6 +59,14 @@
 				}),
 				fitAddon: new SbFit(),
 			};
+		},
+		watch: {
+			async 'node.state.open'(val) {
+				if(val) {
+					await this.$nextTick();
+					this.fit();
+				}
+			},
 		},
 		async mounted() {
 			this.terminal.loadAddon(this.fitAddon);
@@ -91,6 +94,13 @@
 	.term-padding-wrapper {
 		height: 100%;
 		overflow: hidden;
+	}
+
+	.ant-alert {
+		position: relative;
+		top: 50%;
+		transform: translateY(-50%);
+		margin: 0 5px;
 	}
 
 	.term {

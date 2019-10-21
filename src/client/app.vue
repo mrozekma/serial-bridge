@@ -20,6 +20,7 @@
 	// I'm avoiding a SPA here because it's convenient to start fresh when switching devices, so this is essentially a manual basic vue-router
 	import HomeView from './views/home.vue';
 	import DeviceView from './views/device.vue';
+	import ManageView from './views/manage.vue';
 	export default Vue.extend({
 		data() {
 			let view: VueConstructor<Vue> | undefined = undefined;
@@ -27,11 +28,11 @@
 			let error: string | undefined = undefined;
 
 			const path = window.location.pathname;
-			const m = path.match(/^\/devices\/([^/]+)\/?$/);
+			const m = path.match(/^\/devices\/([^/]+)(\/manage)?\/?$/);
 			if(path == '/') {
 				view = HomeView;
 			} else if(m) {
-				view = DeviceView;
+				view = m[2] ? ManageView : DeviceView;
 				props = {
 					id: m[1],
 				};
@@ -51,5 +52,58 @@
 
 	main {
 		padding: 5px;
+	}
+
+	.ant-card {
+		margin: 15px;
+		width: 300px;
+
+		.ant-card-head {
+			min-height: 0;
+			padding: 5px 10px;
+
+			.ant-card-head-title {
+				padding: 0;
+			}
+
+			.ant-card-extra {
+				padding: 0;
+			}
+		}
+
+		.ant-card-body {
+			padding: 5px 10px;
+
+			h4:not(:first-child) {
+				margin-top: 10px;
+			}
+
+			// Not sure why timelines have such a large gap after them
+			.ant-timeline + h4 {
+				margin-top: -25px;
+			}
+
+			i {
+				margin-right: 5px;
+			}
+		}
+
+		.ant-timeline {
+			position: relative;
+			top: 10px;
+			left: 5px;
+
+			.ant-timeline-item-content {
+				margin-left: 24px;
+			}
+		}
+
+		.ant-table-wrapper {
+			margin: 5px 0;
+
+			tr th {
+				font-weight: bold;
+			}
+		}
 	}
 </style>

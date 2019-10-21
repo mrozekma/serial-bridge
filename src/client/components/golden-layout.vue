@@ -37,19 +37,23 @@
 
 			// Make an SbTerminal for each node
 			const termCtor = Vue.extend(SbTerminal);
-			for(const node of this.nodes) {
-				const comp = new termCtor({
-					propsData: {
-						node,
-						layout: layoutPromise,
-					},
+			this.nodes.forEach((node, idx) => {
+				// This feels pretty hacky, but props passed to a dynamically instantiated component aren't reactive, so we need to do some work
+				// https://forum.vuejs.org/t/dynamically-add-vue-component-with-reactive-properties/17360/6
+				const props = Vue.observable({
+					node: node,
+					layout: layoutPromise,
 				});
+				const comp = new termCtor({});
+				//@ts-ignore Vue internals :-\
+				comp._props = props;
 				comp.$mount();
 				comp.$on('stdin', (data: string) => this.$emit('stdin', node.name, data));
 				comp.$on('focus', () => this.$emit('focus', node.name));
 				comp.$on('blur', () => this.$emit('blur', node.name));
+				this.$watch('nodes', (nodes: Node[]) => props.node = nodes[idx], { deep: true });
 				this.terminals.set(node.name, comp as SbTerminalVue);
-			}
+			});
 
 			//TODO Load config from local storage
 			const nodeConfigs = this.nodes.map<GoldenLayout.ItemConfigType>(node => ({

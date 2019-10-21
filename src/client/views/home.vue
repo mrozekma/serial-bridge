@@ -9,10 +9,9 @@
 					<a-card v-for="i in 3" :key="i" :loading="true">.</a-card>
 				</template>
 				<template v-else>
-					<a-card v-for="{ device, connections } in annotatedDevices" :key="device.name" hoverable @click="loadDevice(device)" @click.middle="loadDevice(device, true)">
-						<template v-slot:title>
-							{{ device.name }}
-							<a-button size="small">
+					<a-card v-for="{ device, connections } in annotatedDevices" :key="device.name" :title="device.name" hoverable @click="loadDevice(device)" @click.middle="loadDevice(device, true)">
+						<template v-slot:extra>
+							<a-button size="small" @click.stop="manageDevice(device)" @click.middle.stop="manageDevice(device, true)">
 								<i class="fas fa-cogs"></i>
 							</a-button>
 						</template>
@@ -187,6 +186,13 @@
 					window.location.assign(`/devices/${device.id}`);
 				}
 			},
+			manageDevice(device: DeviceJson, newTab: boolean = false) {
+				if(newTab) {
+					window.open(`/devices/${device.id}/manage`, '_blank');
+				} else {
+					window.location.assign(`/devices/${device.id}/manage`);
+				}
+			},
 			updateUser() {
 				if(this.currentUser.state == 'resolved') {
 					this.changeUserInfo = unwrapPromise(this.app.service('api/users').patch('self', this.currentUser.value));
@@ -205,59 +211,6 @@
 		display: flex;
 		flex-wrap: wrap;
 		margin: -15px 0;
-
-		> .ant-card {
-			margin: 15px;
-			width: 300px;
-
-			/deep/ .ant-card-head {
-				min-height: 0;
-				padding: 5px 10px;
-
-				.ant-card-head-title {
-					padding: 0;
-
-					button {
-						float: right;
-					}
-				}
-			}
-
-			/deep/ .ant-card-body {
-				padding: 5px 10px;
-
-				h4:not(:first-child) {
-					margin-top: 10px;
-				}
-
-				// Not sure why timelines have such a large gap after them
-				.ant-timeline + h4 {
-					margin-top: -25px;
-				}
-
-				i {
-					margin-right: 5px;
-				}
-			}
-
-			.ant-timeline {
-				position: relative;
-				top: 10px;
-				left: 5px;
-
-				/deep/ .ant-timeline-item-content {
-					margin-left: 24px;
-				}
-			}
-
-			.ant-table-wrapper {
-				margin: 5px 0;
-
-				/deep/ tr th {
-					font-weight: bold;
-				}
-			}
-		}
 	}
 
 	form input[type=text] {

@@ -17,11 +17,9 @@ import Build from './jenkins';
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
 
-const devicesRoute = /^\/devices\/([^/]+)\/?$/;
+const devicesRoute = /^\/devices\/([^/]+)(?:\/manage)?\/?$/;
 
 function makeServices(app: Application<Services>, config: Config, devices: Device[], commands: Command[]): ServiceDefinitions {
-	const buildExists = (build: {} | Partial<Build>): build is Partial<Build> => build !== {};
-
 	const services: ServiceDefinitions = {
 		'api/devices': {
 			events: [ 'updated', 'data', 'command', 'term-line' ],
@@ -162,6 +160,22 @@ function makeRawListeners(socket: SocketIO.Socket, devices: Device[], commands: 
 			}
 		}
 	});
+	socket.on('node-state', async (deviceId: string, nodeName: string, state: boolean) => {
+		//@ts-ignore
+		const host = socket.feathers.ip;
+		const user = await getUser(host);
+		const device = devices.find(device => device.id == deviceId);
+		if(device) {
+			const node = device.nodes.find(node => node.name == nodeName);
+			if(node) {
+				if(state && !node.serialPort.isOpen) {
+					node.serialPort.open();
+				} else if(!state && node.serialPort.isOpen) {
+					node.serialPort.close(`Closed by ${user.displayName}`);
+				}
+			}
+		}
+	});
 }
 
 function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
@@ -169,9 +183,11 @@ function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 		const sendUpdate = () => device.emit(app, 'updated', { device });
 		device.webConnections.on('connect', sendUpdate).on('disconnect', sendUpdate);
 		for(const node of device.nodes) {
-			//TODO Type safety here?
-			node.serialPort.on('data', (data: Buffer) => device.emit(app, 'data', { node: node.name, data }));
-			node.tcpConnections.on('connect', sendUpdate).on('disconnect', sendUpdate);
+			node
+				.on('serialData', (data: Buffer) => device.emit(app, 'data', { node: node.name, data }))
+				.on('serialStateChanged', sendUpdate)
+				.on('tcpConnect', sendUpdate)
+				.on('tcpDisconnect', sendUpdate)
 		}
 	}
 }

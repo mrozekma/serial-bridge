@@ -4,9 +4,10 @@ import chalk from 'chalk';
 import { Mutex } from 'async-mutex';
 import net from 'net';
 import { Application } from '@feathersjs/express';
+import { EventEmitter } from 'events';
 
 import { ServerServices as Services } from '@/services';
-import Connections from './connections';
+import Connections, { Connection } from './connections';
 import Build from './jenkins';
 
 interface SSHInfo {
@@ -15,8 +16,8 @@ interface SSHInfo {
 	password: string;
 }
 
-abstract class Port {
-	protected state: {
+abstract class Port extends EventEmitter {
+	private _state: {
 		open: true;
 	} | {
 		open: false;
@@ -25,6 +26,15 @@ abstract class Port {
 		open: false,
 		reason: 'Never opened',
 	};
+
+	get state() {
+		return this._state;
+	}
+
+	set state(state) {
+		this._state = state;
+		this.emit('stateChanged', state);
+	}
 
 	get isOpen() {
 		return this.state.open;
@@ -79,13 +89,27 @@ class SerialPort extends Port {
 			}
 		});
 		this.serialConn.on('error', console.error);
+		this.serialConn.on('data', (data: Buffer) => this.emit('data', data));
 	}
 
-	on(...args: Parameters<RealSerialPort['on']>) { this.serialConn.on(...args); }
-	off(...args: Parameters<RealSerialPort['off']>) { this.serialConn.off(...args); }
-	openImpl() { this.serialConn.open(); }
-	closeImpl() { this.serialConn.close(); }
-	write(data: Buffer) { this.serialConn.write(data); }
+	openImpl() {
+		this.serialConn.open(err => {
+			if(err) {
+				this.state = {
+					open: false,
+					reason: err.message,
+				};
+			}
+		});
+	}
+
+	closeImpl() {
+		this.serialConn.close();
+	}
+
+	write(data: Buffer) {
+		this.serialConn.write(data);
+	}
 }
 
 class TcpPort extends Port {
@@ -111,7 +135,7 @@ function socketListenTo(socket: net.Socket, target: OnOff, event: string, listen
 	socket.on('close', () => target.off(event, listener));
 }
 
-class Node {
+class Node extends EventEmitter {
 	public readonly serialPort: SerialPort;
 	public readonly tcpPort: TcpPort;
 	public readonly tcpConnections: Connections;
@@ -120,9 +144,15 @@ class Node {
 		public readonly byteSize: 5 | 6 | 7 | 8, public readonly parity: 'even' | 'odd' | 'none', public readonly stopBits: 1 | 2,
 		public readonly tcpPortNumber: number, public readonly webLinks: string[], public readonly ssh: SSHInfo | undefined)
 	{
+		super();
 		this.serialPort = new SerialPort(path, baudRate, byteSize, parity, stopBits);
 		this.tcpPort = new TcpPort(tcpPortNumber, socket => this.onTcpConnect(socket));
 		this.tcpConnections = new Connections();
+
+		this.serialPort.on('stateChanged', () => this.emit('serialStateChanged'));
+		this.serialPort.on('data', (data: Buffer) => this.emit('serialData', data));
+		this.tcpConnections.on('connect', (connection: Connection) => this.emit('tcpConnect', connection));
+		this.tcpConnections.on('disconnect', (connection: Connection) => this.emit('tcpDisconnect', connection));
 	}
 
 	toJSON() {
@@ -130,6 +160,7 @@ class Node {
 		return {
 			name, path, baudRate, byteSize, parity, stopBits, tcpPort, webLinks, ssh,
 			tcpConnections: tcpConnections.toJSON(),
+			state: this.serialPort.state,
 		};
 	}
 
