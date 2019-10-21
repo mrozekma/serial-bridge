@@ -32,18 +32,30 @@
 	import { rootDataComputeds, PromiseResult } from '../root-data';
 	import { CommandJson } from '@/services';
 
+	const appName = 'Serial Bridge';
 	import SbCommandMenu from '../components/command-menu.vue';
 	export default Vue.extend({
 		components: { SbCommandMenu },
 		props: {
 			brand: {
-				type: String as PropType<String | undefined>,
-				default: 'Serial Bridge',
+				type: String,
+				default: appName,
 			},
+			title: String,
 			paused: Boolean,
 		},
 		computed: {
 			...rootDataComputeds(),
+		},
+		watch: {
+			brand(val) {
+				if(!this.title) {
+					document.title = !val ? appName : (val === appName) ? val : `${val} - ${appName}`;
+				}
+			},
+			title(val) {
+				document.title = `${val} - ${appName}`;
+			},
 		},
 	});
 </script>

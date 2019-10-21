@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<sb-navbar :brand="deviceName">
+		<sb-navbar :brand="deviceName" :title="`Manage ${deviceName}`">
 			<a-sub-menu title="Manage">
 				<a-menu-item v-if="anyClosed" @click="setNodeState(nodes, true)"><i class="fas fa-door-open"></i> Open all serial ports</a-menu-item>
 				<a-menu-item v-if="anyOpen" @click="setNodeState(nodes, false)"><i class="fas fa-door-closed"></i>Close all serial ports</a-menu-item>
