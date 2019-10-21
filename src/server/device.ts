@@ -243,6 +243,7 @@ export default class Device {
 			}
 		};
 
+		const cancelTokens: (() => void)[] = [];
 		const api = {
 			send: (nodeName: string, message: Buffer | string) => {
 				const node = this.nodes.find(node => node.name === nodeName);
@@ -257,8 +258,37 @@ export default class Device {
 			sendln(nodeName: string, message: string) {
 				this.send(nodeName, message + '\r\n');
 			},
+			recvAsync: (nodeName: string, handler: (data: Buffer) => void, bufferLines: boolean = false) => {
+				const node = this.nodes.find(node => node.name === nodeName);
+				if(!node) {
+					throw new Error(`Tried to receive from non-existent node '${nodeName}'`);
+				}
+				if(bufferLines) {
+					const userHandler = handler;
+					let stored = Buffer.allocUnsafe(0);
+					handler = (data: Buffer) => {
+						stored = Buffer.concat([ stored, data ]);
+						let off = 0;
+						for(let nl = stored.indexOf("\r\n"); nl >= 0; off = nl + 2, nl = stored.indexOf("\r\n", off)) {
+							userHandler(stored.subarray(off, nl + 2));
+						}
+						stored = stored.subarray(off);
+					};
+				}
+				node.on('serialData', handler);
+				const cancelToken = () => node.off('serialData', handler);
+				cancelTokens.push(cancelToken);
+				return cancelToken;
+			},
 			termLine: (label: string, caps: 'start' | 'end' | undefined) => {
 				this.emit(app, 'term-line', { label, caps });
+			},
+			showModal: (title: string, rows: { key: string; value: string }[]) => {
+				this.emit(app, 'command-modal', {
+					to: originSocketId,
+					title,
+					rows,
+				});
 			},
 		};
 
@@ -271,6 +301,10 @@ export default class Device {
 			} catch(e) {
 				sendUpdate('failed', { error: e });
 				throw e;
+			} finally {
+				for(const cancelToken of cancelTokens) {
+					cancelToken();
+				}
 			}
 		});
 	}

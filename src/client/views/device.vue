@@ -72,6 +72,7 @@
 	import SbJenkins, { FinishedBuild } from '../components/jenkins.vue';
 	import SbLayout, {SbLayoutVue } from '../components/golden-layout.vue';
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
+	import SbCommandModal from '../components/command-modal.vue';
 	export default Vue.extend({
 		components: { SbNavbar, SbCommandMenu, SbJenkins, SbLayout, SbTerminal },
 		props: {
@@ -195,8 +196,30 @@
 						this.drawTermLine(data.label, data.caps);
 					}
 				})
+				.on('command-modal', (data: { title: string; rows: { key: string, value: string }[] }) => {
+					const ctor = Vue.extend(SbCommandModal);
+					const comp = new ctor({
+						propsData: {
+							rows: data.rows,
+						},
+					});
+					comp.$mount();
+					this.$info({
+						title: data.title,
+						//@ts-ignore Vue internals :-\
+						content: comp._vnode,
+						onOk() {
+							comp.$destroy();
+						},
+					});
+				})
 
-			this.commands = unwrapPromise(this.app.service('api/commands').find());
+			const commandsService = this.app.service('api/commands');
+			commandsService.timeout = 30000;
+			this.commands = unwrapPromise(commandsService.find());
+		},
+		beforeDestroy() {
+			this.app.service('api/devices').removeAllListeners();
 		},
 		methods: {
 			async getTerminal(node: string): Promise<SbTerminalVue> {
@@ -284,6 +307,7 @@
 		bottom: 10px;
 		display: flex;
 		overflow-y: hidden;
+		z-index: 50; // Maximized golden-layout windows have a z-index of 40
 
 		> * {
 			margin-left: auto;

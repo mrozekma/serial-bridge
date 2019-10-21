@@ -27,6 +27,7 @@ type M<
 	T = any
 > = Pick<ServiceMethods<ServerClient extends 'server' ? T : (T extends { toJSON: () => any } ? ReturnType<T['toJSON']> : T)>, Chosen> & {
 	events?: string[];
+	timeout?: number;
 };
 
 export type DeviceJson = ReturnType<Device['toJSON']>;
