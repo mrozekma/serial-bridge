@@ -10,6 +10,9 @@
 				<a-menu-item @click="resetTerms">Clear</a-menu-item>
 				<a-menu-item @click="paused = !paused">{{ !paused ? 'Pause' : 'Unpause' }}</a-menu-item>
 			</a-sub-menu>
+			<a-menu-item class="faux" @click="finishedBuild = undefined">
+				<sb-jenkins v-if="device.state == 'resolved' && (device.value.build || finishedBuild)" :build="device.value.build || finishedBuild"/>
+			</a-menu-item>
 			<template v-slot:right>
 				<a-tooltip v-if="!connected" placement="bottomRight" title="Disconnected from server" class="disconnected-icon">
 					<i class="fal fa-wifi-slash"></i>
@@ -60,16 +63,17 @@
 
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { Connection, getDeviceConnections } from '../connections';
-	import { DeviceJson, CommandJson, ConnectionJson } from '@/services';
+	import { DeviceJson, CommandJson, ConnectionJson, BuildJson } from '@/services';
 
 	type Node = DeviceJson['nodes'][number];
 
-	import SbCommandMenu from '../components/command-menu.vue';
 	import SbNavbar from '../components/navbar.vue';
+	import SbCommandMenu from '../components/command-menu.vue';
+	import SbJenkins, { FinishedBuild } from '../components/jenkins.vue';
 	import SbLayout, {SbLayoutVue } from '../components/golden-layout.vue';
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
 	export default Vue.extend({
-		components: { SbCommandMenu, SbNavbar, SbLayout, SbTerminal },
+		components: { SbNavbar, SbCommandMenu, SbJenkins, SbLayout, SbTerminal },
 		props: {
 			id: {
 				type: String,
@@ -130,7 +134,18 @@
 				},
 				immediate: true,
 				deep: true,
-			}
+			},
+			'device.value.build'(newBuild?: BuildJson, oldBuild?: BuildJson) {
+				if(oldBuild && !newBuild && oldBuild.result !== undefined) {
+					// Cache completed builds so the user can see the result and manually dismiss it
+					this.finishedBuild = {
+						...oldBuild,
+						end: new Date(),
+					};
+				} else if(newBuild && this.finishedBuild) {
+					this.finishedBuild = undefined;
+				}
+			},
 		},
 		data() {
 			return {
@@ -149,6 +164,7 @@
 				} | undefined,
 				paused: false,
 				focusedNode: undefined as string | undefined,
+				finishedBuild: undefined as FinishedBuild | undefined,
 			};
 		},
 		mounted() {

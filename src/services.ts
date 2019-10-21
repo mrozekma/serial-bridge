@@ -3,12 +3,13 @@ import feathers from '@feathersjs/feathers';
 import Device from './server/device';
 import { User, Connection } from './server/connections';
 import Command from './server/command';
+import Build from './server/jenkins';
 
 // Variant of feathers.ServiceMethods with some narrower return types
 interface ServiceMethods<T> extends feathers.ServiceMethods<T> {
 	find(params?: feathers.Params): Promise<T[]>;
 	get(id: feathers.Id, params?: feathers.Params): Promise<T>;
-	create(data: Partial<T> | Array<Partial<T>>, params?: feathers.Params): Promise<T>;
+	create(data: Partial<T>, params?: feathers.Params): Promise<T>;
 	update(id: feathers.NullableId, data: T, params?: feathers.Params): Promise<T>;
 	patch(id: feathers.NullableId, data: Partial<T>, params?: feathers.Params): Promise<T>;
 	remove(id: feathers.NullableId, params?: feathers.Params): Promise<T>;
@@ -31,6 +32,7 @@ type M<
 export type DeviceJson = ReturnType<Device['toJSON']>;
 export type CommandJson = ReturnType<Command['toJSON']>;
 export type ConnectionJson = Connection;
+export type BuildJson = ReturnType<Build['toJSON']>;
 
 /**
  * This defines the list of services and which methods they implement.
@@ -41,6 +43,7 @@ interface SCServiceDefinitions<ServerClient extends 'server' | 'client'> {
 	'api/config': M<ServerClient, 'get'>;
 	'api/users': M<ServerClient, 'get' | 'patch', User>;
 	'api/commands': M<ServerClient, 'find' | 'get' | 'patch', Command>;
+	'api/jenkins': M<ServerClient, 'get' | 'create' | 'patch' | 'remove', Build | { device: string; name: undefined }>;
 };
 
 // Since only the server needs SCServiceDefinitions, only that is exported here:

@@ -9,9 +9,15 @@
 					<a-card v-for="i in 3" :key="i" :loading="true">.</a-card>
 				</template>
 				<template v-else>
-					<a-card v-for="{ device, connections } in annotatedDevices" :key="device.name" :title="device.name" hoverable @click="loadDevice(device)" @click.middle="loadDevice(device, true)">
+					<a-card v-for="{ device, connections } in annotatedDevices" :key="device.name" hoverable @click="loadDevice(device)" @click.middle="loadDevice(device, true)">
+						<template v-slot:title>
+							{{ device.name }}
+							<a-button size="small">
+								<i class="fas fa-cogs"></i>
+							</a-button>
+						</template>
 						<template v-if="connections.length > 0">
-							<b>Connections</b>
+							<h4>Connections</h4>
 							<a-timeline>
 								<a-timeline-item v-for="connection in connections" :key="connection.host">
 									<template slot="dot">
@@ -23,8 +29,14 @@
 							</a-timeline>
 						</template>
 						<template>
-							<b>Ports</b>
+							<h4>Ports</h4>
 							<a-table :columns="nodesColumns" :dataSource="device.nodes" :rowKey="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'None'}"/>
+						</template>
+						<template v-if="device.build">
+							<h4>Current User</h4>
+							<i class="fab fa-jenkins"></i>
+							<a v-if="device.build.link" :href="device.build.link" target="_blank">{{ device.build.name }}</a>
+							<span v-else>{{ device.build.name }}</span>
 						</template>
 					</a-card>
 				</template>
@@ -204,11 +216,28 @@
 
 				.ant-card-head-title {
 					padding: 0;
+
+					button {
+						float: right;
+					}
 				}
 			}
 
 			/deep/ .ant-card-body {
 				padding: 5px 10px;
+
+				h4:not(:first-child) {
+					margin-top: 10px;
+				}
+
+				// Not sure why timelines have such a large gap after them
+				.ant-timeline + h4 {
+					margin-top: -25px;
+				}
+
+				i {
+					margin-right: 5px;
+				}
 			}
 
 			.ant-timeline {
@@ -222,7 +251,7 @@
 			}
 
 			.ant-table-wrapper {
-				margin-top: 5px;
+				margin: 5px 0;
 
 				/deep/ tr th {
 					font-weight: bold;

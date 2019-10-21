@@ -7,6 +7,7 @@ import { Application } from '@feathersjs/express';
 
 import { ServerServices as Services } from '@/services';
 import Connections from './connections';
+import Build from './jenkins';
 
 interface SSHInfo {
 	host: string;
@@ -159,6 +160,7 @@ export default class Device {
 	private _nodes: Node[] = [];
 	public readonly webConnections: Connections;
 	private readonly commandMutex = new Mutex();
+	private _build: Build | undefined = undefined;
 
 	constructor(public readonly id: string, public readonly name: string) {
 		this.webConnections = new Connections();
@@ -172,6 +174,26 @@ export default class Device {
 		const node = new Node(this, ...args);
 		this._nodes.push(node);
 		return node;
+	}
+
+	get build(): Build | undefined {
+		return this._build;
+	}
+
+	startBuild(app: Application<Services>, name: string, link?: string): Build {
+		this._build = new Build(this.name, name, link);
+		this._build.on('updated', () => this.emit(app, 'updated', { device: this.toJSON() }));
+		this._build.emit('updated', 'started');
+		return this._build;
+	}
+
+	endBuild() {
+		const rtn = this._build;
+		this._build = undefined;
+		if(rtn) {
+			rtn.emit('updated', 'ended');
+		}
+		return rtn;
 	}
 
 	emit(app: Application<Services>, event: string, data: {} = {}) {
@@ -223,12 +245,13 @@ export default class Device {
 	}
 
 	toJSON() {
-		const { id, name, nodes } = this;
+		const { id, name, nodes, webConnections, build } = this;
 		return {
 			id,
 			name,
 			nodes: nodes.map(node => node.toJSON()), // This is done manually for typing reasons
-			webConnections: this.webConnections.toJSON(),
+			webConnections: webConnections.toJSON(),
+			build: build ? build.toJSON() : undefined,
 		};
 	}
 }

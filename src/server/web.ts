@@ -12,6 +12,7 @@ import { Config } from './config';
 import Device from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
+import Build from './jenkins';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
@@ -19,6 +20,8 @@ declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string
 const devicesRoute = /^\/devices\/([^/]+)\/?$/;
 
 function makeServices(app: Application<Services>, config: Config, devices: Device[], commands: Command[]): ServiceDefinitions {
+	const buildExists = (build: {} | Partial<Build>): build is Partial<Build> => build !== {};
+
 	const services: ServiceDefinitions = {
 		'api/devices': {
 			events: [ 'updated', 'data', 'command', 'term-line' ],
@@ -98,6 +101,52 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				return command;
 			}
 		},
+
+		'api/jenkins': {
+			async get(id, params) {
+				const device = await services['api/devices'].get(id);
+				return device.build || { device: device.name, name: undefined };
+			},
+
+			async create(data, params) {
+				if(!data.name || !data.device) {
+					throw new Error("Missing required field");
+				}
+				const device = await services['api/devices'].get(data.device);
+				return device.startBuild(app, data.name, data.link);
+			},
+
+			async patch(id, data, params) {
+				if(!data.device) {
+					throw new Error("Missing required field");
+				}
+				const device = await services['api/devices'].get(data.device);
+				const build = device.build || device.startBuild(app, "<Unknown build>");
+				const dat: any = data;
+				if(dat.pushStage) {
+					build.pushStage(dat.pushStage);
+				} else if(dat.popStage) {
+					build.popStage();
+				} else if(dat.pushTask) {
+					build.pushTask(dat.pushTask);
+				} else if(dat.popTask) {
+					build.popTask();
+				} else if(dat.result !== undefined) {
+					build.result = (dat.result === true);
+					// This also ends the build so the user doesn't need to send two requests
+					device.endBuild();
+				} else {
+					throw new Error("No operation specified");
+				}
+				return build;
+			},
+
+			async remove(id, params) {
+				const device = await services['api/devices'].get(id!);
+				return device.endBuild() || { device: device.name, name: undefined };
+				// Don't bother sending out an update here; clients will know the build is done from the patch with defined 'result' field
+			},
+		},
 	};
 	return services;
 }
@@ -169,6 +218,61 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	for(const [ name, service ] of Object.entries(services)) {
 		app.use(name, service);
 	}
+
+	// Temporary adapter for the Serial Bridge v1 Jenkins interface
+	app.use('/jenkins', async (req: Request<any>, res: Response, next: NextFunction) => {
+		if(req.method != 'POST') {
+			return next();
+		}
+		const service = app.service('api/jenkins');
+		// Type safety is a lie
+		const patch = (body: any) => service.patch('build', {
+			device: req.body.device,
+			...body,
+		});
+		try {
+			switch(req.url) {
+			case '/build-start':
+				await service.create({
+					device: req.body.device,
+					name: req.body.build_name,
+					link: req.body.build_link,
+				})
+				break;
+			case '/build-stop':
+				await patch({
+					result: req.body.result,
+				});
+				await service.remove('build');
+				break;
+			case '/stage-push':
+				await patch({
+					pushStage: req.body.stage,
+				});
+				break;
+			case '/stage-pop':
+				await patch({
+					popStage: true,
+				});
+				break;
+			case '/task-push':
+				await patch({
+					pushTask: req.body.task,
+				});
+				break;
+			case '/task-pop':
+				await patch({
+					popTask: true,
+				});
+				break;
+			default:
+				return next();
+			}
+			res.status(200).send();
+		} catch(e) {
+			res.status(500).send(`${e}`);
+		}
+	});
 
 	const staticDir = (process.env.NODE_ENV === 'development')
 		? pathlib.join(__dirname, '..', '..', 'dist', 'client')

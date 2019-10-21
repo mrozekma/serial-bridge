@@ -14,7 +14,7 @@
 			</a-menu-item>
 		</a-sub-menu>
 		<slot/>
-		<a-menu-item class="right">
+		<a-menu-item class="right faux">
 			<slot name="right"/>
 		</a-menu-item>
 	</a-menu>
@@ -69,7 +69,7 @@
 		> .ant-menu-submenu-open,
 		> .ant-menu-item-selected,
 		> .ant-menu-submenu-selected {
-			&:not(.right) {
+			&:not(.faux) {
 				border-bottom: 2px solid #1890ff !important;
 			}
 		}
