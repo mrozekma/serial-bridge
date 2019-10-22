@@ -151,6 +151,8 @@ class Node extends EventEmitter {
 
 		this.serialPort.on('stateChanged', () => this.emit('serialStateChanged'));
 		this.serialPort.on('data', (data: Buffer) => this.emit('serialData', data));
+		this.tcpConnections.on('connect', (connection: Connection) => this.emit('tcpConnect', connection));
+		this.tcpConnections.on('disconnect', (connection: Connection) => this.emit('tcpDisconnect', connection));
 	}
 
 	toJSON() {
@@ -169,12 +171,10 @@ class Node extends EventEmitter {
 	private onTcpConnect(socket: net.Socket) {
 		let address = socket.remoteAddress!;
 		this.log(`${address} connected`);
-		const connection = this.tcpConnections.addConnection(address);
-		this.emit('tcpConnect', connection);
+		this.tcpConnections.addConnection(address);
 		socket.on('close', () => {
 			this.log(`${address} disconnected`);
 			this.tcpConnections.removeConnection(address);
-			this.emit('tcpDisconnect', connection);
 		}).on('error', console.error);
 		// Bi-directional pipe between the socket and the node's serial port
 		socket.on('data', buf => this.serialPort.write(buf));

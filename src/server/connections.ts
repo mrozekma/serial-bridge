@@ -129,7 +129,6 @@ export default class Connections extends EventEmitter {
 		}
 		this.connections.push(connection);
 		this.emit('connect', connection);
-		return connection;
 	}
 
 	removeConnection(host: string) {
