@@ -12,7 +12,7 @@ import { Config } from './config';
 import Device from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
-import Build from './jenkins';
+import makeSetupZip from './setup-zip';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
@@ -234,6 +234,11 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	for(const [ name, service ] of Object.entries(services)) {
 		app.use(name, service);
 	}
+
+	app.get('/serial-bridge.zip', async (req: Request<any>, res: Response, next: NextFunction) => {
+		const buffer = await makeSetupZip(req.query.path);
+		res.contentType('application/octet-stream').send(buffer);
+	});
 
 	// Temporary adapter for the Serial Bridge v1 Jenkins interface
 	app.use('/jenkins', async (req: Request<any>, res: Response, next: NextFunction) => {

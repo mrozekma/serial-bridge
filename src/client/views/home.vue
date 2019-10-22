@@ -73,14 +73,13 @@
 			</template>
 
 			<h1>Setup</h1>
-			Some terminal windows have <i class="fas fa-external-link-alt"></i> and/or <i class="fas fa-terminal"></i> icons to open telnet, raw TCP, and SSH connections. To customize which application handles the links:
+			Some terminal windows have <i class="far fa-external-link-alt"></i> and/or <i class="far fa-terminal"></i> icons to open telnet, raw TCP, and SSH connections. To customize which application handles the links:
 			<ul>
 				<li>For telnet links, edit the <code>HKEY_LOCAL_MACHINE\SOFTWARE\Classes\telnet\shell\open\command</code> registry key and set the default value to <code>"&lt;Application path&gt;" %l</code>. For example, <code>"C:\Program Files (x86)\PuTTY\putty.exe" %l</code>.</li>
 				<li>For raw and SSH links (this requires Putty):
 					<ul>
 						<li>Create a batch file that will receive the URI and pass the arguments to Putty:
-							<!-- TODO -->
-							<pre><code class="language-batch line-numbers">@echo TODO</code></pre>
+							<pre><code class="language-batch line-numbers">{{ puttyBatFile }}</code></pre>
 						</li>
 						<li>Create the following registry entries (the <code>HKEY_CLASSES_ROOT\putty</code> key will need to be created):
 							<ul>
@@ -92,12 +91,10 @@
 				</li>
 			</ul>
 			If easier, you can enter the path to the application here to generate the registry files and batch script (this assumes you're using Putty and that you'll put the batch script in Putty's directory; modify the generated files as necessary):
-			<!-- TODO
-			<form method="post" action="/generate-reg">
-				<input type="text" name="app_path" :value="defaultPuttyPath">
-				<button type="submit">Generate</button>
+			<form method="get" action="/serial-bridge.zip">
+				<a-input type="text" name="path" v-model="puttyPath" placeholder="PuTTY Path"/>
+				<a-button type="primary" html-type="submit">Generate</a-button>
 			</form>
-			-->
 		</main>
 	</div>
 </template>
@@ -108,6 +105,7 @@
 
 	import { Connection, getDeviceConnections } from '../connections';
 	import { DeviceJson, ClientServices as Services } from '@/services';
+	import { batFile, defaultPuttyPath } from '@/server/setup-zip'; // Pure laziness
 
 	import Prism from 'prismjs';
 	// Prism is getting confused by the parentheses in "Program Files (x86)" and styling "x86" as a keyword, so this hack works around it by adding an earlier token for that whole string
@@ -176,6 +174,8 @@
 				usersConfig: unwrapPromise(app.service('api/config').get('users')),
 				currentUser: unwrapPromise(app.service('api/users').get('self')),
 				changeUserInfo: undefined as PromiseResult<any> | undefined,
+				puttyBatFile: batFile(),
+				puttyPath: defaultPuttyPath,
 			};
 		},
 		methods: {
@@ -213,7 +213,15 @@
 		margin: -15px 0;
 	}
 
-	form input[type=text] {
-		width: 400px;
+	form {
+		margin-top: 10px;
+
+		> * {
+			margin-left: 10px;
+		}
+
+		input[type=text] {
+			width: 400px;
+		}
 	}
 </style>
