@@ -29,7 +29,7 @@ const packageDir = pathlib.join(rootPackageDir, 'serial-bridge');
 		// Copy dist/server/* to package/*
 		fs.copy(pathlib.join(distDir, 'server'), packageDir),
 		// Copy sample config file
-		fs.copy('config.example', pathlib.join(packageDir, 'config.js')),
+		fs.copy('config.example', pathlib.join(packageDir, 'config.example')),
 		// Generate package.json containing just the dependencies field from the real package.json
 		(async () => {
 			const basePackageJson = JSON.parse(await fs.readFile('package.json', { encoding: 'utf8' }));

@@ -62,7 +62,12 @@ const rootDir = (process.env.NODE_ENV === 'development')
 
 export async function loadConfig() {
 	const filename = pathlib.resolve(pathlib.join(rootDir, 'config.js'));
-	const buf = await fs.readFile(filename);
+	const buf = await fs.readFile(filename).catch(e => {
+		if(e.code === 'ENOENT') {
+			throw new Error(`Couldn't open configuration file: ${filename}. Did you copy the example configuration from config.example?`);
+		}
+		throw e;
+	});
 	const context = vm.createContext({
 		console,
 		require: __non_webpack_require__,

@@ -1,9 +1,6 @@
 // This file is executed by Serial Bridge in an independent Javascript context.
-// It's expected to declare a global variable named 'config', described below.
+// It's expected to declare a global object or function named 'config', described below.
 // The keys are camel case, but for ease of transition from Serial Bridge 1, spaced names are also allowed (e.g. "webPort" and "web port" are both valid).
-
-// Delete this line:
-throw new Error(`Example configuration not yet filled in. Edit ${__filename}`);
 
 config = {
 	// Optional. The TCP port the web server should listen on. If undefined, the web server is not started.
@@ -21,12 +18,12 @@ config = {
 	// An array of devices to connect to.
 	devices: [
 		{
-			name: "Device name",
+			name: 'Device name',
 			// Individual ports on the device
 			nodes: [
 				{
-					name: "Node name",
-					comPort: "COM<n> or /dev/pty<n>",
+					name: 'Node name',
+					comPort: 'COM<n> or /dev/pty<n>',
 					baudRate: 115200,
 					byteSize: 8, // 5, 6, 7, 8. Default 8.
 					parity: 'none', // even, odd, none. Default none.
@@ -43,10 +40,10 @@ config = {
 
 					// Optional unless 'ssh' is in webLinks.
 					ssh: {
-						host: "hostname",
+						host: 'hostname',
 						// The username and password are optional.
-						username: "username",
-						password: "password",
+						username: 'username',
+						password: 'password',
 					},
 				},
 			],
@@ -57,7 +54,7 @@ config = {
 	commands: [
 		{
 			// Label to display in the menu item.
-			label: "Command name",
+			label: 'Command name',
 
 			// Icon to display in the menu item. See the "Commands" section below for more information.
 			icon: 'fas fa-smile',
@@ -71,7 +68,7 @@ config = {
 			// Note that these can also be submenus, nested indefinitely.
 			submenu: [
 				{
-					label: "Sub-command",
+					label: 'Sub-command',
 					// etc.
 				},
 			],
@@ -153,17 +150,19 @@ async function lookupUser(user) {
 //
 //     send(nodeName: string, message: Buffer | string) -- Send the specified data to the specified node.
 //     sendln(nodeName: string, message: string) -- Send the specified data to the specified node, and append '\r\n'.
+//     recvAsync(nodeName: string, handler: (data: Buffer) => void, bufferLines: boolean = false) -- Pass incoming data from the specified node to the handler. If bufferLines is true, one complete line at a time is passed to the handler. Returns a function that can be called to stop receiving data.
 //     drawTermLine(label: string, caps?: 'start' | 'end') -- Draw a colored line in every terminal to delineate an event. 'caps' indicate how the end of the line should look:
 //                                                            'start':   ┌─── Label ───┐
 //                                                            undefined: ──── Label ────
 //                                                            'end':     └─── Label ───┘
+//     showModal(title: string, rows: { key: string; value: string }[]) -- Show a modal dialog on the web interface. This interface is likely to change.
 
 // This sample command sends data to the node named 'power'
 const command = {
 	label: 'Power On',
 	icon: 'fas fa-plug',
 	async fn(api) {
-		api.drawTermLine("Power on");
+		api.drawTermLine('Power on');
 		api.send('power', 'set power = true')
 	},
 }
