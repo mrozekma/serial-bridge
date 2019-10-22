@@ -255,7 +255,7 @@ export default class Device {
 				}
 				node.serialPort.write(message);
 			},
-			sendln(nodeName: string, message: string) {
+			sendln(nodeName: string, message: string = '') {
 				this.send(nodeName, message + '\r\n');
 			},
 			recvAsync: (nodeName: string, handler: (data: Buffer) => void, bufferLines: boolean = false) => {

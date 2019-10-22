@@ -64,7 +64,6 @@ class UserFactory {
 			}
 		} else if(this.resolver) {
 			const hosts = isIp(host) ? await dnsReverse(host).catch(e => [ host ]) : [ host ];
-			console.log(hosts);
 			for(user.host of hosts) {
 				try {
 					await this.resolver(user);
