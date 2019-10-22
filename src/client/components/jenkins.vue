@@ -115,7 +115,7 @@
 		line-height: 36px;
 		margin: 5px 0;
 		padding: 0 10px;
-		max-width: 500px;
+		max-width: 1000px;
 		border-radius: 5px;
 		overflow: hidden;
 		text-overflow: ellipsis;
