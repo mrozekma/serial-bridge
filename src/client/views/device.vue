@@ -143,8 +143,18 @@
 						...oldBuild,
 						end: new Date(),
 					};
-				} else if(newBuild && this.finishedBuild) {
-					this.finishedBuild = undefined;
+					this.drawTermLine(oldBuild.name, 'end');
+				} else if(newBuild) {
+					if(this.finishedBuild) {
+						this.finishedBuild = undefined;
+					}
+					if(oldBuild) {
+						if(newBuild.stage && (!oldBuild.stage || newBuild.stage.name !== oldBuild.stage.name)) {
+							this.drawTermLine(newBuild.stage.name, undefined);
+						}
+					} else {
+						this.drawTermLine(newBuild.name, 'start');
+					}
 				}
 			},
 		},
