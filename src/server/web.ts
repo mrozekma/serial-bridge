@@ -116,12 +116,21 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 			},
 
 			async patch(id, data, params) {
-				if(!data.device) {
-					throw new Error("Missing required field");
+				if(typeof id !== 'string') {
+					throw new Error("Missing device ID");
 				}
-				const device = await services['api/devices'].get(data.device);
-				const build = device.build || device.startBuild(app, "<Unknown build>");
 				const dat: any = data;
+				// Support starting a build via patch so it doesn't need to be special-cased in user code
+				if(dat.startBuild) {
+					return this.create({
+						device: id,
+						name: dat.name,
+						link: dat.link,
+					});
+				}
+
+				const device = await services['api/devices'].get(id);
+				const build = device.build || device.startBuild(app, "<Unknown build>");
 				if(dat.pushStage) {
 					build.pushStage(dat.pushStage);
 				} else if(dat.popStage) {
