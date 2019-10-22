@@ -71,6 +71,9 @@ export async function loadConfig() {
 	});
 	vm.runInContext(buf.toString('utf8'), context, { filename });
 
+	if(typeof context.config === 'function') {
+		context.config = await context.config();
+	}
 	if(typeof context.config !== 'object') {
 		throw new Error(`Failed to parse configuration file ${filename}: 'config' variable is not an object`);
 	}
