@@ -3,6 +3,7 @@ import express, { Application } from '@feathersjs/express';
 import socketio from '@feathersjs/socketio';
 import '@feathersjs/transport-commons'; // Adds channel typing to express.Application
 import { Request, Response, NextFunction } from 'express-serve-static-core';
+import bodyParser from 'body-parser'; // Temporary for Jenkins adapter
 import Url from 'url-parse';
 import chalk from 'chalk';
 import pathlib from 'path';
@@ -198,6 +199,67 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	//TODO Figure out how to only allow CORS for REST endpoints
 	// app.use(cors());
 
+	// Temporary adapter for the Serial Bridge v1 Jenkins interface
+	// The current users of this route don't include a Content-Type, so need to deal with that
+	app.use('/jenkins', bodyParser.json({ type: () => true }), async (req: Request<any>, res: Response, next: NextFunction) => {
+		if(req.method != 'POST') {
+			return next();
+		}
+		const device = devices.find(device => device.name === req.body.device);
+		if(!device) {
+			res.status(500).send(`Can't find device: ${req.body.device}\n`);
+			return;
+		}
+		const service = app.service('api/jenkins');
+		// Type safety is a lie
+		const patch = (body: any) => service.patch('build', {
+			device: device.id,
+			...body,
+		});
+		try {
+			switch(req.url) {
+			case '/build-start':
+				await service.create({
+					device: device.id,
+					name: req.body.build_name,
+					link: req.body.build_link,
+				})
+				break;
+			case '/build-stop':
+				await patch({
+					result: req.body.result,
+				});
+				await service.remove(device.id);
+				break;
+			case '/stage-push':
+				await patch({
+					pushStage: req.body.stage,
+				});
+				break;
+			case '/stage-pop':
+				await patch({
+					popStage: true,
+				});
+				break;
+			case '/task-push':
+				await patch({
+					pushTask: req.body.task,
+				});
+				break;
+			case '/task-pop':
+				await patch({
+					popTask: true,
+				});
+				break;
+			default:
+				return next();
+			}
+			res.status(200).send();
+		} catch(e) {
+			res.status(500).send(`${e}\n`);
+		}
+	});
+
 	app.use(express.json());
 	app.use(express.urlencoded({ extended: true }));
 	app.configure(express.rest());
@@ -238,61 +300,6 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	app.get('/serial-bridge.zip', async (req: Request<any>, res: Response, next: NextFunction) => {
 		const buffer = await makeSetupZip(req.query.path);
 		res.contentType('application/octet-stream').send(buffer);
-	});
-
-	// Temporary adapter for the Serial Bridge v1 Jenkins interface
-	app.use('/jenkins', async (req: Request<any>, res: Response, next: NextFunction) => {
-		if(req.method != 'POST') {
-			return next();
-		}
-		const service = app.service('api/jenkins');
-		// Type safety is a lie
-		const patch = (body: any) => service.patch('build', {
-			device: req.body.device,
-			...body,
-		});
-		try {
-			switch(req.url) {
-			case '/build-start':
-				await service.create({
-					device: req.body.device,
-					name: req.body.build_name,
-					link: req.body.build_link,
-				})
-				break;
-			case '/build-stop':
-				await patch({
-					result: req.body.result,
-				});
-				await service.remove('build');
-				break;
-			case '/stage-push':
-				await patch({
-					pushStage: req.body.stage,
-				});
-				break;
-			case '/stage-pop':
-				await patch({
-					popStage: true,
-				});
-				break;
-			case '/task-push':
-				await patch({
-					pushTask: req.body.task,
-				});
-				break;
-			case '/task-pop':
-				await patch({
-					popTask: true,
-				});
-				break;
-			default:
-				return next();
-			}
-			res.status(200).send();
-		} catch(e) {
-			res.status(500).send(`${e}`);
-		}
 	});
 
 	const staticDir = (process.env.NODE_ENV === 'development')

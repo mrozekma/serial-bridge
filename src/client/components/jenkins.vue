@@ -72,23 +72,38 @@
 			};
 		},
 		watch: {
-			'build.end'() {
-				if(this.nowTick !== undefined && (this.build as FinishedBuild).end) {
-					clearInterval(this.nowTick);
-					this.nowTick = undefined;
-					this.now = (this.build as FinishedBuild).end;
-				}
+			build: {
+				handler() {
+					if(this.nowTick === undefined && this.build.result === undefined) {
+						this.startTick();
+					} else if(this.nowTick !== undefined && this.build.result !== undefined) {
+						this.stopTick();
+						this.now = (this.build as FinishedBuild).end;
+					}
+				},
+				deep: true,
+				immediate: true,
 			},
 		},
 		mounted() {
 			if(this.build.result === undefined) {
-				this.nowTick = setInterval(() => this.now = new Date(), 500);
+				this.startTick();
 			}
 		},
 		beforeDestroy() {
-			if(this.nowTick !== undefined) {
-				clearInterval(this.nowTick);
-			}
+			this.stopTick();
+		},
+		methods: {
+			startTick() {
+				this.stopTick();
+				this.nowTick = setInterval(() => this.now = new Date(), 500);
+			},
+			stopTick() {
+				if(this.nowTick !== undefined) {
+					clearInterval(this.nowTick);
+					this.nowTick = undefined;
+				}
+			},
 		},
 	});
 </script>
