@@ -221,10 +221,7 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 		}
 		const service = app.service('api/jenkins');
 		// Type safety is a lie
-		const patch = (body: any) => service.patch('build', {
-			device: device.id,
-			...body,
-		});
+		const patch = (body: any) => service.patch(device.id, body);
 		try {
 			switch(req.url) {
 			case '/build-start':
