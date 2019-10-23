@@ -46,6 +46,6 @@ const packageDir = pathlib.join(rootPackageDir, 'serial-bridge');
 
 	console.log('Generating zip file');
 	await promisify(zipDir)(rootPackageDir, {
-		saveTo: pathlib.join(__dirname, 'package.zip'),
+		saveTo: pathlib.join(__dirname, 'serial-bridge.zip'),
 	});
 })().catch(console.error);
