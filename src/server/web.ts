@@ -96,7 +96,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				}
 				const command = await this.get(id);
 				const device: Device = params.connection.device;
-				await command.run(app, device, params.socketId);
+				await command.run(device, params.socketId);
 				return command;
 			}
 		},
@@ -112,7 +112,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 					throw new Error("Missing required field");
 				}
 				const device = await services['api/devices'].get(data.device);
-				return device.startBuild(app, data.name, data.link);
+				return device.startBuild(data.name, data.link);
 			},
 
 			async patch(id, data, params) {
@@ -130,7 +130,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				}
 
 				const device = await services['api/devices'].get(id);
-				const build = device.build || device.startBuild(app, "<Unknown build>");
+				const build = device.build || device.startBuild("<Unknown build>");
 				if(dat.pushStage) {
 					build.pushStage(dat.pushStage);
 				} else if(dat.popStage) {
@@ -189,15 +189,27 @@ function makeRawListeners(socket: SocketIO.Socket, devices: Device[], commands: 
 }
 
 function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
+	const devicesService = app.service('api/devices');
 	for(const device of devices) {
-		const sendUpdate = () => device.emit(app, 'updated', { device });
+		const sendUpdate = () => devicesService.emit('updated', {
+			id: device.id,
+			device: device.toJSON(),
+		});
+		device.on('updated', sendUpdate);
+		device.on('command', data => devicesService.emit('command', {
+			id: device.id,
+			...data,
+		}));
 		device.webConnections.on('connect', sendUpdate).on('disconnect', sendUpdate);
 		for(const node of device.nodes) {
-			node
-				.on('serialData', (data: Buffer) => device.emit(app, 'data', { node: node.name, data }))
-				.on('serialStateChanged', sendUpdate)
-				.on('tcpConnect', sendUpdate)
-				.on('tcpDisconnect', sendUpdate)
+			node.on('serialData', (data: Buffer) => devicesService.emit('data', {
+				id: device.id,
+				node: node.name,
+				data,
+			}));
+			node.on('serialStateChanged', sendUpdate);
+			node.on('tcpConnect', sendUpdate);
+			node.on('tcpDisconnect', sendUpdate);
 		}
 	}
 }

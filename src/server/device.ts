@@ -3,7 +3,6 @@ import RealSerialPort from 'serialport';
 import chalk from 'chalk';
 import { Mutex } from 'async-mutex';
 import net from 'net';
-import { Application } from '@feathersjs/express';
 import { EventEmitter } from 'events';
 
 import { ServerServices as Services } from '@/services';
@@ -184,13 +183,15 @@ class Node extends EventEmitter {
 
 type NodeCtorArgs = typeof Node extends new (device: Device, ...args: infer T) => Node ? T : never;
 
-export default class Device {
+// NB: The Command class causes Device to emit many events not visible here
+export default class Device extends EventEmitter {
 	private _nodes: Node[] = [];
 	public readonly webConnections: Connections;
-	private readonly commandMutex = new Mutex();
+	private readonly _commandMutex = new Mutex();
 	private _build: Build | undefined = undefined;
 
 	constructor(public readonly id: string, public readonly name: string) {
+		super();
 		this.webConnections = new Connections();
 	}
 
@@ -204,13 +205,17 @@ export default class Device {
 		return node;
 	}
 
+	get commandMutex(): Mutex {
+		return this._commandMutex;
+	}
+
 	get build(): Build | undefined {
 		return this._build;
 	}
 
-	startBuild(app: Application<Services>, name: string, link?: string): Build {
+	startBuild(name: string, link?: string): Build {
 		this._build = new Build(this.name, name, link);
-		this._build.on('updated', () => this.emit(app, 'updated', { device: this.toJSON() }));
+		this._build.on('updated', () => this.emit('updated'));
 		this._build.emit('updated', 'started');
 		return this._build;
 	}
@@ -224,94 +229,14 @@ export default class Device {
 		return rtn;
 	}
 
-	emit(app: Application<Services>, event: string, data: {} = {}) {
-		app.service('api/devices').emit(event, { id: this.id, ...data });
-	}
 
-	runCommand(app: Application<Services>, name: string, fn: (api?: any) => Promise<void>, originSocketId?: string) {
-		const sendUpdate = (state: string, rest: { [K: string]: any } = {}) => {
-			if(originSocketId) {
-				this.emit(app, 'command', {
-					to: originSocketId,
-					command: name,
-					state,
-					...rest,
-				});
-			}
-		};
-
-		const cancelTokens: (() => void)[] = [];
-		const api = {
-			send: (nodeName: string, message: Buffer | string) => {
-				const node = this.nodes.find(node => node.name === nodeName);
-				if(!node) {
-					throw new Error(`Tried to send to non-existent node '${nodeName}'`);
-				}
-				if(typeof message === 'string') {
-					message = Buffer.from(message, 'utf8');
-				}
-				node.serialPort.write(message);
-			},
-			sendln(nodeName: string, message: string = '') {
-				this.send(nodeName, message + '\r\n');
-			},
-			recvAsync: (nodeName: string, handler: (data: Buffer) => void, bufferLines: boolean = false) => {
-				const node = this.nodes.find(node => node.name === nodeName);
-				if(!node) {
-					throw new Error(`Tried to receive from non-existent node '${nodeName}'`);
-				}
-				if(bufferLines) {
-					const userHandler = handler;
-					let stored = Buffer.allocUnsafe(0);
-					handler = (data: Buffer) => {
-						stored = Buffer.concat([ stored, data ]);
-						let off = 0;
-						for(let nl = stored.indexOf("\r\n"); nl >= 0; off = nl + 2, nl = stored.indexOf("\r\n", off)) {
-							userHandler(stored.subarray(off, nl + 2));
-						}
-						stored = stored.subarray(off);
-					};
-				}
-				node.on('serialData', handler);
-				const cancelToken = () => node.off('serialData', handler);
-				cancelTokens.push(cancelToken);
-				return cancelToken;
-			},
-			termLine: (label: string, caps: 'start' | 'end' | undefined) => {
-				this.emit(app, 'term-line', { label, caps });
-			},
-			showModal: (title: string, rows: { key: string; value: string }[]) => {
-				this.emit(app, 'command-modal', {
-					to: originSocketId,
-					title,
-					rows,
-				});
-			},
-		};
-
-		sendUpdate('pending');
-		return this.commandMutex.runExclusive(async () => {
-			sendUpdate('running');
-			try {
-				await fn(api);
-				sendUpdate('done');
-			} catch(e) {
-				sendUpdate('failed', { error: e });
-				throw e;
-			} finally {
-				for(const cancelToken of cancelTokens) {
-					cancelToken();
-				}
-			}
-		});
-	}
 
 	toJSON() {
 		const { id, name, nodes, webConnections, build } = this;
 		return {
 			id,
 			name,
-			nodes: nodes.map(node => node.toJSON()), // This is done manually for typing reasons
+			nodes: nodes.map(node => node.toJSON()),
 			webConnections: webConnections.toJSON(),
 			build: build ? build.toJSON() : undefined,
 		};

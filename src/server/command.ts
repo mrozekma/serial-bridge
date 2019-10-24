@@ -1,7 +1,4 @@
-import { Application } from '@feathersjs/express';
-
 import Device from './device';
-import { ServerServices as Services } from '@/services';
 
 interface CommandJson {
 	name: string;
@@ -30,11 +27,86 @@ export default class Command {
 		}
 	}
 
-	run(app: Application<Services>, device: Device, originSocketId?: string): Promise<void> {
+	run(device: Device, originSocketId?: string): Promise<void> {
 		if(!this.fn) {
 			throw new Error(`Command not runnable: ${this.name} (${this.label})`);
 		}
-		return device.runCommand(app, this.name, this.fn, originSocketId);
+		const sendUpdate = (state: string, rest: { [K: string]: any } = {}) => {
+			if(originSocketId) {
+				// Is it kosher to tell another object to emit a signal? Oh well
+				device.emit('command', {
+					to: originSocketId,
+					command: name,
+					state,
+					...rest,
+				});
+			}
+		};
+
+		const cancelTokens: (() => void)[] = [];
+		const api = {
+			send: (nodeName: string, message: Buffer | string) => {
+				const node = device.nodes.find(node => node.name === nodeName);
+				if(!node) {
+					throw new Error(`Tried to send to non-existent node '${nodeName}'`);
+				}
+				if(typeof message === 'string') {
+					message = Buffer.from(message, 'utf8');
+				}
+				node.serialPort.write(message);
+			},
+			sendln(nodeName: string, message: string = '') {
+				this.send(nodeName, message + '\r\n');
+			},
+			recvAsync: (nodeName: string, handler: (data: Buffer) => void, bufferLines: boolean = false) => {
+				const node = device.nodes.find(node => node.name === nodeName);
+				if(!node) {
+					throw new Error(`Tried to receive from non-existent node '${nodeName}'`);
+				}
+				if(bufferLines) {
+					const userHandler = handler;
+					let stored = Buffer.allocUnsafe(0);
+					handler = (data: Buffer) => {
+						stored = Buffer.concat([ stored, data ]);
+						let off = 0;
+						for(let nl = stored.indexOf("\r\n"); nl >= 0; off = nl + 2, nl = stored.indexOf("\r\n", off)) {
+							userHandler(stored.subarray(off, nl + 2));
+						}
+						stored = stored.subarray(off);
+					};
+				}
+				node.on('serialData', handler);
+				const cancelToken = () => node.off('serialData', handler);
+				cancelTokens.push(cancelToken);
+				return cancelToken;
+			},
+			termLine: (label: string, caps: 'start' | 'end' | undefined) => {
+				device.emit('termLine', { label, caps });
+			},
+			showModal: (title: string, rows: { key: string; value: string }[]) => {
+				device.emit('commandModal', {
+					to: originSocketId,
+					title,
+					rows,
+				});
+			},
+		};
+
+		sendUpdate('pending');
+		return device.commandMutex.runExclusive(async () => {
+			sendUpdate('running');
+			try {
+				await this.fn!(api);
+				sendUpdate('done');
+			} catch(e) {
+				sendUpdate('failed', { error: e });
+				throw e;
+			} finally {
+				for(const cancelToken of cancelTokens) {
+					cancelToken();
+				}
+			}
+		});
 	}
 
 	toJSON(): CommandJson {
