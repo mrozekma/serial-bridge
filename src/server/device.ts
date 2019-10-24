@@ -189,8 +189,9 @@ export default class Device extends EventEmitter {
 	public readonly webConnections: Connections;
 	private readonly _commandMutex = new Mutex();
 	private _build: Build | undefined = undefined;
+	private _jenkinsLockOwner: string | undefined = undefined;
 
-	constructor(public readonly id: string, public readonly name: string) {
+	constructor(public readonly id: string, public readonly name: string, public readonly jenkinsLockName?: string) {
 		super();
 		this.webConnections = new Connections();
 	}
@@ -229,16 +230,25 @@ export default class Device extends EventEmitter {
 		return rtn;
 	}
 
+	get jenkinsLockOwner(): string | undefined {
+		return this._jenkinsLockOwner;
+	}
 
+	set jenkinsLockOwner(owner: string | undefined) {
+		this._jenkinsLockOwner = owner;
+		this.emit('updated');
+	}
 
 	toJSON() {
-		const { id, name, nodes, webConnections, build } = this;
+		const { id, name, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner } = this;
 		return {
 			id,
 			name,
 			nodes: nodes.map(node => node.toJSON()),
 			webConnections: webConnections.toJSON(),
 			build: build ? build.toJSON() : undefined,
+			jenkinsLockName,
+			jenkinsLockOwner,
 		};
 	}
 }

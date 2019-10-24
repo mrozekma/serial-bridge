@@ -3,7 +3,6 @@ import express, { Application } from '@feathersjs/express';
 import socketio from '@feathersjs/socketio';
 import '@feathersjs/transport-commons'; // Adds channel typing to express.Application
 import { Request, Response, NextFunction } from 'express-serve-static-core';
-import bodyParser from 'body-parser'; // Temporary for Jenkins adapter
 import Url from 'url-parse';
 import chalk from 'chalk';
 import pathlib from 'path';
@@ -14,6 +13,7 @@ import Device from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
 import makeSetupZip from './setup-zip';
+import { parseLockXml } from './jenkins';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
@@ -38,21 +38,24 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 
 		'api/config': {
 			async get(id, params) {
-				//HERE
-				if(id == 'version') {
+				switch(id) {
+				case 'version':
 					return {
 						version: BUILD_VERSION,
 						fileHash: BUILD_FILE_HASH,
 						date: BUILD_DATE,
 					};
-				} else if(id == 'users') {
+				case 'users':
 					return {
 						identifySupport: config.users ? (config.users.identify !== undefined) : false,
 						avatarSupport: config.users ? config.users.avatarSupport : false,
-					}
-				} else {
-					throw new Error(`Config not found: ${id}`);
+					};
+				case 'jenkins':
+					return {
+						jenkinsUrl: config.jenkinsUrl,
+					};
 				}
+				throw new Error(`Config not found: ${id}`);
 			},
 		},
 
@@ -222,7 +225,7 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 
 	// Temporary adapter for the Serial Bridge v1 Jenkins interface
 	// The current users of this route don't include a Content-Type, so need to deal with that
-	app.use('/jenkins', bodyParser.json({ type: () => true }), async (req: Request<any>, res: Response, next: NextFunction) => {
+	app.use('/jenkins', express.json({ type: () => true }), async (req: Request<any>, res: Response, next: NextFunction) => {
 		if(req.method != 'POST') {
 			return next();
 		}
@@ -274,6 +277,21 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 			}
 			res.status(200).send();
 		} catch(e) {
+			res.status(500).send(`${e}\n`);
+		}
+	});
+
+	app.post('/api/lock', express.text({ type: () => true }), async (req: Request<any>, res: Response, next: NextFunction) => {
+		try {
+			const locks = await parseLockXml(req.body);
+			for(const device of devices) {
+				if(device.jenkinsLockName !== undefined) {
+					device.jenkinsLockOwner = locks[device.jenkinsLockName];
+				}
+			}
+			res.status(200).send();
+		} catch(e) {
+			console.error(e, req.body);
 			res.status(500).send(`${e}\n`);
 		}
 	});

@@ -19,7 +19,7 @@ config = {
 	devices: [
 		{
 			name: 'Device name',
-			// Individual ports on the device
+			// Individual ports on the device.
 			nodes: [
 				{
 					name: 'Node name',
@@ -45,6 +45,9 @@ config = {
 						username: 'username',
 						password: 'password',
 					},
+
+					// Optional. The name of the Jenkins resource lock that corresponds to this device. Must also set 'jenkinsUrl' on the config root.
+					jenkinsLock: 'lock name',
 				},
 			],
 		}
@@ -74,6 +77,9 @@ config = {
 			],
 		},
 	],
+
+	// Optional. The path to the Jenkins installation that manages device locks.
+	jenkinsUrl: 'http://...',
 };
 
 // That's the end of the configuration block; what follows is some extra information/examples:

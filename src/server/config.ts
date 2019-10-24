@@ -29,6 +29,7 @@ const deviceJoi = joi.object({
 	name: joi.string().required(),
 	nodes: joi.array().required().items(nodeJoi),
 	//TODO commands?
+	jenkinsLock: joi.string(),
 });
 
 const usersJoi = joi.object({
@@ -49,6 +50,7 @@ const configJoi = joi.object({
 	users: usersJoi,
 	devices: joi.array().required().items(deviceJoi),
 	commands: joi.array().items(commandJoi),
+	jenkinsUrl: joi.string(),
 }).required();
 
 // Serial Bridge 1's config file had keys with spaces in it, so for backwards compatibility, convert 'foo bar' to 'fooBar'

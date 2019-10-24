@@ -122,7 +122,7 @@
 			margin-right: 5px;
 		}
 
-		i {
+		i.fas i.far i.fal i.fab {
 			margin-right: 2px;
 		}
 	}

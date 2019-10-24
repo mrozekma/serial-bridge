@@ -24,7 +24,7 @@ function spinner<T>(label: string, fn: () => Promise<T>): Promise<T> {
 
 function makeDevice(deviceConfig: Config['devices'][number], idGen: IdGenerator): Device {
 	const id = idGen.gen(slugify(deviceConfig.name, { lower: true }));
-	const device = new Device(id, deviceConfig.name);
+	const device = new Device(id, deviceConfig.name, deviceConfig.jenkinsLock);
 	for(const nodeConfig of deviceConfig.nodes) {
 		const node = device.addNode(nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh);
 		node.serialPort.open();

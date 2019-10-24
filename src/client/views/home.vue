@@ -31,11 +31,17 @@
 							<h4>Ports</h4>
 							<a-table :columns="nodesColumns" :dataSource="device.nodes" :rowKey="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'None'}"/>
 						</template>
-						<template v-if="device.build">
-							<h4>Current User</h4>
-							<i class="fab fa-jenkins"></i>
-							<a v-if="device.build.link" :href="device.build.link" target="_blank">{{ device.build.name }}</a>
-							<span v-else>{{ device.build.name }}</span>
+						<template v-if="device.jenkinsLockOwner || device.build">
+							<h4>Jenkins</h4>
+							<div v-if="device.jenkinsLockOwner">
+								<i class="fas fa-lock-alt"></i>
+								<span>Reserved by {{ device.jenkinsLockOwner }}</span>
+							</div>
+							<div v-if="device.build">
+								<i class="fab fa-jenkins"></i>
+								<a v-if="device.build.link" :href="device.build.link" target="_blank">{{ device.build.name }}</a>
+								<span v-else>{{ device.build.name }}</span>
+							</div>
 						</template>
 					</a-card>
 				</template>
@@ -205,6 +211,10 @@
 <style lang="less" scoped>
 	h1:not(:first-child) {
 		margin-top: 3rem;
+	}
+
+	h4 {
+		font-weight: bold;
 	}
 
 	.devices {

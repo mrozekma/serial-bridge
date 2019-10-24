@@ -10,6 +10,16 @@
 				<a-menu-item @click="resetTerms">Clear</a-menu-item>
 				<a-menu-item @click="paused = !paused">{{ !paused ? 'Pause' : 'Unpause' }}</a-menu-item>
 			</a-sub-menu>
+			<a-sub-menu title="Manage">
+				<a-menu-item><a :href="`/devices/${id}/manage`">Ports</a></a-menu-item>
+				<template v-if="jenkinsUrl && device.state == 'resolved' && device.value.jenkinsLockName">
+					<a-menu-item v-if="!device.value.jenkinsLockOwner" @click="acquireLock">Reserve in Jenkins</a-menu-item>
+					<a-menu-item v-else @click="releaseLock">Unreserve in Jenkins</a-menu-item>
+				</template>
+			</a-sub-menu>
+			<a-menu-item class="faux">
+				<sb-lock v-if="showLock" ref="lock" :jenkinsUrl="jenkinsUrl" :lockName="(device.state == 'resolved') ? device.value.jenkinsLockName : undefined" :owner="(device.state == 'resolved') ? device.value.jenkinsLockOwner : undefined" @close="locking = false"/>
+			</a-menu-item>
 			<a-menu-item class="faux" @click="finishedBuild = undefined">
 				<sb-jenkins v-if="device.state == 'resolved' && (device.value.build || finishedBuild)" :build="device.value.build || finishedBuild"/>
 			</a-menu-item>
@@ -70,11 +80,12 @@
 	import SbNavbar from '../components/navbar.vue';
 	import SbCommandMenu from '../components/command-menu.vue';
 	import SbJenkins, { FinishedBuild } from '../components/jenkins.vue';
+	import SbLock, { SbLockVue } from '../components/lock.vue';
 	import SbLayout, {SbLayoutVue } from '../components/golden-layout.vue';
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
 	import SbCommandModal from '../components/command-modal.vue';
 	export default Vue.extend({
-		components: { SbNavbar, SbCommandMenu, SbJenkins, SbLayout, SbTerminal },
+		components: { SbNavbar, SbCommandMenu, SbJenkins, SbLock, SbLayout, SbTerminal },
 		props: {
 			id: {
 				type: String,
@@ -107,7 +118,10 @@
 					rtn[this.focusedNode] = { background: '#262626' };
 				}
 				return rtn;
-			}
+			},
+			showLock(): boolean {
+				return this.locking || (this.device.state == 'resolved' && this.device.value.jenkinsLockOwner !== undefined);
+			},
 		},
 		watch: {
 			connected: {
@@ -176,6 +190,8 @@
 				paused: false,
 				focusedNode: undefined as string | undefined,
 				finishedBuild: undefined as FinishedBuild | undefined,
+				jenkinsUrl: undefined as string | undefined,
+				locking: false, // True if currently trying to acquire a lock
 			};
 		},
 		mounted() {
@@ -227,6 +243,8 @@
 			const commandsService = this.app.service('api/commands');
 			commandsService.timeout = 30000;
 			this.commands = unwrapPromise(commandsService.find());
+
+			this.app.service('api/config').get('jenkins').then(config => this.jenkinsUrl = config.jenkinsUrl);
 		},
 		beforeDestroy() {
 			this.app.service('api/devices').removeAllListeners();
@@ -295,6 +313,16 @@
 				}
 				if(this.device.state == 'resolved') {
 					this.socket.emit('node-stdin', this.device.value.id, nodeName, data);
+				}
+			},
+			acquireLock() {
+				// This will create the sb-lock component, which automatically tries to lock if there isn't an existing one
+				this.locking = true;
+			},
+			releaseLock() {
+				const lockComp = this.$refs.lock as SbLockVue | undefined;
+				if(lockComp) {
+					lockComp.release();
 				}
 			},
 		},

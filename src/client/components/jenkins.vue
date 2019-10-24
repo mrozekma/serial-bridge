@@ -126,11 +126,11 @@
 
 		background-color: #fff;
 		&.result-true {
-			background-color: #9f9;
+			background-color: #73d13d;
 			cursor: pointer;
 		}
 		&.result-false {
-			background-color: #f99;
+			background-color: #ff4d4f;
 			cursor: pointer;
 		}
 
