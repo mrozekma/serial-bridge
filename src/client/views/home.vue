@@ -9,9 +9,9 @@
 					<a-card v-for="i in 3" :key="i" :loading="true">.</a-card>
 				</template>
 				<template v-else>
-					<a-card v-for="{ device, connections } in annotatedDevices" :key="device.name" :title="device.name" hoverable @click="loadDevice(device)" @click.middle="loadDevice(device, true)">
+					<a-card v-for="{ device, connections } in annotatedDevices" :key="device.name" :title="device.name" hoverable @mousedown.left="loadDevice(device)" @mousedown.middle.prevent="loadDevice(device, true)">
 						<template v-slot:extra>
-							<a-button size="small" @click.stop="manageDevice(device)" @click.middle.stop="manageDevice(device, true)">
+							<a-button size="small" @mousedown.left.stop="manageDevice(device)" @mousedown.middle.stop.prevent="manageDevice(device, true)">
 								<i class="fas fa-cogs"></i>
 							</a-button>
 						</template>
