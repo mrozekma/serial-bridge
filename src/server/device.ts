@@ -5,7 +5,6 @@ import { Mutex } from 'async-mutex';
 import net from 'net';
 import { EventEmitter } from 'events';
 
-import { ServerServices as Services } from '@/services';
 import Connections, { Connection } from './connections';
 import Build from './jenkins';
 
@@ -67,7 +66,11 @@ abstract class Port extends EventEmitter {
 }
 
 class SerialPort extends Port {
+	private static readonly reconnectPeriod = 30000;
+	private static readonly reconnectingSuffix = ". Attempting to reconnect";
+
 	private readonly serialConn: RealSerialPort;
+	private retryTimer: any = undefined; // Should be NodeJS.Timeout, but Typescript keeps getting confused between the Node setInterval() and the browser version.
 
 	constructor(path: string, private baudRate: number, private byteSize: 5 | 6 | 7 | 8, private parity: 'even' | 'odd' | 'none', private stopBits: 1 | 2) {
 		super();
@@ -78,13 +81,22 @@ class SerialPort extends Port {
 			dataBits: byteSize,
 			autoOpen: false,
 		});
-		this.serialConn.on('open', () => this.state = { open: true });
+		this.serialConn.on('open', () => {
+			if(this.retryTimer) {
+				clearInterval(this.retryTimer);
+				this.retryTimer = undefined;
+			}
+			this.state = {
+				open: true,
+			};
+		});
 		this.serialConn.on('close', err => {
 			if(this.isOpen) {
 				this.state = {
 					open: false,
-					reason: err.disconnected ? "Disconnected" : `Error: ${err}`,
+					reason: (err.disconnected ? "Disconnected" : `Error: ${err}`) + SerialPort.reconnectingSuffix,
 				};
+				this.retryTimer = setInterval(() => this.open(), SerialPort.reconnectPeriod);
 			}
 		});
 		this.serialConn.on('error', console.error);
@@ -96,7 +108,7 @@ class SerialPort extends Port {
 			if(err) {
 				this.state = {
 					open: false,
-					reason: err.message,
+					reason: err.message + (this.retryTimer ? SerialPort.reconnectingSuffix : ''),
 				};
 			}
 		});
