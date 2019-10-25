@@ -79,9 +79,15 @@
 			</template>
 
 			<h1>Setup</h1>
-			Some terminal windows have <i class="far fa-external-link-alt"></i> and/or <i class="far fa-terminal"></i> icons to open telnet, raw TCP, and SSH connections. To customize which application handles the links:
+			Some terminal windows have <i class="far fa-external-link-alt"></i> and/or <i class="far fa-terminal"></i> icons to open telnet, raw TCP, and SSH connections. You can enter your Putty path here to generate the necessary registry files and batch script (this assumes that you'll put the batch script in Putty's directory; if not, modify the generated files):
+			<form method="get" action="/serial-bridge.zip">
+				<a-input type="text" name="path" v-model="puttyPath" placeholder="PuTTY Path"/>
+				<a-button type="primary" html-type="submit">Generate</a-button>
+			</form>
+
+			To set things up manually:
 			<ul>
-				<li>For telnet links, edit the <code>HKEY_LOCAL_MACHINE\SOFTWARE\Classes\telnet\shell\open\command</code> registry key and set the default value to <code>"&lt;Application path&gt;" %l</code>. For example, <code>"C:\Program Files (x86)\PuTTY\putty.exe" %l</code>.</li>
+				<li>For telnet links, edit the <code>HKEY_LOCAL_MACHINE\SOFTWARE\Classes\telnet\shell\open\command</code> registry key and set the default value to <code>"&lt;Application path&gt;" %l</code>. For example, <code>"C:\Program Files (x86)\PuTTY\putty.exe" %l</code>. Any telnet application can be used.</li>
 				<li>For raw and SSH links (this requires Putty):
 					<ul>
 						<li>Create a batch file that will receive the URI and pass the arguments to Putty:
@@ -96,11 +102,6 @@
 					</ul>
 				</li>
 			</ul>
-			If easier, you can enter the path to the application here to generate the registry files and batch script (this assumes you're using Putty and that you'll put the batch script in Putty's directory; modify the generated files as necessary):
-			<form method="get" action="/serial-bridge.zip">
-				<a-input type="text" name="path" v-model="puttyPath" placeholder="PuTTY Path"/>
-				<a-button type="primary" html-type="submit">Generate</a-button>
-			</form>
 		</main>
 	</div>
 </template>
@@ -224,7 +225,7 @@
 	}
 
 	form {
-		margin-top: 10px;
+		margin: 10px 0;
 
 		> * {
 			margin-left: 10px;
