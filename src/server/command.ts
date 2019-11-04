@@ -36,7 +36,7 @@ export default class Command {
 				// Is it kosher to tell another object to emit a signal? Oh well
 				device.emit('command', {
 					to: originSocketId,
-					command: name,
+					command: this.name,
 					state,
 					...rest,
 				});
