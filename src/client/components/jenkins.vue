@@ -135,7 +135,7 @@
 		}
 
 		a, a:hover, a:focus {
-			color: #007bff;
+			color: #096dd9;
 			text-decoration: none;
 		}
 	}
