@@ -23,7 +23,7 @@ const devicesRoute = /^\/devices\/([^/]+)(?:\/manage)?\/?$/;
 function makeServices(app: Application<Services>, config: Config, devices: Device[], commands: Command[]): ServiceDefinitions {
 	const services: ServiceDefinitions = {
 		'api/devices': {
-			events: [ 'updated', 'data', 'command', 'term-line', 'command-modal' ],
+			events: [ 'updated', 'data', 'command', 'termLine', 'commandModal' ],
 			async find(params) {
 				return devices;
 			},
@@ -199,10 +199,12 @@ function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 			device: device.toJSON(),
 		});
 		device.on('updated', sendUpdate);
-		device.on('command', data => devicesService.emit('command', {
-			id: device.id,
-			...data,
-		}));
+		for(const event of [ 'command', 'termLine', 'commandModal' ]) {
+			device.on(event, data => devicesService.emit(event, {
+				id: device.id,
+				...data,
+			}));
+		}
 		device.webConnections.on('connect', sendUpdate).on('disconnect', sendUpdate);
 		for(const node of device.nodes) {
 			node.on('serialData', (data: Buffer) => devicesService.emit('data', {

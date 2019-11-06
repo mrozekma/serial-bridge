@@ -217,12 +217,13 @@
 						this.runningCommand.errorMessage = data.error;
 					}
 				})
-				.on('term-line', (data: { label: string; caps: 'start' | 'end' | undefined }) => {
+				.on('termLine', (data: { label: string; caps: 'start' | 'end' | undefined }) => {
+					console.log('termLine!', data)
 					if(!this.paused && data.label && (data.caps === 'start' || data.caps === 'end' || data.caps === undefined)) {
 						this.drawTermLine(data.label, data.caps);
 					}
 				})
-				.on('command-modal', (data: { title: string; rows: { key: string, value: string }[] }) => {
+				.on('commandModal', (data: { title: string; rows: { key: string, value: string }[] }) => {
 					const ctor = Vue.extend(SbCommandModal);
 					const comp = new ctor({
 						propsData: {
@@ -369,6 +370,11 @@
 			.label {
 				font-weight: bold;
 				padding-right: 10px;
+			}
+
+			.ant-spin {
+				position: relative;
+				top: 3px;
 			}
 		}
 	}
