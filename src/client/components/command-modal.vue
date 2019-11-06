@@ -2,7 +2,8 @@
 	<div class="table">
 		<div v-for="row in rows" :key="row.key">
 			<span>{{ row.key }}</span>
-			<span>{{ row.value }}</span>
+			<a-switch v-if="typeof row.value === 'boolean'" :checked="row.value"/>
+			<span v-else>{{ row.value }}</span>
 		</div>
 	</div>
 </template>
@@ -27,6 +28,7 @@
 	.table {
 		display: grid;
 		grid-template-columns: auto 1fr;
+		align-items: center;
 
 		> div {
 			display: contents;
@@ -37,6 +39,12 @@
 					text-align: right;
 				}
 			}
+		}
+
+		.ant-switch {
+			width: 16px;
+			margin-left: 10px;
+			margin-bottom: 2px;
 		}
 	}
 </style>
