@@ -154,6 +154,7 @@ async function lookupUser(user) {
 // A command's function is allowed to be asynchronous, and takes a single object argument
 // containing functions to interact with the device. These functions are:
 //
+//     getDevice() -- Returns an object containing information about the current device. This object is the same one returned by the /api/devices route, so you can open that URL in a browser for more information.
 //     send(nodeName: string, message: Buffer | string) -- Send the specified data to the specified node.
 //     sendln(nodeName: string, message: string) -- Send the specified data to the specified node, and append '\r\n'.
 //     recvAsync(nodeName: string, handler: (data: Buffer) => void, bufferLines: boolean = false) -- Pass incoming data from the specified node to the handler. If bufferLines is true, one complete line at a time is passed to the handler. Returns a function that can be called to stop receiving data.

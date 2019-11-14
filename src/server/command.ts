@@ -45,6 +45,7 @@ export default class Command {
 
 		const cancelTokens: (() => void)[] = [];
 		const api = {
+			getDevice: () => device.toJSON(),
 			send: (nodeName: string, message: Buffer | string) => {
 				const node = device.nodes.find(node => node.name === nodeName);
 				if(!node) {
