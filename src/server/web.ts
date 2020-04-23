@@ -21,6 +21,14 @@ declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string
 const devicesRoute = /^\/devices\/([^/]+)(?:\/manage)?\/?$/;
 
 function makeServices(app: Application<Services>, config: Config, devices: Device[], commands: Command[]): ServiceDefinitions {
+	function getJenkinsDevice(name: any) {
+		const device = devices.find(device => device.jenkinsLockName == name);
+		if(device) {
+			return device;
+		}
+		throw new Error(`Device not found: ${name}`);
+	}
+
 	const services: ServiceDefinitions = {
 		'api/devices': {
 			events: [ 'updated', 'data', 'command', 'termLine', 'commandModal' ],
@@ -106,7 +114,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 
 		'api/jenkins': {
 			async get(id, params) {
-				const device = await services['api/devices'].get(id);
+				const device = getJenkinsDevice(id);
 				return device.build || { device: device.name, name: undefined };
 			},
 
@@ -114,7 +122,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				if(!data.name || !data.device) {
 					throw new Error("Missing required field");
 				}
-				const device = await services['api/devices'].get(data.device);
+				const device = getJenkinsDevice(data.device);
 				return device.startBuild(data.name, data.link);
 			},
 
@@ -132,7 +140,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 					});
 				}
 
-				const device = await services['api/devices'].get(id);
+				const device = getJenkinsDevice(id);
 				const build = device.build || device.startBuild("<Unknown build>");
 				if(dat.pushStage) {
 					build.pushStage(dat.pushStage);
