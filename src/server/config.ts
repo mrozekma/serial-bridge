@@ -45,8 +45,19 @@ const commandJoi: any = joi.object({
 	submenu: joi.array().items(joi.lazy(() => commandJoi)),
 }).xor('fn', 'submenu');
 
+const webJoi = joi.object({
+	port: joi.number().default(80),
+	ssl: joi.object({
+		key: joi.string().required(),
+		cert: joi.string().required(),
+		passphrase: joi.string(),
+	}),
+});
+
 const configJoi = joi.object({
-	webPort: joi.number().integer(),
+	// Deprecated; use web.port now
+	// webPort: joi.number().integer(),
+	web: webJoi,
 	users: usersJoi,
 	devices: joi.array().required().items(deviceJoi),
 	commands: joi.array().items(commandJoi),
@@ -85,6 +96,15 @@ export async function loadConfig() {
 		throw new Error(`Failed to parse configuration file ${filename}: 'config' variable is not an object`);
 	}
 	const obj = renameConfigKeys(context.config);
+	if(obj.webPort) {
+		if(obj.web) {
+			throw new Error(`Failed to parse configuration file ${filename}: both 'webPort' and 'web' specified. Use 'web.port' instead`);
+		}
+		obj.web = {
+			port: obj.webPort,
+		};
+		delete obj.webPort;
+	}
 	const { error, value } = configJoi.validate(obj);
 	if(error) {
 		throw new Error(`Failed to parse configuration file ${filename}: ${error.message}`);

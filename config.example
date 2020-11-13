@@ -3,8 +3,16 @@
 // The keys are camel case, but for ease of transition from Serial Bridge 1, spaced names are also allowed (e.g. "webPort" and "web port" are both valid).
 
 config = {
-	// Optional. The TCP port the web server should listen on. If undefined, the web server is not started.
-	webPort: 80,
+	// Optional. Configuration for the web frontend. If undefined, the web server is not started.
+	web: {
+		port: 80, // Default 80.
+		// Optional. Specifies the SSL certificate to use with HTTPS connections. If undefined, the webserver only speaks HTTP.
+		ssl: {
+			key: 'key.pem',
+			cert: 'cert.pem',
+			passphrase: 'secret', // If undefined, the private key must be unencrypted.
+		},
+	},
 
 	// Optional.
 	users: {

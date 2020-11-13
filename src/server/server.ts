@@ -1,3 +1,7 @@
+import { promises as fs } from 'fs';
+import http from 'http';
+import https from 'https';
+import net from 'net';
 import ora from 'ora';
 import slugify from 'slugify';
 
@@ -47,6 +51,27 @@ function makeCommand(commandConfig: any, idGen: IdGenerator): Command {
 	}
 }
 
+function makeHttpxServer(httpServer: http.Server, httpsServer: https.Server) {
+	// https://stackoverflow.com/a/42019773/309308
+	return net.createServer(socket => {
+		socket.once('data', buffer => {
+			socket.pause();
+			socket.unshift(buffer);
+
+			if (buffer[0] === 22) {
+				httpsServer.emit('connection', socket);
+			} else if (32 < buffer[0] && buffer[0] < 127) {
+				httpServer.emit('connection', socket);
+			} else {
+				socket.end();
+				return;
+			}
+
+			process.nextTick(() => socket.resume());
+		});
+	});
+}
+
 (async () => {
 	console.log(`${banner}\n${BUILD_VERSION} (${BUILD_FILE_HASH})\nBuilt ${BUILD_DATE}\n`);
 	const config = await spinner("Load configuration", loadConfig);
@@ -56,7 +81,7 @@ function makeCommand(commandConfig: any, idGen: IdGenerator): Command {
 		const idGen = new IdGenerator();
 		return config.devices.map(deviceConfig => makeDevice(deviceConfig, idGen));
 	});
-	if(config.webPort !== undefined) {
+	if(config.web !== undefined) {
 		const commands: Command[] = await spinner("Load commands", async () => {
 			const idGen = new IdGenerator('command');
 			return config.commands ? config.commands.map(commandConfig => makeCommand(commandConfig, idGen)) : [];
@@ -65,8 +90,27 @@ function makeCommand(commandConfig: any, idGen: IdGenerator): Command {
 			const { makeWebserver } = await import(/* webpackChunkName: 'web' */ './web');
 			return makeWebserver(config, devices, commands);
 		});
-		app.listen(config.webPort);
-		console.log(`Listening on ${config.webPort}`);
-
+		if(config.web.ssl === undefined) {
+			app.listen(config.web.port);
+			console.log(`Listening on ${config.web.port}`);
+		} else {
+			const { key, cert, passphrase } = config.web.ssl;
+			const httpServer = http.createServer((req, res) => {
+				res.writeHead(301, {
+					Location: `https://${req.headers.host}${req.url}`,
+				}).end();
+			});
+			const httpsServer = https.createServer({
+				key: await fs.readFile(key),
+				cert: await fs.readFile(cert),
+				passphrase,
+			}, app);
+			const server = makeHttpxServer(httpServer, httpsServer);
+			server.listen(config.web.port);
+			console.log(`Listening on ${config.web.port} (SSL)`);
+		}
 	}
-})().catch(console.error);
+})().catch(e => {
+	console.error(e);
+	process.exit(1);
+});
