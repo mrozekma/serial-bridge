@@ -80,6 +80,7 @@ class SerialPort extends Port {
 			stopBits,
 			dataBits: byteSize,
 			autoOpen: false,
+			lock: process.env.NODE_ENV === 'production',
 		});
 		this.serialConn.on('open', () => {
 			if(this.retryTimer) {

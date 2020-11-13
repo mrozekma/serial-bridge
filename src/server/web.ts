@@ -109,7 +109,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				const device: Device = params.connection.device;
 				await command.run(device, params.socketId);
 				return command;
-			}
+			},
 		},
 
 		'api/jenkins': {
@@ -318,6 +318,7 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 				{
 					socketId: socket.id,
 					ip: socket.conn.remoteAddress,
+					pathname: socket.handshake.query.pathname,
 				}
 			);
 			makeRawListeners(socket, devices, commands);
@@ -367,15 +368,15 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 
 	app.on('connection', connection => {
 		const conn: any = connection;
-		const { pathname } = new Url(conn.headers.referer);
+		const pathname: string | undefined = conn.pathname;
 
 		// If a connection comes in from /, join the 'home' channel
 		if(pathname == '/') {
 			app.channel('home').join(connection);
 		}
 
-		// If a connection comes in from /device/:id, join that device's channel
-		const match = pathname.match(devicesRoute);
+		// If a connection comes in from /devices/:id, join that device's channel
+		const match = pathname?.match(devicesRoute);
 		let device: Device | undefined;
 		if(match && (device = conn.device = devices.find(device => device.id === match[1]))) {
 			device.webConnections.addConnection(conn.ip)

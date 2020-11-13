@@ -7,7 +7,12 @@ import {} from 'ant-design-vue/types/notification';
 import { ClientServices as Services, DeviceJson } from '../services';
 
 const app = feathers<Services>();
-const socket = io(window.location.protocol + '//' + (process.env.VUE_APP_SERVER_PORT ? `${window.location.hostname}:${process.env.VUE_APP_SERVER_PORT}` : window.location.host));
+const socket = io(
+	window.location.protocol +
+	'//' +
+	(process.env.VUE_APP_SERVER_PORT ? `${window.location.hostname}:${process.env.VUE_APP_SERVER_PORT}` : window.location.host) +
+	`?pathname=${window.location.pathname}`
+);
 app.configure(socketio(socket));
 
 export type PromiseResult<T> = {
