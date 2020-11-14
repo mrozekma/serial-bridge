@@ -27,6 +27,15 @@ const nodeJoi = joi.object({
 
 const deviceJoi = joi.object({
 	name: joi.string().required(),
+	description: joi.string(),
+	category: joi.string(),
+	tags: joi.array().items(
+		joi.string(),
+		joi.object({
+			name: joi.string().required(),
+			color: joi.string(),
+		}),
+	).default([]),
 	nodes: joi.array().required().items(nodeJoi),
 	//TODO commands?
 	jenkinsLock: joi.string(),

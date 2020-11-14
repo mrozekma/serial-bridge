@@ -27,6 +27,13 @@ config = {
 	devices: [
 		{
 			name: 'Device name',
+			description: 'A longer description of the device.', // Optional.
+			category: 'Shiny devices', // Optional. Devices in the same category are grouped on the home page.
+			tags: [ // Optional. No effect, just displayed on the home page.
+				'tag 1',
+				'tag 2',
+				{ name: 'tag 3', color: 'green' },
+			],
 			// Individual ports on the device.
 			nodes: [
 				{

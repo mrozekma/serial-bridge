@@ -196,6 +196,11 @@ class Node extends EventEmitter {
 
 type NodeCtorArgs = typeof Node extends new (device: Device, ...args: infer T) => Node ? T : never;
 
+interface Tag {
+	name: string;
+	color?: string;
+}
+
 // NB: The Command class causes Device to emit many events not visible here
 export default class Device extends EventEmitter {
 	private _nodes: Node[] = [];
@@ -204,7 +209,7 @@ export default class Device extends EventEmitter {
 	private _build: Build | undefined = undefined;
 	private _jenkinsLockOwner: string | undefined = undefined;
 
-	constructor(public readonly id: string, public readonly name: string, public readonly jenkinsLockName?: string) {
+	constructor(public readonly id: string, public readonly name: string, public readonly description: string | undefined, public readonly category: string | undefined, public readonly tags: Tag[], public readonly jenkinsLockName?: string) {
 		super();
 		this.webConnections = new Connections();
 	}
@@ -253,10 +258,13 @@ export default class Device extends EventEmitter {
 	}
 
 	toJSON() {
-		const { id, name, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner } = this;
+		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner } = this;
 		return {
 			id,
 			name,
+			description,
+			category,
+			tags,
 			nodes: nodes.map(node => node.toJSON()),
 			webConnections: webConnections.toJSON(),
 			build: build ? build.toJSON() : undefined,

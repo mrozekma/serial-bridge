@@ -4,46 +4,55 @@
 		<main>
 			<h1>Devices</h1>
 			<a-alert v-if="devices.state == 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>
-			<div v-else class="devices">
+			<div v-else>
 				<template v-if="devices.state == 'pending'">
 					<a-card v-for="i in 3" :key="i" :loading="true">.</a-card>
 				</template>
 				<template v-else>
-					<a-card v-for="{ device, connections } in annotatedDevices" :key="device.name" :title="device.name" hoverable @mousedown.left="loadDevice(device)" @mousedown.middle.prevent="loadDevice(device, true)">
-						<template v-slot:extra>
-							<a-button size="small" @mousedown.left.stop="manageDevice(device)" @mousedown.middle.stop.prevent="manageDevice(device, true)">
-								<i class="fas fa-cogs"></i>
-							</a-button>
-						</template>
-						<template v-if="connections.length > 0">
-							<h4>Connections</h4>
-							<a-timeline>
-								<a-timeline-item v-for="connection in connections" :key="connection.host">
-									<template slot="dot">
-										<a-avatar v-if="connection.avatar" shape="square" size="small" :src="connection.avatar"/>
-										<a-avatar v-else shape="square" size="small" icon="user"/>
-									</template>
-									{{ connection.name }} <a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
-								</a-timeline-item>
-							</a-timeline>
-						</template>
-						<template>
-							<h4>Ports</h4>
-							<a-table :columns="nodesColumns" :dataSource="device.nodes" :rowKey="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'None'}"/>
-						</template>
-						<template v-if="device.jenkinsLockOwner || device.build">
-							<h4>Jenkins</h4>
-							<div v-if="device.jenkinsLockOwner">
-								<i class="fas fa-lock-alt"></i>
-								<span>Reserved by {{ device.jenkinsLockOwner }}</span>
-							</div>
-							<div v-if="device.build">
-								<i class="fab fa-jenkins"></i>
-								<a v-if="device.build.link" :href="device.build.link" target="_blank">{{ device.build.name }}</a>
-								<span v-else>{{ device.build.name }}</span>
-							</div>
-						</template>
-					</a-card>
+					<template v-for="{ name: catName, devices } in devicesByCategory">
+						<h2 v-if="catName" :key="`header-${catName}`">{{ catName }}</h2>
+						<div :key="`devices-${catName}`" class="devices">
+							<a-card v-for="{ device, connections } in devices" :key="device.name" :title="device.name" hoverable @mousedown.left="loadDevice(device)" @mousedown.middle.prevent="loadDevice(device, true)">
+								<template v-slot:extra>
+									<a-tag v-for="{ name, color } in device.tags" :key="name" :color="color">{{ name }}</a-tag>
+									<a-button size="small" @mousedown.left.stop="manageDevice(device)" @mousedown.middle.stop.prevent="manageDevice(device, true)">
+										<i class="fas fa-cogs"></i>
+									</a-button>
+								</template>
+								<div v-if="device.description" class="description">
+									{{ device.description }}
+								</div>
+								<template v-if="connections.length > 0">
+									<h4>Connections</h4>
+									<a-timeline>
+										<a-timeline-item v-for="connection in connections" :key="connection.host">
+											<template slot="dot">
+												<a-avatar v-if="connection.avatar" shape="square" size="small" :src="connection.avatar"/>
+												<a-avatar v-else shape="square" size="small" icon="user"/>
+											</template>
+											{{ connection.name }} <a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
+										</a-timeline-item>
+									</a-timeline>
+								</template>
+								<template>
+									<h4>Ports</h4>
+									<a-table :columns="nodesColumns" :dataSource="device.nodes" :rowKey="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'None'}"/>
+								</template>
+								<template v-if="device.jenkinsLockOwner || device.build">
+									<h4>Jenkins</h4>
+									<div v-if="device.jenkinsLockOwner">
+										<i class="fas fa-lock-alt"></i>
+										<span>Reserved by {{ device.jenkinsLockOwner }}</span>
+									</div>
+									<div v-if="device.build">
+										<i class="fab fa-jenkins"></i>
+										<a v-if="device.build.link" :href="device.build.link" target="_blank">{{ device.build.name }}</a>
+										<span v-else>{{ device.build.name }}</span>
+									</div>
+								</template>
+							</a-card>
+						</div>
+					</template>
 				</template>
 			</div>
 
@@ -123,6 +132,11 @@
 		connections: Connection[];
 	}
 
+	interface Category {
+		name: string | undefined;
+		devices: AnnotatedDevice[];
+	}
+
 	const nodesColumns = [{
 		title: 'Name',
 		dataIndex: 'name',
@@ -143,13 +157,31 @@
 		components: { SbNavbar },
 		computed: {
 			...rootDataComputeds(),
-			annotatedDevices(): AnnotatedDevice[] {
-				return (this.devices.state == 'resolved')
-					? this.devices.value.map<AnnotatedDevice>(device => ({
-						device,
-						connections: [...getDeviceConnections(device)],
-					}))
-					: [];
+			devicesByCategory(): Category[] {
+				const rtn: Category[] = [];
+				if(this.devices.state === 'resolved') {
+					for(const device of this.devices.value) {
+						const annotatedDevice: AnnotatedDevice = {
+							device,
+							connections: [...getDeviceConnections(device)],
+						};
+						const cat = rtn.find(c => c.name === device.category);
+						if(cat) {
+							cat.devices.push(annotatedDevice);
+						} else {
+							rtn.push({
+								name: device.category,
+								devices: [ annotatedDevice ],
+							});
+						}
+					}
+					// The default category should be first
+					const defIndex = rtn.findIndex(c => c.name === undefined);
+					if(defIndex > 0) {
+						rtn.splice(0, 0, ...rtn.splice(defIndex, 1));
+					}
+				}
+				return rtn;
 			},
 			formFeedback() {
 				const rtn: any = {
@@ -222,6 +254,19 @@
 		display: flex;
 		flex-wrap: wrap;
 		margin: -15px 0;
+		margin-bottom: 1rem;
+
+		.description {
+			margin-bottom: 5px;
+
+			&:not(:hover) {
+				// Support for these is iffy, but worst case we just show the whole description all the time
+				display: -webkit-box;
+				-webkit-box-orient: vertical;
+				-webkit-line-clamp: 3;
+				overflow: hidden;
+			}
+		}
 	}
 
 	form {
