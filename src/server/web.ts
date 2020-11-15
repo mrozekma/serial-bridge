@@ -345,7 +345,7 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	}
 
 	app.get('/serial-bridge.zip', async (req: Request<any>, res: Response, next: NextFunction) => {
-		const buffer = await makeSetupZip(req.query.path);
+		const buffer = await makeSetupZip(req.query.path ? `${req.query.path}` : undefined);
 		res.contentType('application/octet-stream').send(buffer);
 	});
 

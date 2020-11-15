@@ -10,7 +10,8 @@
 		"server:run": "node -r esm -r ts-node/register src/server/server.ts",
 		"server:dev": "webpack --watch",
 		"client:build": "vue-cli-service build",
-		"client:dev": "cross-env VUE_APP_SERVER_PORT=11000 vue-cli-service serve"
+		"client:dev": "cross-env VUE_APP_SERVER_PORT=11000 vue-cli-service serve",
+		"postinstall": "patch-package"
 	},
 	"nodemonConfig": {
 		"watch": [
@@ -56,7 +57,7 @@
 		"@vue/cli-plugin-typescript": "^3.11.0",
 		"@vue/cli-service": "^3.11.0",
 		"animate.css": "^3.7.2",
-		"ant-design-vue": "1.3.16",
+		"ant-design-vue": "^1.3.16",
 		"babel-plugin-prismjs": "^1.1.1",
 		"chalk": "^2.4.2",
 		"concurrently": "^4.1.2",
