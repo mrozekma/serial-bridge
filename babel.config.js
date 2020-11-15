@@ -4,7 +4,7 @@ module.exports = {
 	],
 	plugins: [
 		["prismjs", {
-			"languages": ["batch"],
+			"languages": ["batch", "json"],
 			"plugins": ["line-numbers", "normalize-whitespace"],
 			"theme": "okaidia",
 			"css": true,

@@ -14,6 +14,7 @@ import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
 import makeSetupZip from './setup-zip';
 import { parseLockXml } from './jenkins';
+import NativePort, { onPortData } from './native-port';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
@@ -164,6 +165,28 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				const device = await services['api/devices'].get(id!);
 				return device.endBuild() || { device: device.name, name: undefined };
 				// Don't bother sending out an update here; clients will know the build is done from the patch with defined 'result' field
+			},
+		},
+
+		'api/ports': {
+			events: [ 'data' ],
+			async find(params) {
+				return await NativePort.list();
+			},
+			async patch(path, data: any) {
+				if(typeof path !== 'string') {
+					throw new Error("Missing port path");
+				}
+				const port = NativePort.get(path);
+				if(!port) {
+					throw new Error(`Unknown port: ${path}`);
+				}
+				if(data.open) {
+					const { baudRate, byteSize, parity, stopBits } = data.open;
+					await port.open({ baudRate, byteSize, parity, stopBits });
+				}
+				port.keepAlive();
+				return port;
 			},
 		},
 	};
@@ -383,6 +406,10 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 			app.channel(`device/${device.id}`).join(connection);
 		}
 
+		if(pathname == '/ports/find') {
+			app.channel('ports-find').join(connection);
+		}
+
 		// If a connection is over socketio, join a channel just for that socket
 		if(conn.socketId) {
 			app.channel(`socket/${conn.socketId}`).join(connection);
@@ -423,6 +450,10 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 		}
 	});
 
+	app.service('api/ports').publish(data => app.channel('ports-find'));
+
 	attachDeviceListeners(app, devices);
+	const portsService = app.service('api/ports');
+	onPortData((port, data) => portsService.emit('data', { path: port.path, data }));
 	return app;
 }

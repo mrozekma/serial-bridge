@@ -218,7 +218,6 @@
 					}
 				})
 				.on('termLine', (data: { label: string; caps: 'start' | 'end' | undefined }) => {
-					console.log('termLine!', data)
 					if(!this.paused && data.label && (data.caps === 'start' || data.caps === 'end' || data.caps === undefined)) {
 						this.drawTermLine(data.label, data.caps);
 					}

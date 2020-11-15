@@ -1,6 +1,6 @@
 <template>
 	<a-menu mode="horizontal" theme="dark" :selectable="false" openTransitionName="none" openAnimation="none">
-		<a-menu-item class="brand">{{ brand }}</a-menu-item>
+		<a-menu-item class="brand"><a href="/">{{ brand }}</a></a-menu-item>
 		<a-sub-menu>
 			<template v-slot:title>
 				<a href="/">Devices</a>
@@ -12,6 +12,13 @@
 					{{ device.name }}
 				</a>
 			</a-menu-item>
+		</a-sub-menu>
+		<a-sub-menu>
+			<template v-slot:title>
+				<a href="/ports">Ports</a>
+			</template>
+			<a-menu-item><a href="/ports">Full port list</a></a-menu-item>
+			<a-menu-item><a href="/ports/find">Find ports</a></a-menu-item>
 		</a-sub-menu>
 		<slot/>
 		<a-menu-item class="right faux">
@@ -81,7 +88,7 @@
 		> .ant-menu-submenu-open,
 		> .ant-menu-item-selected,
 		> .ant-menu-submenu-selected {
-			&:not(.faux) {
+			&:not(.brand):not(.faux) {
 				border-bottom: 2px solid #1890ff !important;
 			}
 		}
@@ -104,10 +111,13 @@
 	}
 
 	.ant-menu-item.brand {
-		pointer-events: none;
+		// pointer-events: none;
 		font-size: 16pt;
-		color: #fff;
 		padding: 0 10px;
+		// border-bottom: 0;
+		a {
+			color: #fff;
+		}
 	}
 
 	.ant-menu-submenu, .ant-menu-item {

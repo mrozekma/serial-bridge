@@ -11,6 +11,7 @@ import Device from './device';
 import { configureUserFactory } from './connections';
 import IdGenerator from './id-generator';
 import Command from './command';
+import SerialPort from 'serialport';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;

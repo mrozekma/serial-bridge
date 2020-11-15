@@ -1,5 +1,10 @@
 <template>
-	<a-alert v-if="error" type="error" message="Bad route" :description="error" showIcon/>
+	<div v-if="error">
+		<sb-navbar/>
+		<main>
+			<a-alert type="error" message="Bad route" :description="error" showIcon/>
+		</main>
+	</div>
 	<component v-else :is="view" v-bind="props"/>
 </template>
 
@@ -18,10 +23,14 @@
 	import 'animate.css/animate.css';
 
 	// I'm avoiding a SPA here because it's convenient to start fresh when switching devices, so this is essentially a manual basic vue-router
+	import SbNavbar from './components/navbar.vue';
 	import HomeView from './views/home.vue';
 	import DeviceView from './views/device.vue';
 	import ManageView from './views/manage.vue';
+	import PortsView from './views/ports.vue';
+	import PortsFindView from './views/ports-find.vue';
 	export default Vue.extend({
+		components: { SbNavbar },
 		data() {
 			let view: VueConstructor<Vue> | undefined = undefined;
 			let props = {};
@@ -36,6 +45,10 @@
 				props = {
 					id: m[1],
 				};
+			} else if(path == '/ports') {
+				view = PortsView;
+			} else if(path == '/ports/find') {
+				view = PortsFindView;
 			} else {
 				error = `No view for route: ${path}`;
 			}

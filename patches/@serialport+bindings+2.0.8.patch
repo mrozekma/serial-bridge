@@ -1,0 +1,18 @@
+diff --git a/node_modules/@serialport/bindings/build/Release/bindings.node b/node_modules/@serialport/bindings/build/Release/bindings.node
+new file mode 100755
+index 0000000..2e14bac
+Binary files /dev/null and b/node_modules/@serialport/bindings/build/Release/bindings.node differ
+diff --git a/node_modules/@serialport/bindings/lib/linux-list.js b/node_modules/@serialport/bindings/lib/linux-list.js
+index 26f040b..78e950f 100644
+--- a/node_modules/@serialport/bindings/lib/linux-list.js
++++ b/node_modules/@serialport/bindings/lib/linux-list.js
+@@ -3,7 +3,8 @@ const Readline = require('@serialport/parser-readline')
+ 
+ // get only serial port names
+ function checkPathOfDevice(path) {
+-  return /(tty(S|WCH|ACM|USB|AMA|MFD|O)|rfcomm)/.test(path) && path
++  // mmrozek -- added bus/usb
++  return /(tty(S|WCH|ACM|USB|AMA|MFD|O)|rfcomm|bus\/usb)/.test(path) && path
+ }
+ 
+ function propName(name) {
