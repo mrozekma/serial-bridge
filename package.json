@@ -8,10 +8,10 @@
 		"dev": "concurrently -c bgRed.black,bgGreen.black -n server,client yarn:server:dev yarn:client:dev",
 		"server:build": "cross-env NODE_ENV=production webpack",
 		"server:run": "node -r esm -r ts-node/register src/server/server.ts",
-		"server:dev": "webpack --watch",
+		"server:dev": "cross-env NODE_ENV=development webpack --watch",
 		"client:build": "vue-cli-service build",
-		"client:dev": "cross-env VUE_APP_SERVER_PORT=11000 vue-cli-service serve",
-		"postinstall": "patch-package"
+		"client:dev": "cross-env NODE_ENV=development VUE_APP_SERVER_PORT=11000 vue-cli-service serve",
+		"postinstall": "node patch.js"
 	},
 	"nodemonConfig": {
 		"watch": [
@@ -73,7 +73,6 @@
 		"less-loader": "^5.0.0",
 		"nodemon": "^1.19.3",
 		"nodemon-webpack-plugin": "^4.1.1",
-		"patch-package": "^6.2.0",
 		"postinstall-postinstall": "^2.0.0",
 		"prismjs": "^1.17.1",
 		"raw-loader": "^3.1.0",
