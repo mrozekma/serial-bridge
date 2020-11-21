@@ -30,6 +30,12 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 		throw new Error(`Device not found: ${name}`);
 	}
 
+	function checkPortsFind() {
+		if(!config.portsFind.enabled) {
+			throw new Error("Ports find tool disabled");
+		}
+	}
+
 	const services: ServiceDefinitions = {
 		'api/devices': {
 			events: [ 'updated', 'data', 'command', 'termLine', 'commandModal' ],
@@ -62,6 +68,10 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				case 'jenkins':
 					return {
 						jenkinsUrl: config.jenkinsUrl,
+					};
+				case 'portsFind':
+					return {
+						...config.portsFind,
 					};
 				}
 				throw new Error(`Config not found: ${id}`);
@@ -171,9 +181,11 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 		'api/ports': {
 			events: [ 'data' ],
 			async find(params) {
+				checkPortsFind();
 				return await NativePort.list();
 			},
 			async patch(path, data: any) {
+				checkPortsFind();
 				if(typeof path !== 'string') {
 					throw new Error("Missing port path");
 				}
@@ -453,7 +465,9 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	app.service('api/ports').publish(data => app.channel('ports-find'));
 
 	attachDeviceListeners(app, devices);
-	const portsService = app.service('api/ports');
-	onPortData((port, data) => portsService.emit('data', { path: port.path, data }));
+	if(config.portsFind.enabled) {
+		const portsService = app.service('api/ports');
+		onPortData((port, data) => portsService.emit('data', { path: port.path, data }));
+	}
 	return app;
 }

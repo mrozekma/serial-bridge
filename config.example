@@ -23,6 +23,22 @@ config = {
 		avatarSupport: true,
 	},
 
+	// Optional.
+	portsFind: {
+		// Enable the port finding tool, used to figure out which ports correspond to which nodes.
+		// Giving users access to every serial port on the system has security implications, so this is disabled by default.
+		enabled: false,
+
+		// Each pattern set is a list of regular expressions to try and match against serial data, and which node that data will appear on.
+		// Users can specify their own patterns interactively; predefined sets are just to save time if the same type of device will be enrolled multiple times.
+		patterns: {
+			nameOfSet: [
+				{ pattern: 'This is node A\r\n', name: 'A' },
+				{ pattern: 'This is node B\r\n', name: 'B' },
+			],
+		},
+	},
+
 	// An array of devices to connect to.
 	devices: [
 		{

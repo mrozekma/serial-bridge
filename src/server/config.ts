@@ -46,6 +46,21 @@ const usersJoi = joi.object({
 	avatarSupport: joi.bool().default(false),
 });
 
+const portsFindJoi = joi.object({
+	enabled: joi.bool().default(false),
+	patterns: joi.object().pattern(/.+/, joi.array().items(
+		joi.object({
+			// joi.object().type(RegExp) doesn't work here because the RegExp class in the config file VM is different from the one here.
+			// If I pass RegExp in via the VM's context, /.../ still doesn't work. new RegExp(...) does, but then the RegExp doesn't work in the server process.
+			pattern: joi.string().required(),
+			name: joi.string().required().min(1),
+		}),
+	)).default({}),
+}).default({
+	enabled: false,
+	patterns: {},
+});
+
 // Automatic typing on this doesn't work because it's recursive. The 'Command' interface is defined manually below
 const commandJoi: any = joi.object({
 	label: joi.string().required(),
@@ -68,6 +83,7 @@ const configJoi = joi.object({
 	// webPort: joi.number().integer(),
 	web: webJoi,
 	users: usersJoi,
+	portsFind: portsFindJoi,
 	devices: joi.array().required().items(deviceJoi),
 	commands: joi.array().items(commandJoi),
 	jenkinsUrl: joi.string(),

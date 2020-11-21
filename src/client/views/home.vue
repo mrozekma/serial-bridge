@@ -5,9 +5,9 @@
 			<h1>Devices</h1>
 			<a-alert v-if="devices.state == 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>
 			<div v-else>
-				<template v-if="devices.state == 'pending'">
+				<div v-if="devices.state == 'pending'" class="devices">
 					<a-card v-for="i in 3" :key="i" :loading="true">.</a-card>
-				</template>
+				</div>
 				<template v-else>
 					<template v-for="{ name: catName, devices } in devicesByCategory">
 						<h2 v-if="catName" :key="`header-${catName}`">{{ catName }}</h2>

@@ -3,179 +3,196 @@
 		<sb-navbar/>
 		<main>
 			<h1>Find Ports</h1>
-			<a-steps v-model="step" direction="vertical" @change="stepChange">
-				<a-step title="Unplug device" :status="preChooseStatus"/>
-				<a-step title="Scan ports" :status="preChooseStatus"/>
-				<a-step title="Plug-in device" :status="preChooseStatus" disabled/>
-				<a-step title="Choose ports"/>
-				<a-step title="Specify patterns"/>
-				<a-step title="Open ports"/>
-				<a-step title="Listen"/>
-				<a-step title="Generate config"/>
-			</a-steps>
-			<template v-if="step === STEP_UNPLUG">
-				<p>If possible, unplug the target device from the computer running Serial Bridge. This will make it easier to identify which ports correspond with this device. Note that powering off the device is generally insufficient, although if the device is routed through a USB hub, powering off the hub may work.</p>
-				<div class="actions">
-					<a-button type="primary" @click="setStep(STEP_PRESCAN)">Device is unplugged</a-button>
-					<a-button type="danger" @click="setStep(STEP_CHOOSE)">Skip unplugging the device</a-button>
-				</div>
-			</template>
-			<template v-else-if="step === STEP_PRESCAN">
-				<template v-if="portsBefore === undefined || portsBefore.state === 'pending'">
-					<p>Scanning ports...</p>
-					<!-- All the ant tables have keys to prevent Vue from reusing them between steps, which causes problems with the custom renderers -->
-					<a-table key="portsBefore" :columns="findColumns" :loading="true"/>
+			<a-spin v-if="config.state == 'pending'"/>
+			<a-alert v-else-if="config.state == 'rejected'" type="error" message="Failed to load configuration data" :description="config.error.message" showIcon/>
+			<a-alert v-else-if="!config.value.enabled" type="error" message="Tool disabled" showIcon>
+				<template #description>
+					The ports find tool is disabled in Serial Bridge's configuration. See the <samp>portsFind.enabled</samp> key in the configuration file.
 				</template>
-				<a-alert v-else-if="portsBefore.state === 'rejected'" type="error" message="Failed to scan ports" :description="portsBefore.error.message" showIcon/>
-				<template v-else-if="portsBefore.state === 'resolved'">
-					<div class="description">
-						<p>{{ portsBefore.value.length }} {{ (portsBefore.value.length == 1) ? 'port' : 'ports' }} found (no action required; click Next below to continue):</p>
-						<a-table key="portsBefore" :columns="findColumns" :data-source="portsBefore.value" :pagination="false" :scroll="{ y: 600 }" row-key="comName"/>
-					</div>
+			</a-alert>
+			<template v-else>
+				<a-steps v-model="step" direction="vertical" @change="stepChange">
+					<a-step title="Unplug device" :status="preChooseStatus"/>
+					<a-step title="Scan ports" :status="preChooseStatus"/>
+					<a-step title="Plug-in device" :status="preChooseStatus" disabled/>
+					<a-step title="Choose ports"/>
+					<a-step title="Specify patterns"/>
+					<a-step title="Open ports"/>
+					<a-step title="Listen"/>
+					<a-step title="Generate config"/>
+				</a-steps>
+				<template v-if="step === STEP_UNPLUG">
+					<p>If possible, unplug the target device from the computer running Serial Bridge. This will make it easier to identify which ports correspond with this device. Note that powering off the device is generally insufficient, although if the device is routed through a USB hub, powering off the hub may work.</p>
 					<div class="actions">
-						<a-button type="primary" @click="setStep(STEP_PLUG)">Next</a-button>
-						<a-button @click="setStep(STEP_PRESCAN)">Rescan</a-button>
+						<a-button type="primary" @click="setStep(STEP_PRESCAN)">Device is unplugged</a-button>
+						<a-button type="danger" @click="setStep(STEP_CHOOSE)">Skip unplugging the device</a-button>
 					</div>
 				</template>
-			</template>
-			<template v-else-if="step === STEP_PLUG">
-				<p>Now plug-in the target device's serial connections. New ports will be automatically checked in the next step.</p>
-				<div class="actions">
-					<a-button type="primary" @click="setStep(STEP_CHOOSE)">Device is plugged in</a-button>
-				</div>
-			</template>
-			<template v-else-if="step === STEP_CHOOSE">
-				<template v-if="portsAfter === undefined || portsAfter.state === 'pending'">
-					<p>Scanning ports...</p>
-					<a-table key="portsAfter" :columns="findColumns" :loading="true"/>
+				<template v-else-if="step === STEP_PRESCAN">
+					<template v-if="portsBefore === undefined || portsBefore.state === 'pending'">
+						<p>Scanning ports...</p>
+						<!-- All the ant tables have keys to prevent Vue from reusing them between steps, which causes problems with the custom renderers -->
+						<a-table key="portsBefore" :columns="findColumns" :loading="true"/>
+					</template>
+					<a-alert v-else-if="portsBefore.state === 'rejected'" type="error" message="Failed to scan ports" :description="portsBefore.error.message" showIcon/>
+					<template v-else-if="portsBefore.state === 'resolved'">
+						<div class="description">
+							<p>{{ portsBefore.value.length }} {{ (portsBefore.value.length == 1) ? 'port' : 'ports' }} found (no action required; click Next below to continue):</p>
+							<a-table key="portsBefore" :columns="findColumns" :data-source="portsBefore.value" :pagination="false" :scroll="{ y: 600 }" row-key="comName"/>
+						</div>
+						<div class="actions">
+							<a-button type="primary" @click="setStep(STEP_PLUG)">Next</a-button>
+							<a-button @click="setStep(STEP_PRESCAN)">Rescan</a-button>
+						</div>
+					</template>
 				</template>
-				<a-alert v-else-if="portsAfter.state === 'rejected'" type="error" message="Failed to scan ports" :description="portsAfter.error.message" showIcon/>
-				<template v-else-if="portsAfter.state === 'resolved'">
+				<template v-else-if="step === STEP_PLUG">
+					<p>Now plug-in the target device's serial connections. New ports will be automatically checked in the next step.</p>
+					<div class="actions">
+						<a-button type="primary" @click="setStep(STEP_CHOOSE)">Device is plugged in</a-button>
+					</div>
+				</template>
+				<template v-else-if="step === STEP_CHOOSE">
+					<template v-if="portsAfter === undefined || portsAfter.state === 'pending'">
+						<p>Scanning ports...</p>
+						<a-table key="portsAfter" :columns="findColumns" :loading="true"/>
+					</template>
+					<a-alert v-else-if="portsAfter.state === 'rejected'" type="error" message="Failed to scan ports" :description="portsAfter.error.message" showIcon/>
+					<template v-else-if="portsAfter.state === 'resolved'">
+						<div class="description">
+							<p>
+								{{ portsAfter.value.length }} {{ (portsAfter.value.length == 1) ? 'port' : 'ports' }} found.
+								<template v-if="numNewPorts">
+									{{ numNewPorts }} of these appeared after the device was plugged-in, so they are shown and selected.
+								</template>
+								Select which ports you want to scan for output:
+							</p>
+							<a-input-search placeholder="Search" enter-button allow-clear @search="val => searchString = val" />
+							<a-table key="portsAfter" :columns="findColumns" :data-source="portsAfter.value" :pagination="false" :scroll="{ y: 600 }" row-key="comName" :row-selection="{ selectedRowKeys: selectedPorts, onChange: rowSelectionChange }">
+								<template #isNew="text">
+									<a-tag v-if="text" color="volcano">New</a-tag>
+								</template>
+							</a-table>
+						</div>
+						<div class="actions">
+							<a-button type="primary" @click="setStep(STEP_PATTERNS)">Next</a-button>
+						</div>
+					</template>
+				</template>
+				<template v-else-if="step === STEP_PATTERNS">
 					<div class="description">
-						<p>
-							{{ portsAfter.value.length }} {{ (portsAfter.value.length == 1) ? 'port' : 'ports' }} found.
-							<template v-if="numNewPorts">
-								{{ numNewPorts }} of these appeared after the device was plugged-in, so they are shown and selected.
+						<p>Specify regular expressions that, if seen on a port, likely identify it as a particular node.</p>
+						<template v-if="Object.keys(config.value.patterns).length > 0">
+							The following pattern sets are available as a starting point:
+							<a-select v-model="patternSelectedSet">
+								<a-select-option v-for="name in Object.keys(config.value.patterns)" :key="name" :value="name">{{ name }}</a-select-option>
+							</a-select>
+							<a-button :disabled="patternSelectedSet === undefined" @click="loadPatternSet">Load</a-button>
+						</template>
+						<a-table key="patterns" :columns="patternColumns" :data-source="patterns" :pagination="false">
+							<template #pattern="_, entry">
+								<a-form-item
+									has-feedback
+									:validateStatus="entry.pattern ? 'success' : entry.patternError ? 'error' : ''"
+									:help="entry.patternError ? `${entry.patternError}` : ''">
+									<a-input placeholder="Regex to search port output for" v-model="entry.patternString" @focus="() => { entry.pattern = undefined; entry.patternError = undefined; }" @blur="validatePattern(entry)"/>
+								</a-form-item>
 							</template>
-							Select which ports you want to scan for output:
-						</p>
-						<a-input-search placeholder="Search" enter-button allow-clear @search="val => searchString = val" />
-						<a-table key="portsAfter" :columns="findColumns" :data-source="portsAfter.value" :pagination="false" :scroll="{ y: 600 }" row-key="comName" :row-selection="{ selectedRowKeys: selectedPorts, onChange: rowSelectionChange }">
-							<template #isNew="text">
-								<a-tag v-if="text" color="volcano">New</a-tag>
+							<template #node="_, entry">
+								<a-form-item
+									has-feedback
+									:validateStatus="entry.nodeName != '' ? 'success' : entry.patternString == '' ? undefined : 'error'"
+									:help="entry.nodeName != '' ? '' : entry.patternString == '' ? '' : 'Specify the node this pattern matches'">
+									<a-input placeholder="Node name to assign to the port matching this regex" v-model="entry.nodeName"/>
+								</a-form-item>
+							</template>
+							<template #buttons="_, entry">
+								<a-button type="danger" class="delete-button" @click="removePattern(entry)">Delete</a-button>
 							</template>
 						</a-table>
 					</div>
 					<div class="actions">
-						<a-button type="primary" @click="setStep(STEP_PATTERNS)">Next</a-button>
+						<a-button type="primary" @click="setStep(STEP_OPEN)">Next</a-button>
 					</div>
 				</template>
-			</template>
-			<template v-else-if="step === STEP_PATTERNS">
-				<div class="description">
-					<p>Specify regular expressions that, if seen on a port, likely identify it as a particular node.</p>
-					<a-table key="patterns" :columns="patternColumns" :data-source="patterns" :pagination="false">
-						<template #pattern="_, entry">
-							<a-form-item
-								has-feedback
-								:validateStatus="entry.pattern ? 'success' : entry.patternError ? 'error' : ''"
-								:help="entry.patternError ? `${entry.patternError}` : ''">
-								<a-input placeholder="Regex to search port output for" v-model="entry.patternString" @focus="() => { entry.pattern = undefined; entry.patternError = undefined; }" @blur="validatePattern(entry)"/>
+				<template v-else-if="step === STEP_OPEN">
+					<div class="description">
+						Specify the expected serial port settings for the target ports:
+						<a-form class="two-col">
+							<a-form-item label="Baud rate">
+								<a-input v-model="portSettings.baudRate"/>
 							</a-form-item>
-						</template>
-						<template #node="_, entry">
-							<a-form-item
-								has-feedback
-								:validateStatus="entry.nodeName != '' ? 'success' : entry.patternString == '' ? undefined : 'error'"
-								:help="entry.nodeName != '' ? '' : entry.patternString == '' ? '' : 'Specify the node this pattern matches'">
-								<a-input placeholder="Node name to assign to the port matching this regex" v-model="entry.nodeName"/>
+							<a-form-item label="Byte size">
+								<a-select v-model="portSettings.byteSize">
+									<a-select-option value="5">5</a-select-option>
+									<a-select-option value="6">6</a-select-option>
+									<a-select-option value="7">7</a-select-option>
+									<a-select-option value="8">8</a-select-option>
+								</a-select>
 							</a-form-item>
-						</template>
-						<template #buttons="_, entry">
-							<a-button type="danger" class="delete-button" @click="removePattern(entry)">Delete</a-button>
-						</template>
-					</a-table>
-				</div>
-				<div class="actions">
-					<a-button type="primary" @click="setStep(STEP_OPEN)">Next</a-button>
-				</div>
-			</template>
-			<template v-else-if="step === STEP_OPEN">
-				<div class="description">
-					Specify the expected serial port settings for the target ports:
-					<a-form class="two-col">
-						<a-form-item label="Baud rate">
-							<a-input v-model="portSettings.baudRate"/>
-						</a-form-item>
-						<a-form-item label="Byte size">
-							<a-select v-model="portSettings.byteSize">
-								<a-select-option value="5">5</a-select-option>
-								<a-select-option value="6">6</a-select-option>
-								<a-select-option value="7">7</a-select-option>
-								<a-select-option value="8">8</a-select-option>
-							</a-select>
-						</a-form-item>
-						<a-form-item label="Parity">
-							<a-select v-model="portSettings.parity">
-								<a-select-option value="none">None</a-select-option>
-								<a-select-option value="even">Even</a-select-option>
-								<a-select-option value="odd">Odd</a-select-option>
-							</a-select>
-						</a-form-item>
-						<a-form-item label="Stop bits">
-							<a-select v-model="portSettings.stopBits">
-								<a-select-option value="1">1</a-select-option>
-								<a-select-option value="2">2</a-select-option>
-							</a-select>
-						</a-form-item>
-					</a-form>
-				</div>
-				<div class="actions">
-					<a-button type="primary" @click="setStep(STEP_LISTEN)">Next</a-button>
-				</div>
-			</template>
-			<template v-else-if="step === STEP_LISTEN">
-				<div class="description">
-					<p>Now power on the device. Any data received on the selected ports will be displayed below. If one of the specified patterns is seen in the output, the node identification will be set automatically; otherwise if you recognize a port you can identify it manually.</p>
-					<a-table key="portsListening" :columns="listenColumns" :data-source="portsListening" :expandedRowKeys="listenTermsVisible" @expand="(expanded, port) => port.termVisible = expanded" :pagination="false" :locale="{ emptyText: 'No ports selected' }" row-key="path">
-						<template #port="openPromise">
-							<a-badge v-if="openPromise.state === 'pending'" status="default" text="Opening..."/>
-							<a-badge v-else-if="openPromise.state === 'rejected'" status="error" :text="openPromise.error.message"/>
-							<a-badge v-else-if="openPromise.state === 'resolved'" status="success" text="Open"/>
-						</template>
-						<template #data="bytesReceived, port">
-							<a-badge v-if="port.openPromise.state === 'pending'" status="default" text="Opening..."/>
-							<a-badge v-else-if="port.openPromise.state === 'rejected'" status="error" text="Failed"/>
-							<a-badge v-else status="processing" :text="bytesReceived ? `${filesize(bytesReceived)} received` : 'No data received'"/>
-						</template>
-						<template #node="node, port">
-							<a-input v-model="port.node.name" @change="port.node.source = 'user'">
-								<template v-if="port.node.source === 'pattern'" #suffix>
-									<a-tooltip placement="bottom" title="Set automatically from a pattern match">
-										<i class="fas fa-star-exclamation"></i>
-									</a-tooltip>
-								</template>
-							</a-input>
-						</template>
-						<template #expandedRowRender="port">
-							<div v-if="port.bytesReceived > 0":ref="`term-${port.path}`" class="term"></div>
-							<a-empty v-else description="No data received yet"/>
-						</template>
-					</a-table>
-				</div>
-				<div class="actions">
-					<a-button type="primary" @click="setStep(STEP_CONFIG)">Next</a-button>
-				</div>
-			</template>
-			<template v-else-if="step === STEP_CONFIG">
-				<div class="description">
-					<p>You can paste the following <samp>nodes</samp> block into the target device's section in the Serial Bridge configuration. Note that there are other optional keys supported by the <samp>nodes</samp> block; see the example configuration file for more details.</p>
-					<pre><code ref="generatedConfig" class="language-json line-numbers">{{ generatedConfig }}</code></pre>
-				</div>
-				<div class="actions">
-					<a-button @click="setStep(STEP_UNPLUG)">Start over</a-button>
-					<a-button @click="goHome">Go home</a-button>
-				</div>
+							<a-form-item label="Parity">
+								<a-select v-model="portSettings.parity">
+									<a-select-option value="none">None</a-select-option>
+									<a-select-option value="even">Even</a-select-option>
+									<a-select-option value="odd">Odd</a-select-option>
+								</a-select>
+							</a-form-item>
+							<a-form-item label="Stop bits">
+								<a-select v-model="portSettings.stopBits">
+									<a-select-option value="1">1</a-select-option>
+									<a-select-option value="2">2</a-select-option>
+								</a-select>
+							</a-form-item>
+						</a-form>
+					</div>
+					<div class="actions">
+						<a-button type="primary" @click="setStep(STEP_LISTEN)">Next</a-button>
+					</div>
+				</template>
+				<template v-else-if="step === STEP_LISTEN">
+					<div class="description">
+						<p>Now power on the device. Any data received on the selected ports will be displayed below. If one of the specified patterns is seen in the output, the node identification will be set automatically; otherwise if you recognize a port you can identify it manually.</p>
+						<a-table key="portsListening" :columns="listenColumns" :data-source="portsListening" :expandedRowKeys="listenTermsVisible" @expand="(expanded, port) => port.termVisible = expanded" :pagination="false" :locale="{ emptyText: 'No ports selected' }" row-key="path">
+							<template #port="openPromise">
+								<a-badge v-if="openPromise.state === 'pending'" status="default" text="Opening..."/>
+								<a-badge v-else-if="openPromise.state === 'rejected'" status="error" :text="openPromise.error.message"/>
+								<a-badge v-else-if="openPromise.state === 'resolved'" status="success" text="Open"/>
+							</template>
+							<template #data="bytesReceived, port">
+								<a-badge v-if="port.openPromise.state === 'pending'" status="default" text="Opening..."/>
+								<a-badge v-else-if="port.openPromise.state === 'rejected'" status="error" text="Failed"/>
+								<a-badge v-else status="processing" :text="bytesReceived ? `${filesize(bytesReceived)} received` : 'No data received'"/>
+							</template>
+							<template #node="node, port">
+								<a-input v-model="port.node.name" @change="port.node.source = 'user'">
+									<template v-if="port.node.source === 'pattern'" #suffix>
+										<a-tooltip placement="bottom" title="Set automatically from a pattern match">
+											<i class="fas fa-star-exclamation"></i>
+										</a-tooltip>
+									</template>
+								</a-input>
+							</template>
+							<template #expandedRowRender="port">
+								<div v-if="port.bytesReceived > 0":ref="`term-${port.path}`" class="term"></div>
+								<a-empty v-else description="No data received yet"/>
+							</template>
+						</a-table>
+					</div>
+					<div class="actions">
+						<a-button type="primary" @click="setStep(STEP_CONFIG)">Next</a-button>
+					</div>
+				</template>
+				<template v-else-if="step === STEP_CONFIG">
+					<div class="description">
+						<p>You can paste the following <samp>nodes</samp> block into the target device's section in the Serial Bridge configuration. Note that there are other optional keys supported by the <samp>nodes</samp> block; see the example configuration file for more details.</p>
+						<a-alert v-if="duplicateNodeNames" type="warning" message="Duplicate nodes" description="The same node name has been assigned to multiple serial ports. The generated configuration reflects this assignment, but will need to be fixed." show-icon />
+						<pre><code ref="generatedConfig" class="language-json line-numbers">{{ generatedConfig }}</code></pre>
+					</div>
+					<div class="actions">
+						<a-button @click="setStep(STEP_UNPLUG)">Start over</a-button>
+						<a-button @click="goHome">Go home</a-button>
+					</div>
+				</template>
 			</template>
 		</main>
 	</div>
@@ -367,6 +384,10 @@
 			listenTermsVisible(): string[] {
 				return this.portsListening.filter(port => port.termVisible).map(port => port.path);
 			},
+			duplicateNodeNames(): boolean {
+				const names = this.portsListening.map(port => port.node.name).filter(name => name != '');
+				return names.length > new Set(names).size;
+			},
 		},
 		data() {
 			const app = this.$root.$data.app as Application<Services>;
@@ -376,12 +397,14 @@
 				STEP_UNPLUG, STEP_PRESCAN, STEP_PLUG, STEP_CHOOSE, STEP_PATTERNS, STEP_OPEN, STEP_LISTEN, STEP_CONFIG,
 				filesize,
 
+				config: unwrapPromise(app.service('api/config').get('portsFind')),
 				searchString: '',
 				portsBefore: undefined as PromiseResult<NativePortJson[]> | undefined,
 				portsAfter: undefined as PromiseResult<NativePortJsonChooseStep[]> | undefined,
 				numNewPorts: undefined as number | undefined,
 				selectedPorts: [] as string[],
 				portsListening: [] as ListenPort[],
+				patternSelectedSet: undefined as string | undefined,
 				patterns: [] as NodePattern[],
 				portSettings: {
 					baudRate: '115200',
@@ -398,7 +421,7 @@
 				handler() {
 					if(!this.patterns.some(pattern => pattern.patternString == '')) {
 						this.patterns.push({
-							key: new Date().getTime(),
+							key: Math.max(0, ...this.patterns.map(pattern => pattern.key)) + 1,
 							patternString: '',
 							nodeName: '',
 							pattern: undefined,
@@ -542,7 +565,7 @@
 							baudRate: parseInt(this.portSettings.baudRate, 10),
 							byteSize: parseInt(this.portSettings.byteSize, 10),
 							parity: this.portSettings.parity,
-							stopBits: parseInt(this.portSettings.stopBits, 10),
+							stop: parseInt(this.portSettings.stopBits, 10),
 						};
 						const nodes = this.portsListening.filter(port => port.node.name != '').map(port => ({
 							name: port.node.name,
@@ -558,6 +581,23 @@
 			},
 			rowSelectionChange(selectedPorts: string[]) {
 				this.selectedPorts = selectedPorts;
+			},
+			loadPatternSet() {
+				if(this.config.state !== 'resolved' || !this.patternSelectedSet) {
+					throw new Error("Bad state");
+				}
+				const patterns: any[] = this.config.value.patterns[this.patternSelectedSet];
+				// pattern, name
+				let key = Math.max(0, ...this.patterns.map(pattern => pattern.key)) + 1;
+				this.patterns = patterns.map<NodePattern>(p => ({
+					 key: key++,
+					 patternString: p.pattern,
+					 pattern: undefined,
+					 patternError: undefined,
+					 nodeName: p.name,
+				}));
+				this.patterns.forEach(p => this.validatePattern(p));
+				this.patternSelectedSet = undefined;
 			},
 			validatePattern(pattern: NodePattern) {
 				if(pattern.patternString == '') {
@@ -608,7 +648,7 @@
 			grid-area: steps;
 			margin: 0 10px;
 		}
-		.description {
+		.description, > .ant-spin, > .ant-alert {
 			grid-area: description;
 		}
 		p {
@@ -657,6 +697,11 @@
 
 	.ant-input-search {
 		margin-bottom: 10px;
+	}
+
+	.ant-select {
+		margin: 0 10px;
+		width: 150px;
 	}
 
 	.delete-button {
