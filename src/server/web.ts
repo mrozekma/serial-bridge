@@ -20,6 +20,7 @@ import NativePort, { onPortData } from './native-port';
 declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
 
 const devicesRoute = /^\/devices\/([^/]+)(?:\/manage)?\/?$/;
+const portsRoute = /^\/ports(?:\/find)?\/?$/;
 
 function makeServices(app: Application<Services>, config: Config, devices: Device[], commands: Command[]): ServiceDefinitions {
 	function getJenkinsDevice(name: any) {
@@ -363,11 +364,15 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	// app.publish((data, hook) => app.channel('everybody'));
 	app.publish(data => []);
 
-	// Register a rewriter for /devices/:id for all valid IDs
 	app.use((req: Request<any>, res: Response, next: NextFunction) => {
 		const { pathname } = new Url(req.url);
+		// Register a rewriter for /devices/:id for all valid IDs
 		const match = pathname.match(devicesRoute);
 		if(match && devices.find(device => device.id === match[1])) {
+			req.url = '/';
+		}
+		// Also the ports routes
+		if(portsRoute.test(pathname)) {
 			req.url = '/';
 		}
 		next();

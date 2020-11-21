@@ -36,9 +36,9 @@
 			let props = {};
 			let error: string | undefined = undefined;
 
-			const path = window.location.pathname;
-			const m = path.match(/^\/devices\/([^/]+)(\/manage)?\/?$/);
-			if(path == '/') {
+			const path = window.location.pathname.replace(/\/$/, '');
+			const m = path.match(/^\/devices\/([^/]+)(\/manage)?$/);
+			if(path == '') {
 				view = HomeView;
 			} else if(m) {
 				view = m[2] ? ManageView : DeviceView;
