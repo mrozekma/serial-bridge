@@ -1,7 +1,8 @@
 // This is the server config; the client is built by vue-cli-service and the stock webpack config is modified in vue.config.js
 const child_process = require('child_process');
+const fs = require('fs');
 const NodemonPlugin = require('nodemon-webpack-plugin');
-const path = require('path');
+const pathlib = require('path');
 const webpack = require('webpack');
 const nodeExternals = require('webpack-node-externals');
 const hashFiles = require('hash-files');
@@ -12,6 +13,7 @@ const definePlugin = new webpack.DefinePlugin({
 	BUILD_VERSION: JSON.stringify(gitDesc.replace(/^heads\//, '').trim()),
 	BUILD_FILE_HASH: JSON.stringify(versionHash),
 	BUILD_DATE: JSON.stringify(new Date().toGMTString()),
+	HAS_LICENSES: JSON.stringify(process.env.NODE_ENV == 'production'),
 });
 
 module.exports = {
@@ -21,7 +23,7 @@ module.exports = {
 	},
 	target: 'node',
 	output: {
-		path: path.resolve(__dirname, 'dist', 'server'),
+		path: pathlib.resolve(__dirname, 'dist', 'server'),
 	},
 	node: {
 		__dirname: true,
@@ -38,9 +40,6 @@ module.exports = {
 	},
 	resolve: {
 		extensions: [ '.tsx', '.ts', '.js' ],
-		alias: {
-			// figlet$: path.resolve(__dirname, 'figlet.js')
-		},
 	},
 	plugins: [
 		definePlugin,
@@ -53,3 +52,16 @@ module.exports = {
 		nodeExternals({ modulesFromFile: true }),
 	],
 };
+
+if(process.env.NODE_ENV == 'production') {
+	module.exports.plugins.push({
+		apply: compiler => {
+			compiler.hooks.afterEmit.tapPromise('LicenseGen', () => new Promise(resolve => {
+				const ws = fs.createWriteStream(pathlib.join(compiler.outputPath, 'licenses.txt'));
+				const proc = child_process.spawn('yarn licenses generate-disclaimer', { cwd: compiler.options.context, shell: true });
+				proc.stdout.pipe(ws);
+				proc.on('exit', resolve);
+			}));
+		},
+	});
+}

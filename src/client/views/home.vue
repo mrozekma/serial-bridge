@@ -111,6 +111,13 @@
 					</ul>
 				</li>
 			</ul>
+
+			<div v-if="version.state === 'resolved'" class="version">
+				{{ version.value.version }} | {{ version.value.date }}
+				<template v-if="version.value.licenses">
+					| <a target="_blank" href="/licenses.txt">Licenses</a>
+				</template>
+			</div>
 		</main>
 	</div>
 </template>
@@ -210,6 +217,7 @@
 			const app = this.$root.$data.app as Application<Services>;
 			return {
 				nodesColumns,
+				version: unwrapPromise(app.service('api/config').get('version')),
 				usersConfig: unwrapPromise(app.service('api/config').get('users')),
 				currentUser: unwrapPromise(app.service('api/users').get('self')),
 				changeUserInfo: undefined as PromiseResult<any> | undefined,
@@ -278,6 +286,15 @@
 
 		input[type=text] {
 			width: 400px;
+		}
+	}
+
+	.version {
+		font-size: smaller;
+		text-align: right;
+		color: #d9d9d9;
+		a {
+			color: #adc6ff;
 		}
 	}
 </style>

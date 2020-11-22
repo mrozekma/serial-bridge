@@ -17,7 +17,7 @@ import { parseLockXml } from './jenkins';
 import NativePort, { onPortData } from './native-port';
 
 // From DefinePlugin
-declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
+declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string, HAS_LICENSES: boolean;
 
 const devicesRoute = /^\/devices\/([^/]+)(?:\/manage)?\/?$/;
 const portsRoute = /^\/ports(?:\/find)?\/?$/;
@@ -60,6 +60,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 						version: BUILD_VERSION,
 						fileHash: BUILD_FILE_HASH,
 						date: BUILD_DATE,
+						licenses: HAS_LICENSES,
 					};
 				case 'users':
 					return {
