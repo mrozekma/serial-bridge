@@ -53,7 +53,6 @@ export default class NativePort {
 			rtn = Promise.resolve();
 		} else {
 			rtn = new Promise((resolve, reject) => {
-				console.log('Opening', this.path);
 				this.serialPort = new SerialPort(this.path, {
 					baudRate: settings.baudRate,
 					parity: settings.parity,
@@ -68,7 +67,7 @@ export default class NativePort {
 						reject(err);
 					}
 				});
-				this.serialPort.on('data', data => { console.log('portdata', this); eventEmitter.emit('data', this, data);});
+				this.serialPort.on('data', data => eventEmitter.emit('data', this, data));
 			});
 		}
 		this.lastPolled = new Date();
@@ -78,7 +77,6 @@ export default class NativePort {
 
 	keepAlive() {
 		this.lastPolled = new Date();
-		console.log('keepAlive', this.portInfo.comName, this.lastPolled);
 	}
 
 	checkAlive() {
@@ -103,11 +101,9 @@ export default class NativePort {
 	static make(portInfo: PortInfo) {
 		let rtn = allNativePorts.get(portInfo.comName);
 		if(rtn) {
-			console.log('NativePort cache hit', portInfo.comName);
 			rtn.updateInfo(portInfo);
 			return rtn;
 		}
-		console.log('NativePort make', portInfo.comName);
 		rtn = new NativePort(portInfo);
 		allNativePorts.set(portInfo.comName, rtn);
 		return rtn;
@@ -129,16 +125,13 @@ export default class NativePort {
 function ensureWatchdog() {
 	if(nativePortWatchdog === undefined) {
 		nativePortWatchdog = setInterval(() => {
-			console.log('nativePortWatchdog checking');
 			let anyAlive = false;
 			for(const port of allNativePorts.values()) {
 				switch(port.checkAlive()) {
 					case true:
-						console.log(port.path, 'alive');
 						anyAlive = true;
 						break;
 					case false:
-						console.log(port.path, 'dead');
 						// allNativePorts.delete(port.path);
 						break;
 					case undefined:
@@ -147,7 +140,6 @@ function ensureWatchdog() {
 				}
 			}
 			if(!anyAlive) {
-				console.log('Stopping watchdog');
 				clearTimeout(nativePortWatchdog!);
 				nativePortWatchdog = undefined;
 			}
