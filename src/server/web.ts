@@ -61,6 +61,8 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 						fileHash: BUILD_FILE_HASH,
 						date: BUILD_DATE,
 						licenses: HAS_LICENSES,
+						// Not the most logical place for this, but it's convenient:
+						notice: config.notice,
 					};
 				case 'users':
 					return {

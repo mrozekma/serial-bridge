@@ -2,6 +2,7 @@
 	<div>
 		<sb-navbar/>
 		<main>
+			<a-alert v-if="version.state === 'resolved' && version.value.notice" type="info" :message="version.value.notice" show-icon/>
 			<h1>Devices</h1>
 			<a-alert v-if="devices.state == 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>
 			<div v-else>
@@ -252,6 +253,10 @@
 <style lang="less" scoped>
 	h1:not(:first-child) {
 		margin-top: 3rem;
+	}
+
+	.ant-alert + h1 {
+		margin-top: 0;
 	}
 
 	h4 {

@@ -87,6 +87,7 @@ const configJoi = joi.object({
 	devices: joi.array().required().items(deviceJoi),
 	commands: joi.array().items(commandJoi),
 	jenkinsUrl: joi.string(),
+	notice: joi.string(),
 }).required();
 
 // Serial Bridge 1's config file had keys with spaces in it, so for backwards compatibility, convert 'foo bar' to 'fooBar'
@@ -100,7 +101,9 @@ const rootDir = (process.env.NODE_ENV === 'development')
 
 export async function loadConfig() {
 	const filename = pathlib.resolve(pathlib.join(rootDir, 'config.js'));
-	const buf = await fs.readFile(filename).catch(e => {
+	const buf = await fs.readFile(filename, {
+		encoding: 'utf8',
+	}).catch(e => {
 		if(e.code === 'ENOENT') {
 			throw new Error(`Couldn't open configuration file: ${filename}. Did you copy the example configuration from config.example?`);
 		}
@@ -112,7 +115,7 @@ export async function loadConfig() {
 		setTimeout,
 		__filename: filename,
 	});
-	vm.runInContext(buf.toString('utf8'), context, { filename });
+	vm.runInContext(buf, context, { filename });
 
 	if(typeof context.config === 'function') {
 		context.config = await context.config();

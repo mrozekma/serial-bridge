@@ -83,8 +83,28 @@ export function rootDataUpdater(this: Vue) {
 
 	// Tell the user when the build has changed
 	let version: any = undefined;
+	let notice: string | undefined | null = undefined; // undefined means we're just coming up, versus null meaning there is no notice
 	socket.on('connect', async () => {
 		const newVersion = await rootData.app.service('api/config').get('version');
+		if(newVersion.notice) {
+			if(version !== undefined && newVersion.notice !== notice) {
+				this.$notification.close('notice');
+				this.$notification.info({
+					key: 'notice',
+					duration: 0,
+					placement: 'bottomRight',
+					message: "Server Notice",
+					description: newVersion.notice,
+					onClick: () => {
+						this.$notification.close('notice');
+					},
+				});
+			}
+			notice = newVersion.notice;
+			delete newVersion.notice;
+		} else {
+			notice = null;
+		}
 		if(version && JSON.stringify(version) != JSON.stringify(newVersion)) {
 			this.$notification.close('version');
 			let userClosed = false;

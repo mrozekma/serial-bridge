@@ -23,6 +23,9 @@ config = {
 		avatarSupport: true,
 	},
 
+	// Optional. Shows a notice to users at the top of the web homepage.
+	notice: 'Notice here.',
+
 	// Optional.
 	portsFind: {
 		// Enable the port finding tool, used to figure out which ports correspond to which nodes.
