@@ -52,16 +52,3 @@ module.exports = {
 		nodeExternals({ modulesFromFile: true }),
 	],
 };
-
-if(process.env.NODE_ENV == 'production') {
-	module.exports.plugins.push({
-		apply: compiler => {
-			compiler.hooks.afterEmit.tapPromise('LicenseGen', () => new Promise(resolve => {
-				const ws = fs.createWriteStream(pathlib.join(compiler.outputPath, 'licenses.txt'));
-				const proc = child_process.spawn('yarn licenses generate-disclaimer', { cwd: compiler.options.context, shell: true });
-				proc.stdout.pipe(ws);
-				proc.on('exit', resolve);
-			}));
-		},
-	});
-}
