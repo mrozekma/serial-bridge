@@ -13,13 +13,6 @@
 				</a>
 			</a-menu-item>
 		</a-sub-menu>
-		<a-sub-menu>
-			<template v-slot:title>
-				<a href="/ports">Ports</a>
-			</template>
-			<a-menu-item><a href="/ports">Full port list</a></a-menu-item>
-			<a-menu-item><a href="/ports/find">Find ports</a></a-menu-item>
-		</a-sub-menu>
 		<slot/>
 		<a-menu-item class="right faux">
 			<slot name="right"/>

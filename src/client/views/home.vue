@@ -1,6 +1,14 @@
 <template>
 	<div>
-		<sb-navbar/>
+		<sb-navbar>
+			<a-sub-menu>
+				<template v-slot:title>
+					<a href="/ports">Ports</a>
+				</template>
+				<a-menu-item><a href="/ports">Full port list</a></a-menu-item>
+				<a-menu-item><a href="/ports/find">Find ports</a></a-menu-item>
+			</a-sub-menu>
+		</sb-navbar>
 		<main>
 			<a-alert v-if="version.state === 'resolved' && version.value.notice" type="info" :message="version.value.notice" show-icon/>
 			<h1>Devices</h1>
@@ -76,14 +84,39 @@
 				</template>
 
 				<a-form layout="inline" @submit.prevent="updateUser">
-					<a-form-item label="Name" v-bind="formFeedback">
+					<a-form-item label="Name" v-bind="userFormFeedback">
 						<a-input v-model="currentUser.value.displayName" @change="changeUserInfo = undefined"/>
 					</a-form-item>
-					<a-form-item v-if="usersConfig.value.avatarSupport" label="E-mail" v-bind="formFeedback">
+					<a-form-item v-if="usersConfig.value.avatarSupport" label="E-mail" v-bind="userFormFeedback">
 						<a-input v-model="currentUser.value.email" @change="changeUserInfo = undefined"/>
 					</a-form-item>
 					<a-form-item>
 						<a-button type="primary" html-type="submit" :disabled="changeUserInfo && changeUserInfo.state == 'pending'">Update</a-button>
+					</a-form-item>
+				</a-form>
+			</template>
+
+			<a-alert v-if="jenkinsConfig.state == 'rejected'" type="error" message="Failed to load Jenkins config" :description="jenkinsConfig.error.message" showIcon/>
+			<a-spin v-else-if="jenkinsConfig.state == 'pending'"/>
+			<template v-else>
+				It's also possible to control Jenkins locks from within Serial Bridge, but this requires a Jenkins API key:
+				<ul>
+					<li>Go to <a target="_blank" :href="jenkinsConfig.value.jenkinsUrl">Jenkins</a>.</li>
+					<li>Click your username at the top-right.</li>
+					<li>Click <b>Configure</b> on the left menu.</li>
+					<li>Under the <b>API Token</b> section, click <b>Add new Token</b>.</li>
+					<li>Enter the name "Serial Bridge" and click <b>Generate</b>.</li>
+					<li>Paste the generated token here.</li>
+				</ul>
+				<a-form layout="inline" @submit.prevent="updateJenkins">
+					<a-form-item label="Username">
+						<a-input v-model="jenkinsForm.username" @change="changeJenkinsKey = undefined"/>
+					</a-form-item>
+					<a-form-item v-if="usersConfig.value.avatarSupport" label="API Key" v-bind="jenkinsFormFeedback">
+						<a-input-password v-model="jenkinsForm.key" @change="changeJenkinsKey = undefined"/>
+					</a-form-item>
+					<a-form-item>
+						<a-button type="primary" html-type="submit" :disabled="changeJenkinsKey && changeJenkinsKey.state == 'pending'">Update</a-button>
 					</a-form-item>
 				</a-form>
 			</template>
@@ -159,6 +192,29 @@
 		align: 'center',
 	}];
 
+	function makeFormFeedback(promise: PromiseResult<any> | undefined) {
+		const rtn: any = {
+			hasFeedback: false,
+		};
+		if(promise) {
+			rtn.hasFeedback = true;
+			switch(promise.state) {
+				case 'pending':
+					rtn.validateStatus = 'validating';
+					break;
+				case 'resolved':
+					rtn.validateStatus = 'success';
+					break;
+				case 'rejected':
+					console.error(promise.error);
+					rtn.validateStatus = 'error';
+					rtn.help = promise.error.message;
+					break;
+			}
+		}
+		return rtn;
+	}
+
 	import SbNavbar from '../components/navbar.vue';
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	export default Vue.extend({
@@ -191,27 +247,11 @@
 				}
 				return rtn;
 			},
-			formFeedback() {
-				const rtn: any = {
-					hasFeedback: false,
-				};
-				if(this.changeUserInfo) {
-					rtn.hasFeedback = true;
-					switch(this.changeUserInfo.state) {
-						case 'pending':
-							rtn.validateStatus = 'validating';
-							break;
-						case 'resolved':
-							rtn.validateStatus = 'success';
-							break;
-						case 'rejected':
-							console.error(this.changeUserInfo.error);
-							rtn.validateStatus = 'error';
-							rtn.help = this.changeUserInfo.error.message;
-							break;
-					}
-				}
-				return rtn;
+			userFormFeedback(): any {
+				return makeFormFeedback(this.changeUserInfo);
+			},
+			jenkinsFormFeedback(): any {
+				return makeFormFeedback(this.changeJenkinsKey);
 			},
 		},
 		data() {
@@ -219,9 +259,18 @@
 			return {
 				nodesColumns,
 				version: unwrapPromise(app.service('api/config').get('version')),
+
 				usersConfig: unwrapPromise(app.service('api/config').get('users')),
 				currentUser: unwrapPromise(app.service('api/users').get('self')),
 				changeUserInfo: undefined as PromiseResult<any> | undefined,
+
+				jenkinsConfig: unwrapPromise(app.service('api/config').get('jenkins')),
+				jenkinsForm: {
+					username: localStorage.getItem('jenkins-username') ?? '',
+					key: localStorage.getItem('jenkins-key') ?? '',
+				},
+				changeJenkinsKey: undefined as PromiseResult<any> | undefined,
+
 				puttyBatFile: batFile(),
 				puttyPath: defaultPuttyPath,
 			};
@@ -245,6 +294,17 @@
 				if(this.currentUser.state == 'resolved') {
 					this.changeUserInfo = unwrapPromise(this.app.service('api/users').patch('self', this.currentUser.value));
 				}
+			},
+			updateJenkins() {
+				const { username, key } = this.jenkinsForm;
+				this.changeJenkinsKey = unwrapPromise(this.app.service('api/deviceLock').patch(null, {
+					action: 'test',
+					username,
+					key,
+				}).then(() => {
+					localStorage.setItem('jenkins-username', username);
+					localStorage.setItem('jenkins-key', key);
+				}));
 			},
 		},
 	});
@@ -289,7 +349,7 @@
 			margin-left: 10px;
 		}
 
-		input[type=text] {
+		/deep/ input[type=text], /deep/ input[type=password] {
 			width: 400px;
 		}
 	}

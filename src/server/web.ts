@@ -13,7 +13,7 @@ import Device from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
 import makeSetupZip from './setup-zip';
-import { parseLockXml } from './jenkins';
+import { parseLockXml, checkJenkinsApiKey } from './jenkins';
 import NativePort, { onPortData } from './native-port';
 
 // From DefinePlugin
@@ -49,6 +49,39 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 					return device;
 				}
 				throw new Error(`Device not found: ${id}`);
+			},
+		},
+
+		'api/deviceLock': {
+			async patch(id, data, params) {
+				if(!config.jenkinsUrl) {
+					throw new Error("Not connected to a Jenkins instance");
+				}
+				const { action, username, key } = data;
+				if(!action) {
+					throw new Error("Missing action");
+				} else if(!username) {
+					throw new Error("Missing username");
+				} else if(!key) {
+					throw new Error("Missing API key");
+				}
+				const device = devices.find(device => device.id === id);
+				if(!device && action != 'test') {
+					throw new Error(`Device not found: ${id}`);
+				}
+				switch(action) {
+					case 'test':
+						await checkJenkinsApiKey(config.jenkinsUrl, username, key);
+						break;
+					case 'reserve':
+						await device!.reserveInJenkins(config.jenkinsUrl, username, key);
+						break;
+					case 'unreserve':
+						await device!.unreserveInJenkins(config.jenkinsUrl, username, key);
+						break;
+					default:
+						throw new Error(`Unknown action: ${params!.query!.action}`);
+				}
 			},
 		},
 

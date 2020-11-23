@@ -6,7 +6,7 @@ import net from 'net';
 import { EventEmitter } from 'events';
 
 import Connections, { Connection } from './connections';
-import Build from './jenkins';
+import Build, { setLockReservation } from './jenkins';
 
 interface SSHInfo {
 	host: string;
@@ -255,6 +255,20 @@ export default class Device extends EventEmitter {
 	set jenkinsLockOwner(owner: string | undefined) {
 		this._jenkinsLockOwner = owner;
 		this.emit('updated');
+	}
+
+	reserveInJenkins(jenkinsBaseUrl: string, jenkinsUsername: string, jenkinsApiKey: string) {
+		if(!this.jenkinsLockName) {
+			throw new Error(`Device ${this.name} has no associated Jenkins lock`);
+		}
+		return setLockReservation(jenkinsBaseUrl, jenkinsUsername, jenkinsApiKey, this.jenkinsLockName, 'reserve');
+	}
+
+	unreserveInJenkins(jenkinsBaseUrl: string, jenkinsUsername: string, jenkinsApiKey: string) {
+		if(!this.jenkinsLockName) {
+			throw new Error(`Device ${this.name} has no associated Jenkins lock`);
+		}
+		return setLockReservation(jenkinsBaseUrl, jenkinsUsername, jenkinsApiKey, this.jenkinsLockName, 'unreserve');
 	}
 
 	toJSON() {

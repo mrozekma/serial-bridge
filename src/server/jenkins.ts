@@ -1,3 +1,4 @@
+import axios, { AxiosBasicCredentials } from 'axios';
 import xml2js from 'xml2js';
 
 import { EventEmitter } from 'events';
@@ -130,3 +131,47 @@ export async function parseLockXml(xml: string): Promise<{ [K: string ]: string 
 	}
 	return rtn;
 }
+
+async function getJenkinsCSRFToken(jenkinsBaseUrl: string, auth: AxiosBasicCredentials): Promise<{ [K: string]: string; }> {
+	const resp = await axios.get(`${jenkinsBaseUrl}/crumbIssuer/api/json`, {
+		auth,
+		validateStatus: status => status == 200 || status == 401,
+	}).catch(e => {
+		throw new Error(`Failed to communicate with Jenkins: ${e.message ?? e}`);
+	});
+	if(resp.status == 401) {
+		throw new Error("Failed to communicate with Jenkins: " + (resp.data.message ?? "likely invalid API key"));
+	}
+	const { crumb, crumbRequestField } = resp.data;
+	if(!crumb || !crumbRequestField) {
+		throw new Error("Unexpected response from Jenkins crumb generator");
+	}
+	return {
+		[crumbRequestField]: crumb,
+	};
+}
+
+export async function checkJenkinsApiKey(jenkinsBaseUrl: string, jenkinsUsername: string, jenkinsApiKey: string) {
+	await getJenkinsCSRFToken(jenkinsBaseUrl, {
+		username: jenkinsUsername,
+		password: jenkinsApiKey,
+	});
+}
+
+export async function setLockReservation(jenkinsBaseUrl: string, jenkinsUsername: string, jenkinsApiKey: string, lockName: string, action: 'reserve' | 'unreserve') {
+	const auth: AxiosBasicCredentials = {
+		username: jenkinsUsername,
+		password: jenkinsApiKey,
+	};
+	const token = await getJenkinsCSRFToken(jenkinsBaseUrl, auth);
+	await axios.post(`${jenkinsBaseUrl}/lockable-resources/${action}`, undefined, {
+		params: {
+			resource: lockName,
+		},
+		auth,
+		headers: token,
+	}).catch(e => {
+		throw new Error(`Failed to communicate with Jenkins lock manager: ${e.message ?? e}`);
+	});
+}
+console.log('1');

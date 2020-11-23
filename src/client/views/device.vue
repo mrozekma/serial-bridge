@@ -12,13 +12,13 @@
 			</a-sub-menu>
 			<a-sub-menu title="Manage">
 				<a-menu-item><a :href="`/devices/${id}/manage`">Ports</a></a-menu-item>
-				<template v-if="jenkinsUrl && device.state == 'resolved' && device.value.jenkinsLockName">
+				<template v-if="device.state == 'resolved' && device.value.jenkinsLockName">
 					<a-menu-item v-if="!device.value.jenkinsLockOwner" @click="acquireLock">Reserve in Jenkins</a-menu-item>
 					<a-menu-item v-else @click="releaseLock">Unreserve in Jenkins</a-menu-item>
 				</template>
 			</a-sub-menu>
 			<a-menu-item class="faux">
-				<sb-lock v-if="showLock" ref="lock" :jenkinsUrl="jenkinsUrl" :lockName="(device.state == 'resolved') ? device.value.jenkinsLockName : undefined" :owner="(device.state == 'resolved') ? device.value.jenkinsLockOwner : undefined" @close="locking = false"/>
+				<sb-lock v-if="showLock" ref="lock" :device-id="id" :owner="(device.state == 'resolved') ? device.value.jenkinsLockOwner : undefined" @close="locking = false"/>
 			</a-menu-item>
 			<a-menu-item class="faux" @click="finishedBuild = undefined">
 				<sb-jenkins v-if="device.state == 'resolved' && (device.value.build || finishedBuild)" :build="device.value.build || finishedBuild"/>
@@ -190,7 +190,6 @@
 				paused: false,
 				focusedNode: undefined as string | undefined,
 				finishedBuild: undefined as FinishedBuild | undefined,
-				jenkinsUrl: undefined as string | undefined,
 				locking: false, // True if currently trying to acquire a lock
 			};
 		},
@@ -243,8 +242,6 @@
 			const commandsService = this.app.service('api/commands');
 			commandsService.timeout = 30000;
 			this.commands = unwrapPromise(commandsService.find());
-
-			this.app.service('api/config').get('jenkins').then(config => this.jenkinsUrl = config.jenkinsUrl);
 		},
 		beforeDestroy() {
 			this.app.service('api/devices').removeAllListeners();

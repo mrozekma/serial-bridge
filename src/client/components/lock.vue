@@ -1,12 +1,7 @@
 <template>
 	<div :class="['lock', `state-${state}`]">
-		<template v-if="state == 'locking'">
+		<template v-if="state == 'locking' || state == 'releasing'">
 			<a-spin size="small"/> Talking to Jenkins&hellip;
-			<iframe :src="jenkinsReserveUrl" @load="iframeLoaded"/>
-		</template>
-		<template v-else-if="state == 'releasing'">
-			<a-spin size="small"/> Talking to Jenkins&hellip;
-			<iframe :src="jenkinsUnreserveUrl" @load="iframeLoaded"/>
 		</template>
 		<template v-else-if="state == 'waiting'">
 			<a-spin size="small"/> Waiting for reply&hellip;
@@ -23,21 +18,17 @@
 <script lang="ts">
 	import Vue, { PropType } from 'vue';
 
+	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { BuildJson } from '@/services';
 
 	const component = Vue.extend({
 		props: {
+			deviceId: String,
 			owner: String,
 			jenkinsUrl: String,
-			lockName: String,
 		},
 		computed: {
-			jenkinsReserveUrl(): string | undefined {
-				return this.jenkinsUrl && this.lockName ? `${this.jenkinsUrl}/lockable-resources/reserve?resource=${this.lockName}` : undefined;
-			},
-			jenkinsUnreserveUrl(): string | undefined {
-				return this.jenkinsUrl && this.lockName ? `${this.jenkinsUrl}/lockable-resources/unreserve?resource=${this.lockName}` : undefined;
-			},
+			...rootDataComputeds(),
 		},
 		data() {
 			// If the device view passes in a lock owner, we were created to display that info.
@@ -53,43 +44,67 @@
 				}
 			},
 		},
+		mounted() {
+			if(!this.owner) {
+				this.lock();
+			}
+		},
 		beforeDestroy() {
 			this.state = 'destroyed';
 		},
 		methods: {
-			iframeLoaded() {
-				// When the lock changes, the Jenkins server should be configured to send the new lock data to /api/lock, which will cause an update to be sent to clients, which will set the 'owner' prop here.
-				// If that doesn't happen in a few seconds, assume the lock wasn't changed.
-				const locking = (this.state == 'locking');
-				this.state = 'waiting';
-				setTimeout(() => {
-					if(this.state == 'waiting') {
-						this.state = 'failed';
-						this.$error({
-							title: `${locking ? 'Lock' : 'Unlock'} Failed`,
-							content: this.$createElement('div', {}, [
-								this.$createElement('div', `Failed to ${locking ? 'acquire' : 'release'} lock.`),
-								this.$createElement('div', "Are you logged in to Jenkins?"),
-							]),
-							onOk: () => {
-								if(this.owner) {
-									this.state = 'locked';
-								} else {
-									this.$emit('close');
-								}
-							}
-						});
-					} else {
-						// Tell the parent not to force this component open anymore.
-						// It will still stay open if there's a lock to display
-						this.$emit('close');
-					}
-				}, 3000);
+			async lock() {
+				this.state = 'locking';
+				await this.send('reserve');
 			},
-			release() {
+			async release() {
 				// Called by parent
 				this.state = 'releasing';
-			}
+				await this.send('unreserve');
+			},
+			async send(action: 'reserve' | 'unreserve') {
+				const username = localStorage.getItem('jenkins-username');
+				const key = localStorage.getItem('jenkins-key');
+				if(!username || !key) {
+					this.error("Jenkins connection not configured. Go to the homepage to setup your Jenkins API key.");
+					return;
+				}
+				try {
+					await this.app.service('api/deviceLock').patch(this.deviceId, {
+						action,
+						username,
+						key,
+					});
+					this.state = 'waiting';
+					// When the lock changes, the Jenkins server should be configured to send the new lock data to /api/lock, which will cause an update to be sent to clients, which will set the 'owner' prop here.
+					// Give that a few seconds to happen before reverting to previous state.
+					setTimeout(() => {
+						if(this.owner) {
+							this.state = 'locked';
+						} else {
+							this.$emit('close');
+						}
+					}, 3000);
+				} catch(e) {
+					console.error(e);
+					this.error(`${e}`);
+					throw e;
+				}
+			},
+			error(msg: string) {
+				this.$error({
+					title: `${(this.state == 'locking') ? 'Lock' : 'Unlock'} Failed`,
+					content: msg,
+					onOk: () => {
+						if(this.owner) {
+							this.state = 'locked';
+						} else {
+							this.$emit('close');
+						}
+					},
+				});
+				this.state = 'failed';
+			},
 		},
 	});
 	export type SbLockVue = InstanceType<typeof component>;
