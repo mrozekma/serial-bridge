@@ -23,7 +23,7 @@
 						<div :key="`devices-${catName}`" class="devices">
 							<a-card v-for="{ device, connections } in devices" :key="device.name" :title="device.name" hoverable @mousedown.left="loadDevice(device)" @mousedown.middle.prevent="loadDevice(device, true)">
 								<template v-slot:extra>
-									<a-tag v-for="{ name, color } in device.tags" :key="name" :color="color">{{ name }}</a-tag>
+									<a-tag v-for="{ name, description, color } in device.tags" :key="name" :title="description" :color="color">{{ name }}</a-tag>
 									<a-button size="small" @mousedown.left.stop="manageDevice(device)" @mousedown.middle.stop.prevent="manageDevice(device, true)">
 										<i class="fas fa-cogs"></i>
 									</a-button>

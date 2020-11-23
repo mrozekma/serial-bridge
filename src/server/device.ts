@@ -198,6 +198,7 @@ type NodeCtorArgs = typeof Node extends new (device: Device, ...args: infer T) =
 
 interface Tag {
 	name: string;
+	description?: string;
 	color?: string;
 }
 

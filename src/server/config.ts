@@ -33,6 +33,7 @@ const deviceJoi = joi.object({
 		joi.string(),
 		joi.object({
 			name: joi.string().required(),
+			description: joi.string(),
 			color: joi.string(),
 		}),
 	).default([]),
