@@ -70,12 +70,12 @@
 					return;
 				}
 				try {
+					this.state = 'waiting';
 					await this.app.service('api/deviceLock').patch(this.deviceId, {
 						action,
 						username,
 						key,
 					});
-					this.state = 'waiting';
 					// When the lock changes, the Jenkins server should be configured to send the new lock data to /api/lock, which will cause an update to be sent to clients, which will set the 'owner' prop here.
 					// Give that a few seconds to happen before reverting to previous state.
 					setTimeout(() => {

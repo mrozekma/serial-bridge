@@ -184,6 +184,8 @@
 				</template>
 				<template v-else-if="step === STEP_CONFIG">
 					<div class="description">
+						<a-table key="portsConfig" :columns="configColumns" :data-source="portsListening" :pagination="false" :locale="{ emptyText: 'No ports selected' }" row-key="path"/>
+						<br>
 						<p>You can paste the following <samp>nodes</samp> block into the target device's section in the Serial Bridge configuration. Note that there are other optional keys supported by the <samp>nodes</samp> block; see the example configuration file for more details.</p>
 						<a-alert v-if="duplicateNodeNames" type="warning" message="Duplicate nodes" description="The same node name has been assigned to multiple serial ports. The generated configuration reflects this assignment, but will need to be fixed." show-icon />
 						<pre><code ref="generatedConfig" class="language-json line-numbers">{{ generatedConfig }}</code></pre>
@@ -370,6 +372,19 @@
 		},
 	];
 
+	const configColumns: Omit<Column, keyof AntdComponent>[] = [
+		{
+			title: 'Node',
+			dataIndex: 'node.name',
+			sorter: (a: ListenPort, b: ListenPort) => a.node.name.localeCompare(b.node.name),
+		},
+		{
+			title: 'Port',
+			dataIndex: 'path',
+			sorter: (a: ListenPort, b: ListenPort) => a.path.localeCompare(b.path),
+		},
+	];
+
 	import SbNavbar from '../components/navbar.vue';
 	export default Vue.extend({
 		components: { SbNavbar },
@@ -393,7 +408,7 @@
 			const app = this.$root.$data.app as Application<Services>;
 			return {
 				step: 0,
-				findColumns, patternColumns, listenColumns,
+				findColumns, patternColumns, listenColumns, configColumns,
 				STEP_UNPLUG, STEP_PRESCAN, STEP_PLUG, STEP_CHOOSE, STEP_PATTERNS, STEP_OPEN, STEP_LISTEN, STEP_CONFIG,
 				filesize,
 

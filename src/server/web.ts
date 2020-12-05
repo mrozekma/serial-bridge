@@ -444,10 +444,10 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 
 	app.on('connection', connection => {
 		const conn: any = connection;
-		const pathname: string | undefined = conn.pathname;
+		const pathname: string | undefined = conn.pathname.replace(/\/$/, '');
 
 		// If a connection comes in from /, join the 'home' channel
-		if(pathname == '/') {
+		if(pathname == '') {
 			app.channel('home').join(connection);
 		}
 
