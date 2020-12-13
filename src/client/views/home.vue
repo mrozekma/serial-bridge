@@ -11,7 +11,17 @@
 		</sb-navbar>
 		<main>
 			<a-alert v-if="version.state === 'resolved' && version.value.notice" type="info" :message="version.value.notice" show-icon/>
-			<h1>Devices</h1>
+			<h1>
+				Devices
+				<div v-if="anyRemoteDevices" class="remote-toggle">
+					<a-tooltip placement="bottomRight" title="Show remote devices">
+						<a-switch v-model="showRemoteDevices">
+							<template #checkedChildren><i class="fal fa-link"></i></template>
+							<template #unCheckedChildren><i class="fal fa-link"></i></template>
+						</a-switch>
+					</a-tooltip>
+				</div>
+			</h1>
 			<a-alert v-if="devices.state == 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>
 			<div v-else>
 				<div v-if="devices.state == 'pending'" class="devices">
@@ -28,6 +38,15 @@
 										<i class="fas fa-cogs"></i>
 									</a-button>
 								</template>
+								<div v-if="device.remoteInfo" class="remote">
+									<a-tooltip placement="bottom">
+										<template #title>
+											This device is connected to remote server &quot;<b>{{ device.remoteInfo.name }}</b>&quot;. Opening it will redirect you to that server.
+										</template>
+										<i class="fas fa-link"></i>
+										<a @mousedown.left.stop="openRemote(device)" @mousedown.middle.stop.prevent="openRemote(device)">{{ device.remoteInfo.name }}</a>
+									</a-tooltip>
+								</div>
 								<div v-if="device.description" class="description">
 									{{ device.description }}
 								</div>
@@ -62,6 +81,7 @@
 							</a-card>
 						</div>
 					</template>
+					<a-alert v-for="{ title, description } in deviceErrors" :key="title" :message="title" :description="description" type="error" show-icon/>
 				</template>
 			</div>
 
@@ -215,6 +235,10 @@
 		return rtn;
 	}
 
+	function isErrorDevice(device: DeviceJson) {
+		return device.tags.some(tag => tag.name.toLowerCase() === 'error');
+	}
+
 	import SbNavbar from '../components/navbar.vue';
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	export default Vue.extend({
@@ -225,6 +249,13 @@
 				const rtn: Category[] = [];
 				if(this.devices.state === 'resolved') {
 					for(const device of this.devices.value) {
+						if(isErrorDevice(device)) {
+							// Errors are shown separately
+							continue;
+						}
+						if(device.remoteInfo && !this.showRemoteDevices) {
+							continue;
+						}
 						const annotatedDevice: AnnotatedDevice = {
 							device,
 							connections: [...getDeviceConnections(device)],
@@ -246,6 +277,22 @@
 					}
 				}
 				return rtn;
+			},
+			deviceErrors(): { title: string; description: string; }[] {
+				if(this.devices.state !== 'resolved') {
+					return [];
+				}
+				let devices = this.devices.value.filter(isErrorDevice);
+				if(!this.showRemoteDevices) {
+					devices = devices.filter(device => device.remoteInfo === undefined);
+				}
+				return devices.map(device => ({
+					title: device.name,
+					description: device.description ?? 'Unknown error',
+				 }));
+			},
+			anyRemoteDevices(): boolean {
+				return (this.devices.state === 'resolved' && this.devices.value.some(device => device.remoteInfo));
 			},
 			userFormFeedback(): any {
 				return makeFormFeedback(this.changeUserInfo);
@@ -273,22 +320,31 @@
 
 				puttyBatFile: batFile(),
 				puttyPath: defaultPuttyPath,
+
+				showRemoteDevices: (localStorage.getItem('home-show-remotes') !== 'false'),
 			};
 		},
+		watch: {
+			showRemoteDevices(val) {
+				localStorage.setItem('home-show-remotes', val ? 'true' : 'false');
+			},
+		},
 		methods: {
-			loadDevice(device: DeviceJson, newTab: boolean = false) {
+			followLink(url: string, newTab: boolean = false) {
 				if(newTab) {
-					window.open(`/devices/${device.id}`, '_blank');
+					window.open(url, '_blank');
 				} else {
-					window.location.assign(`/devices/${device.id}`);
+					window.location.assign(url);
 				}
 			},
+			loadDevice(device: DeviceJson, newTab: boolean = false) {
+				this.followLink(`${device.remoteInfo?.url ?? ''}/devices/${device.id}`, newTab);
+			},
 			manageDevice(device: DeviceJson, newTab: boolean = false) {
-				if(newTab) {
-					window.open(`/devices/${device.id}/manage`, '_blank');
-				} else {
-					window.location.assign(`/devices/${device.id}/manage`);
-				}
+				this.followLink(`${device.remoteInfo?.url ?? ''}/devices/${device.id}/manage`, newTab);
+			},
+			openRemote(device: DeviceJson) {
+				this.followLink(device.remoteInfo!.url, true);
 			},
 			updateUser() {
 				if(this.currentUser.state == 'resolved') {
@@ -315,8 +371,18 @@
 		margin-top: 3rem;
 	}
 
+	.remote-toggle {
+		float: right;
+		margin-right: 20px;
+		font-size: 14px;
+	}
+
 	.ant-alert + h1 {
 		margin-top: 0;
+	}
+
+	.ant-alert {
+		margin-bottom: 5px;
 	}
 
 	h4 {
@@ -328,6 +394,21 @@
 		flex-wrap: wrap;
 		margin: -15px 0;
 		margin-bottom: 1rem;
+
+		.remote {
+			float: right;
+			font-style: italic;
+			font-size: smaller;
+
+			i {
+				margin-right: 2px;
+			}
+
+			& + h4 {
+				// Don't add space above this header since the remote text is floating
+				margin-top: 0 !important;
+			}
+		}
 
 		.description {
 			margin-bottom: 5px;

@@ -87,6 +87,15 @@ config = {
 		}
 	],
 
+	// Optional. An array of remote Serial Bridge servers to read devices from.
+	remotes: [
+		{
+			name: 'Remote name',
+			url: 'http://example.com/',
+			deviceRewriter: device => device, // Optional. Function to make changes to incoming devices, e.g. to set a category or add a tag
+		}
+	],
+
 	// Optional. An array of commands the user can run from a menu on the device page.
 	commands: [
 		{

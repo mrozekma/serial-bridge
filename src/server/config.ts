@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import os from 'os';
 import pathlib from 'path';
 import vm from 'vm';
 
@@ -62,6 +63,12 @@ const portsFindJoi = joi.object({
 	patterns: {},
 });
 
+const remoteJoi = joi.object({
+	name: joi.string().required(),
+	url: joi.string().required(),
+	deviceRewriter: joi.func().default((device: any) => device),
+});
+
 // Automatic typing on this doesn't work because it's recursive. The 'Command' interface is defined manually below
 const commandJoi: any = joi.object({
 	label: joi.string().required(),
@@ -80,12 +87,14 @@ const webJoi = joi.object({
 });
 
 const configJoi = joi.object({
+	id: joi.string().default(os.hostname()),
 	// Deprecated; use web.port now
 	// webPort: joi.number().integer(),
 	web: webJoi,
 	users: usersJoi,
 	portsFind: portsFindJoi,
 	devices: joi.array().required().items(deviceJoi),
+	remotes: joi.array().items(remoteJoi).default([]),
 	commands: joi.array().items(commandJoi),
 	jenkinsUrl: joi.string(),
 	notice: joi.string(),

@@ -174,4 +174,3 @@ export async function setLockReservation(jenkinsBaseUrl: string, jenkinsUsername
 		throw new Error(`Failed to communicate with Jenkins lock manager: ${e.message ?? e}`);
 	});
 }
-console.log('1');

@@ -570,7 +570,6 @@
 							},
 						}));
 						portsService.on('data', this.onPortData);
-						console.log('setInterval');
 						this.listenTimer = setInterval(() => {
 							this.portsListening.forEach(port => portsService.patch(port.path, {}));
 						}, 30000);
@@ -634,7 +633,6 @@
 			},
 			clearListeners() {
 				if(this.listenTimer) {
-					console.log('clearInterval');
 					clearInterval(this.listenTimer);
 					this.listenTimer = undefined;
 				}

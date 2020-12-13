@@ -1,15 +1,15 @@
 import feathers from '@feathersjs/feathers';
 import express, { Application } from '@feathersjs/express';
-import socketio from '@feathersjs/socketio';
+import socketioServer from '@feathersjs/socketio';
 import '@feathersjs/transport-commons'; // Adds channel typing to express.Application
 import { Request, Response, NextFunction } from 'express-serve-static-core';
 import Url from 'url-parse';
 import chalk from 'chalk';
 import pathlib from 'path';
 
-import { ServerServices as Services, ServiceDefinitions } from '@/services';
+import { ServerServices as Services, ServiceDefinitions, DeviceJson } from '@/services';
 import { Config } from './config';
-import Device from './device';
+import Device, { Remote } from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
 import makeSetupZip from './setup-zip';
@@ -22,7 +22,7 @@ declare const BUILD_VERSION: string, BUILD_FILE_HASH: string, BUILD_DATE: string
 const devicesRoute = /^\/devices\/([^/]+)(?:\/manage)?\/?$/;
 const portsRoute = /^\/ports(?:\/find)?\/?$/;
 
-function makeServices(app: Application<Services>, config: Config, devices: Device[], commands: Command[]): ServiceDefinitions {
+function makeServices(app: Application<Services>, config: Config, devices: Device[], remotes: Remote[], commands: Command[]): ServiceDefinitions {
 	function getJenkinsDevice(name: any) {
 		const device = devices.find(device => device.jenkinsLockName == name);
 		if(device) {
@@ -41,7 +41,26 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 		'api/devices': {
 			events: [ 'updated', 'data', 'command', 'termLine', 'commandModal' ],
 			async find(params) {
-				return devices;
+				const remoteDeviceLists = await Promise.all(
+					remotes.map(remote => {
+						const service = remote.app.service('api/devices');
+						service.timeout = 2000; // Shorten so the parent API call won't timeout waiting on this one
+						return service.find()
+							.then<DeviceJson[]>(devices => devices.map(device => remote.rewriteDeviceJson(device)))
+							.catch<DeviceJson[]>(err => {
+								const device = new Device('error', `${remote.name}/error`, `Failed to contact remote '${remote.name}'`, `${err}`, undefined, [{ name: 'error', color: 'red' }], undefined);
+								return [ remote.rewriteDeviceJson(device.toJSON(), false) ];
+							});
+					})
+				);
+				const rtn: DeviceJson[] = [
+					...devices.map(device => device.toJSON()),
+					// Not available in Node 10
+					// ...remoteDeviceLists.flat(),
+					//@ts-ignore
+					...[].concat(...remoteDeviceLists),
+				];
+				return rtn as any;
 			},
 			async get(id, params) {
 				const device = devices.find(device => device.id === id);
@@ -276,6 +295,7 @@ function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 	for(const device of devices) {
 		const sendUpdate = () => devicesService.emit('updated', {
 			id: device.id,
+			remote: false,
 			device: device.toJSON(),
 		});
 		device.on('updated', sendUpdate);
@@ -299,7 +319,22 @@ function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 	}
 }
 
-export function makeWebserver(config: Config, devices: Device[], commands: Command[]): Application<Services> {
+function attachRemoteListeners(app: Application<Services>, serverId: string, remotes: Remote[]) {
+	const devicesService = app.service('api/devices');
+	for(const remote of remotes) {
+		remote.app.service('api/devices').on('updated', (data: any) => {
+			if(data.device) {
+				data.device = remote.rewriteDeviceJson(data.device);
+			}
+			devicesService.emit('updated', {
+				...data,
+				remote: true,
+			});
+		});
+	}
+}
+
+export function makeWebserver(config: Config, devices: Device[], remotes: Remote[], commands: Command[]): Application<Services> {
 	const app = express(feathers<Services>());
 
 	//TODO Figure out how to only allow CORS for REST endpoints
@@ -382,7 +417,7 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	app.use(express.urlencoded({ extended: true }));
 	app.configure(express.rest());
 
-	app.configure(socketio(io => {
+	app.configure(socketioServer(io => {
 		io.on('connection', socket => {
 			Object.assign(
 				//@ts-ignore socket.feathers does exist even though it's not in the interface
@@ -391,6 +426,7 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 					socketId: socket.id,
 					ip: socket.conn.remoteAddress,
 					pathname: socket.handshake.query.pathname,
+					remote: socket.handshake.query.remote,
 				}
 			);
 			makeRawListeners(socket, devices, commands);
@@ -415,7 +451,7 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	});
 
 	// Register services
-	const services = makeServices(app, config, devices, commands);
+	const services = makeServices(app, config, devices, remotes, commands);
 	for(const [ name, service ] of Object.entries(services)) {
 		app.use(name, service);
 	}
@@ -444,11 +480,16 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 
 	app.on('connection', connection => {
 		const conn: any = connection;
-		const pathname: string | undefined = conn.pathname.replace(/\/$/, '');
+		const pathname: string | undefined = conn.pathname?.replace(/\/$/, '');
+		const remote: string | undefined = conn.remote;
 
 		// If a connection comes in from /, join the 'home' channel
 		if(pathname == '') {
 			app.channel('home').join(connection);
+		}
+
+		if(remote) {
+			app.channel('remote').join(connection);
 		}
 
 		// If a connection comes in from /devices/:id, join that device's channel
@@ -477,16 +518,22 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 		}
 	});
 
-	// 'updated' device events go to the device's channel and the 'home' channel
 	app.service('api/devices').publish('updated', data => {
 		const id = data.id;
 		if(id === undefined) {
 			throw new Error('Device service event missing device ID');
 		}
-		return [
-			app.channel('home'),
-			app.channel(`device/${id}`),
-		];
+		function* iterChanNames() {
+			// All device updates go to the homepage
+			yield 'home';
+			if(!data.remote) {
+				// Local updates go to that device's channel
+				yield `device/${id}`;
+				// And are forwarded to remotes
+				yield 'remote';
+			}
+		}
+		return app.channel(Array.from(iterChanNames()));
 	});
 
 	// Other device events go to the device's channel
@@ -506,6 +553,7 @@ export function makeWebserver(config: Config, devices: Device[], commands: Comma
 	app.service('api/ports').publish(data => app.channel('ports-find'));
 
 	attachDeviceListeners(app, devices);
+	attachRemoteListeners(app, config.id, remotes);
 	if(config.portsFind.enabled) {
 		const portsService = app.service('api/ports');
 		onPortData((port, data) => portsService.emit('data', { path: port.path, data }));

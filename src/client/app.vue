@@ -119,4 +119,8 @@
 			}
 		}
 	}
+
+	.ant-avatar-sm i.anticon-user {
+		margin-right: 0;
+	}
 </style>

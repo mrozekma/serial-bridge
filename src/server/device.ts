@@ -1,10 +1,15 @@
 import RealSerialPort from 'serialport';
 
+import axios from 'axios';
 import chalk from 'chalk';
 import { Mutex } from 'async-mutex';
 import net from 'net';
 import { EventEmitter } from 'events';
+import feathers from '@feathersjs/feathers';
+import socketioClient from '@feathersjs/socketio-client';
+import ioClient from 'socket.io-client';
 
+import { ClientServices as Services } from '@/services';
 import Connections, { Connection } from './connections';
 import Build, { setLockReservation } from './jenkins';
 
@@ -202,6 +207,11 @@ interface Tag {
 	color?: string;
 }
 
+export interface RemoteInfo {
+	name: string;
+	url: string;
+}
+
 // NB: The Command class causes Device to emit many events not visible here
 export default class Device extends EventEmitter {
 	private _nodes: Node[] = [];
@@ -210,7 +220,7 @@ export default class Device extends EventEmitter {
 	private _build: Build | undefined = undefined;
 	private _jenkinsLockOwner: string | undefined = undefined;
 
-	constructor(public readonly id: string, public readonly name: string, public readonly description: string | undefined, public readonly category: string | undefined, public readonly tags: Tag[], public readonly jenkinsLockName?: string) {
+	constructor(public readonly id: string, public readonly globalId: string, public readonly name: string, public readonly description: string | undefined, public readonly category: string | undefined, public readonly tags: Tag[], public readonly jenkinsLockName?: string) {
 		super();
 		this.webConnections = new Connections();
 	}
@@ -273,9 +283,10 @@ export default class Device extends EventEmitter {
 	}
 
 	toJSON() {
-		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner } = this;
+		const { id, globalId, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner } = this;
 		return {
 			id,
+			globalId,
 			name,
 			description,
 			category,
@@ -285,6 +296,28 @@ export default class Device extends EventEmitter {
 			build: build ? build.toJSON() : undefined,
 			jenkinsLockName,
 			jenkinsLockOwner,
+			remoteInfo: undefined as RemoteInfo | undefined,
+		};
+	}
+}
+
+type DeviceJson = ReturnType<Device['toJSON']>;
+export class Remote {
+	public readonly app: feathers.Application<Services>;
+
+	constructor(public readonly name: string, public readonly url: string, public readonly deviceRewriter: (device: DeviceJson) => DeviceJson, localServerId: string) {
+		this.app = feathers<Services>();
+		const remoteSocket = ioClient(`${this.url}?remote=${localServerId}`);
+		this.app.configure(socketioClient(remoteSocket));
+	}
+
+	public rewriteDeviceJson(device: DeviceJson, applyConfigRewrites: boolean = true): DeviceJson {
+		return {
+			...(applyConfigRewrites ? this.deviceRewriter(device) : device),
+			remoteInfo: {
+				name: this.name,
+				url: this.url,
+			},
 		};
 	}
 }

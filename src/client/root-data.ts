@@ -130,7 +130,7 @@ export function rootDataUpdater(this: Vue) {
 
 	rootData.app.service('api/devices').on('updated', (data: { device: DeviceJson }) => {
 		if(rootData.devices.state == 'resolved') {
-			const idx = rootData.devices.value.findIndex(device => device.id == data.device.id);
+			const idx = rootData.devices.value.findIndex(device => device.globalId == data.device.globalId);
 			if(idx >= 0) {
 				this.$set(rootData.devices.value, idx, data.device);
 			}
