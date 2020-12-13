@@ -35,6 +35,7 @@ const deviceJoi = joi.object({
 			name: joi.string().required(),
 			description: joi.string(),
 			color: joi.string(),
+			showOnDevicePage: joi.boolean(),
 		}),
 	).default([]),
 	nodes: joi.array().required().items(nodeJoi),

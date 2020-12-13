@@ -1,6 +1,12 @@
 <template>
 	<a-menu mode="horizontal" theme="dark" :selectable="false" openTransitionName="none" openAnimation="none">
-		<a-menu-item class="brand"><a href="/">{{ brand }}</a></a-menu-item>
+		<a-menu-item class="brand">
+			<a href="/">
+				<slot name="brand">
+					{{ brand }}
+				</slot>
+			</a>
+		</a-menu-item>
 		<a-sub-menu>
 			<template v-slot:title>
 				<a href="/">Devices</a>
@@ -104,10 +110,8 @@
 	}
 
 	.ant-menu-item.brand {
-		// pointer-events: none;
 		font-size: 16pt;
 		padding: 0 10px;
-		// border-bottom: 0;
 		a {
 			color: #fff;
 		}

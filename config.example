@@ -48,10 +48,11 @@ config = {
 			name: 'Device name',
 			description: 'A longer description of the device.', // Optional.
 			category: 'Shiny devices', // Optional. Devices in the same category are grouped on the home page.
-			tags: [ // Optional. No effect, just displayed on the home page.
+			tags: [ // Optional. No effect, just displayed on the home page and optionally the device page.
 				'tag 1',
 				'tag 2',
-				{ name: 'tag 3', color: 'green' },
+				{ name: 'tag 3', description: "Tooltip description", color: 'green' },
+				{ name: 'tag 4', showOnDevicePage: false },
 			],
 			// Individual ports on the device.
 			nodes: [

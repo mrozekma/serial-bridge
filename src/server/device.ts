@@ -205,6 +205,7 @@ interface Tag {
 	name: string;
 	description?: string;
 	color?: string;
+	showOnDevicePage?: boolean;
 }
 
 export interface RemoteInfo {

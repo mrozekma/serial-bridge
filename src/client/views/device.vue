@@ -1,6 +1,12 @@
 <template>
 	<div>
-		<sb-navbar :brand="deviceName">
+		<sb-navbar>
+			<template #brand>
+				{{ deviceName }}
+				<template v-for="{ name, description, color, showOnDevicePage } in (device.state == 'resolved' ? device.value.tags : [])">
+					<a-tag v-if="showOnDevicePage !== false" :key="name" :title="description" :color="color">{{ name }}</a-tag>
+				</template>
+			</template>
 			<a-sub-menu v-if="commands && (commands.state != 'resolved' || commands.value.length > 0)" title="Commands">
 				<a-menu-item v-if="commands.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
 				<a-menu-item v-else-if="commands.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
@@ -376,7 +382,17 @@
 	}
 </style>
 
-<style lang="less">
+<style lang="less" scoped>
+	.ant-menu {
+		/deep/ .brand .ant-tag {
+			position: relative;
+			top: -2px;
+			&:first-child {
+				margin-left: 5px;
+			}
+		}
+	}
+
 	.ant-tooltip {
 		.connection.name {
 			font-weight: bold;
