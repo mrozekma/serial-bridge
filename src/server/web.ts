@@ -48,7 +48,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 						return service.find()
 							.then<DeviceJson[]>(devices => devices.map(device => remote.rewriteDeviceJson(device)))
 							.catch<DeviceJson[]>(err => {
-								const device = new Device('error', `${remote.name}/error`, `Failed to contact remote '${remote.name}'`, `${err}`, undefined, [{ name: 'error', color: 'red' }], undefined);
+								const device = new Device('error', `Failed to contact remote '${remote.name}'`, `${err}`, undefined, [{ name: 'error', color: 'red' }], undefined);
 								return [ remote.rewriteDeviceJson(device.toJSON(), false) ];
 							});
 					})
@@ -319,7 +319,7 @@ function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
 	}
 }
 
-function attachRemoteListeners(app: Application<Services>, serverId: string, remotes: Remote[]) {
+function attachRemoteListeners(app: Application<Services>, remotes: Remote[]) {
 	const devicesService = app.service('api/devices');
 	for(const remote of remotes) {
 		remote.app.service('api/devices').on('updated', (data: any) => {
@@ -488,7 +488,7 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 			app.channel('home').join(connection);
 		}
 
-		if(remote) {
+		if(remote !== undefined) {
 			app.channel('remote').join(connection);
 		}
 
@@ -553,7 +553,7 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 	app.service('api/ports').publish(data => app.channel('ports-find'));
 
 	attachDeviceListeners(app, devices);
-	attachRemoteListeners(app, config.id, remotes);
+	attachRemoteListeners(app, remotes);
 	if(config.portsFind.enabled) {
 		const portsService = app.service('api/ports');
 		onPortData((port, data) => portsService.emit('data', { path: port.path, data }));

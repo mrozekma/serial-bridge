@@ -220,7 +220,7 @@ export default class Device extends EventEmitter {
 	private _build: Build | undefined = undefined;
 	private _jenkinsLockOwner: string | undefined = undefined;
 
-	constructor(public readonly id: string, public readonly globalId: string, public readonly name: string, public readonly description: string | undefined, public readonly category: string | undefined, public readonly tags: Tag[], public readonly jenkinsLockName?: string) {
+	constructor(public readonly id: string, public readonly name: string, public readonly description: string | undefined, public readonly category: string | undefined, public readonly tags: Tag[], public readonly jenkinsLockName?: string) {
 		super();
 		this.webConnections = new Connections();
 	}
@@ -283,10 +283,9 @@ export default class Device extends EventEmitter {
 	}
 
 	toJSON() {
-		const { id, globalId, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner } = this;
+		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner } = this;
 		return {
 			id,
-			globalId,
 			name,
 			description,
 			category,
@@ -305,9 +304,9 @@ type DeviceJson = ReturnType<Device['toJSON']>;
 export class Remote {
 	public readonly app: feathers.Application<Services>;
 
-	constructor(public readonly name: string, public readonly url: string, public readonly deviceRewriter: (device: DeviceJson) => DeviceJson, localServerId: string) {
+	constructor(public readonly name: string, public readonly url: string, public readonly deviceRewriter: (device: DeviceJson) => DeviceJson) {
 		this.app = feathers<Services>();
-		const remoteSocket = ioClient(`${this.url}?remote=${localServerId}`);
+		const remoteSocket = ioClient(`${this.url}?remote`);
 		this.app.configure(socketioClient(remoteSocket));
 	}
 

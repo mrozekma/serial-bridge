@@ -1,5 +1,4 @@
 import { promises as fs } from 'fs';
-import os from 'os';
 import pathlib from 'path';
 import vm from 'vm';
 
@@ -87,7 +86,6 @@ const webJoi = joi.object({
 });
 
 const configJoi = joi.object({
-	id: joi.string().default(os.hostname()),
 	// Deprecated; use web.port now
 	// webPort: joi.number().integer(),
 	web: webJoi,

@@ -26,11 +26,10 @@ function spinner<T>(label: string, fn: () => Promise<T>): Promise<T> {
 	return promise;
 }
 
-function makeDevice(deviceConfig: Config['devices'][number], serverId: string, idGen: IdGenerator): Device {
+function makeDevice(deviceConfig: Config['devices'][number], idGen: IdGenerator): Device {
 	const id = idGen.gen(slugify(deviceConfig.name, { lower: true }));
-	const globalId = `${serverId}/${id}`;
 	const tags = (deviceConfig.tags as Exclude<typeof deviceConfig.tags, never[]>).map(tag => (typeof tag === 'string') ? { name: tag } : tag);
-	const device = new Device(id, globalId, deviceConfig.name, deviceConfig.description, deviceConfig.category, tags, deviceConfig.jenkinsLock);
+	const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, tags, deviceConfig.jenkinsLock);
 	for(const nodeConfig of deviceConfig.nodes) {
 		const node = device.addNode(nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh);
 		node.serialPort.open();
@@ -39,8 +38,8 @@ function makeDevice(deviceConfig: Config['devices'][number], serverId: string, i
 	return device;
 }
 
-function makeRemote(remoteConfig: Config['remotes'][number], localServerId: string): Remote {
-	return new Remote(remoteConfig.name, remoteConfig.url, remoteConfig.deviceRewriter as any, localServerId);
+function makeRemote(remoteConfig: Config['remotes'][number]): Remote {
+	return new Remote(remoteConfig.name, remoteConfig.url, remoteConfig.deviceRewriter as any);
 }
 
 // commandConfig here is type 'any' because the Joi schema for config.commands doesn't have proper inference because it's recursive, so Config['commands'] has type 'never[]'
@@ -85,11 +84,11 @@ function makeHttpxServer(httpServer: http.Server, httpsServer: https.Server) {
 	const devices: Device[] = await spinner("Load device information", async () => {
 		//TODO Check for duplicate device/node names
 		const idGen = new IdGenerator();
-		return config.devices.map(deviceConfig => makeDevice(deviceConfig, config.id, idGen));
+		return config.devices.map(deviceConfig => makeDevice(deviceConfig, idGen));
 	});
 	if(config.web !== undefined) {
 		const remotes: Remote[] = (config.remotes.length == 0) ? [] : await spinner("Load remotes", async () => {
-			return (config.remotes as Exclude<typeof config.remotes, never[]>).map(c => makeRemote(c, config.id));
+			return (config.remotes as Exclude<typeof config.remotes, never[]>).map(c => makeRemote(c));
 		});
 		const commands: Command[] = await spinner("Load commands", async () => {
 			const idGen = new IdGenerator('command');
