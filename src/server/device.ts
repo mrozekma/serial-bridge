@@ -1,6 +1,5 @@
 import RealSerialPort from 'serialport';
 
-import axios from 'axios';
 import chalk from 'chalk';
 import { Mutex } from 'async-mutex';
 import net from 'net';
@@ -10,6 +9,7 @@ import socketioClient from '@feathersjs/socketio-client';
 import ioClient from 'socket.io-client';
 
 import { ClientServices as Services } from '@/services';
+import { isBlacklisted } from './blacklist';
 import Connections, { Connection } from './connections';
 import Build, { setLockReservation } from './jenkins';
 
@@ -186,7 +186,13 @@ class Node extends EventEmitter {
 	}
 
 	private onTcpConnect(socket: net.Socket) {
-		let address = socket.remoteAddress!;
+		const address = socket.remoteAddress!;
+		if(isBlacklisted(address)) {
+			this.log(`${address} rejected -- blacklisted`);
+			socket.write("Blacklisted\r\n");
+			socket.destroy();
+			return;
+		}
 		this.log(`${address} connected`);
 		this.tcpConnections.addConnection(address);
 		socket.on('close', () => {

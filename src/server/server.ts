@@ -6,6 +6,7 @@ import ora from 'ora';
 import slugify from 'slugify';
 
 import banner from 'raw-loader!./banner.txt';
+import { blacklist } from './blacklist';
 import { loadConfig, Config } from './config';
 import Device, { Remote, RemoteInfo } from './device';
 import { configureUserFactory } from './connections';
@@ -81,6 +82,7 @@ function makeHttpxServer(httpServer: http.Server, httpsServer: https.Server) {
 	console.log(`${banner}\n${BUILD_VERSION} (${BUILD_FILE_HASH})\nBuilt ${BUILD_DATE}\n`);
 	const config = await spinner("Load configuration", loadConfig);
 	configureUserFactory(config.users ? config.users.identify as any : undefined);
+	config.blacklist.forEach(blacklist);
 	const devices: Device[] = await spinner("Load device information", async () => {
 		//TODO Check for duplicate device/node names
 		const idGen = new IdGenerator();

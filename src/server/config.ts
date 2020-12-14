@@ -97,6 +97,7 @@ const configJoi = joi.object({
 	commands: joi.array().items(commandJoi),
 	jenkinsUrl: joi.string(),
 	notice: joi.string(),
+	blacklist: joi.array().items(joi.string()).default([]),
 }).required();
 
 // Serial Bridge 1's config file had keys with spaces in it, so for backwards compatibility, convert 'foo bar' to 'fooBar'

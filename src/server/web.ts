@@ -8,6 +8,7 @@ import chalk from 'chalk';
 import pathlib from 'path';
 
 import { ServerServices as Services, ServiceDefinitions, DeviceJson } from '@/services';
+import { isBlacklisted, getBlacklist } from './blacklist';
 import { Config } from './config';
 import Device, { Remote } from './device';
 import { getUser, setUserInfo } from './connections';
@@ -129,6 +130,8 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 					return {
 						...config.portsFind,
 					};
+				case 'blacklist':
+					return getBlacklist();
 				}
 				throw new Error(`Config not found: ${id}`);
 			},
@@ -337,6 +340,14 @@ function attachRemoteListeners(app: Application<Services>, remotes: Remote[]) {
 export function makeWebserver(config: Config, devices: Device[], remotes: Remote[], commands: Command[]): Application<Services> {
 	const app = express(feathers<Services>());
 
+	app.use((req, res, next) => {
+		if(isBlacklisted(req.ip)) {
+			res.status(403).send('Blacklisted');
+		} else {
+			next();
+		}
+	});
+
 	//TODO Figure out how to only allow CORS for REST endpoints
 	// app.use(cors());
 
@@ -419,6 +430,10 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 
 	app.configure(socketioServer(io => {
 		io.on('connection', socket => {
+			if(isBlacklisted(socket.conn.remoteAddress)) {
+				socket.disconnect();
+				return;
+			}
 			Object.assign(
 				//@ts-ignore socket.feathers does exist even though it's not in the interface
 				socket.feathers,

@@ -124,6 +124,13 @@ config = {
 
 	// Optional. The path to the Jenkins installation that manages device locks.
 	jenkinsUrl: 'http://...',
+
+	// Optional. List of hostnames/IP addresses to block from connecting.
+	// Serial Bridge will attempt to convert hostnames to IPs and the reverse on startup, but after that the blacklist is fixed. Best practice is to list exactly the string you see in the console output when the target host tries to connect.
+	blacklist: [
+		'google.com',
+		'8.8.8.8',
+	],
 };
 
 // That's the end of the configuration block; what follows is some extra information/examples:
