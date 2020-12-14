@@ -42,11 +42,15 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 		'api/devices': {
 			events: [ 'updated', 'data', 'command', 'termLine', 'commandModal' ],
 			async find(params) {
+				// If requested, only return local devices. Mainly for requests from remotes.
+				if(params?.query?.local !== undefined) {
+					return devices;
+				}
 				const remoteDeviceLists = await Promise.all(
 					remotes.map(remote => {
 						const service = remote.app.service('api/devices');
 						service.timeout = 2000; // Shorten so the parent API call won't timeout waiting on this one
-						return service.find()
+						return service.find({ query: { local: true } })
 							.then<DeviceJson[]>(devices => devices.map(device => remote.rewriteDeviceJson(device)))
 							.catch<DeviceJson[]>(err => {
 								const device = new Device('error', `Failed to contact remote '${remote.name}'`, `${err}`, undefined, [{ name: 'error', color: 'red' }], undefined);
