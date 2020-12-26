@@ -19,13 +19,15 @@ interface SSHInfo {
 	password: string;
 }
 
+type PortState = {
+	open: true;
+} | {
+	open: false;
+	reason: string;
+};
+
 abstract class Port extends EventEmitter {
-	private _state: {
-		open: true;
-	} | {
-		open: false;
-		reason: string;
-	} = {
+	private _state: PortState = {
 		open: false,
 		reason: 'Never opened',
 	};
@@ -68,6 +70,7 @@ abstract class Port extends EventEmitter {
 
 	abstract openImpl(): void;
 	abstract closeImpl(): void;
+	abstract write(data: Buffer): void;
 }
 
 class SerialPort extends Port {
@@ -131,15 +134,45 @@ class SerialPort extends Port {
 
 class TcpPort extends Port {
 	private readonly tcpServer: net.Server;
+	private _port: number;
+	private sockets = new Set<net.Socket>();
 
-	constructor(private port: number, onConnect: (socket: net.Socket) => void) {
+	constructor(port: number, onConnect: (socket: net.Socket) => void) {
 		super();
-		this.tcpServer = net.createServer(onConnect);
+		this._port = port;
+		this.tcpServer = net.createServer(socket => {
+			this.sockets.add(socket);
+			socket.on('close', () => this.sockets.delete(socket));
+			onConnect(socket);
+		});
 		this.tcpServer.on('error', console.error);
+		this.tcpServer.on('listening', () => {
+			const addr = this.tcpServer.address() as net.AddressInfo;
+			// In case the original portNum was 0
+			this._port = addr.port;
+		});
 	}
 
-	openImpl() { this.tcpServer.listen(this.port); }
-	closeImpl() { this.tcpServer.close(); }
+	get port() {
+		return this._port;
+	}
+
+	openImpl() {
+		this.tcpServer.once('listening', () => this.state = {
+			open: true,
+		});
+		this.tcpServer.listen(this.port);
+	}
+
+	closeImpl() {
+		this.tcpServer.close();
+		this.sockets.forEach(socket => socket.end());
+	}
+
+	write(data: Buffer) {
+		// Should never be sending here; sending to a remote TCP connection happens through its socket
+		throw new Error("Cannot write to TCP server port");
+	}
 }
 
 interface OnOff {
@@ -152,32 +185,38 @@ function socketListenTo(socket: net.Socket, target: OnOff, event: string, listen
 	socket.on('close', () => target.off(event, listener));
 }
 
-class Node extends EventEmitter {
-	public readonly serialPort: SerialPort;
+export abstract class Node extends EventEmitter {
 	public readonly tcpPort: TcpPort;
 	public readonly tcpConnections: Connections;
 
-	constructor(public readonly device: Device, public readonly name: string, public readonly path: string, public readonly baudRate: number,
-		public readonly byteSize: 5 | 6 | 7 | 8, public readonly parity: 'even' | 'odd' | 'none', public readonly stopBits: 1 | 2,
-		public readonly tcpPortNumber: number, public readonly webLinks: string[], public readonly ssh: SSHInfo | undefined)
+	constructor(public readonly device: Device, public readonly name: string,
+		tcpPortNumber: number, public readonly webLinks: string[], public readonly ssh: SSHInfo | undefined)
 	{
 		super();
-		this.serialPort = new SerialPort(path, baudRate, byteSize, parity, stopBits);
 		this.tcpPort = new TcpPort(tcpPortNumber, socket => this.onTcpConnect(socket));
 		this.tcpConnections = new Connections();
-
-		this.serialPort.on('stateChanged', () => this.emit('serialStateChanged'));
-		this.serialPort.on('data', (data: Buffer) => this.emit('serialData', data));
 		this.tcpConnections.on('connect', (connection: Connection) => this.emit('tcpConnect', connection));
 		this.tcpConnections.on('disconnect', (connection: Connection) => this.emit('tcpDisconnect', connection));
+		// Wait until the child class constructor has initialized this.port before attaching listeners
+		process.nextTick(() => {
+			this.port.on('stateChanged', () => this.emit('serialStateChanged'));
+			this.port.on('data', (data: Buffer) => this.emit('serialData', data));
+		});
+	}
+
+	abstract get port(): Port;
+
+	get tcpPortNumber() {
+		return this.tcpPort.port;
 	}
 
 	toJSON() {
-		const { name, path, baudRate, byteSize, parity, stopBits, tcpPortNumber: tcpPort, tcpConnections, webLinks, ssh } = this;
+		const { name, tcpPortNumber: tcpPort, tcpConnections, webLinks, ssh } = this;
 		return {
-			name, path, baudRate, byteSize, parity, stopBits, tcpPort, webLinks, ssh,
+			name, tcpPort, webLinks, ssh,
+			type: this.constructor.name,
 			tcpConnections: tcpConnections.toJSON(),
-			state: this.serialPort.state,
+			state: this.port.state,
 		};
 	}
 
@@ -199,13 +238,146 @@ class Node extends EventEmitter {
 			this.log(`${address} disconnected`);
 			this.tcpConnections.removeConnection(address);
 		}).on('error', console.error);
+		this.onTcpConnectImpl(socket);
+	}
+
+	protected abstract onTcpConnectImpl(socket: net.Socket): void;
+
+	isOpen() {
+		return this.port.isOpen;
+	}
+
+	open() {
+		this.port.open();
+	}
+
+	close(reason: string) {
+		this.port.close(reason);
+	}
+
+	write(buf: Buffer) {
+		this.port.write(buf);
+	}
+}
+
+export class SerialNode extends Node {
+	public readonly serialPort: SerialPort;
+
+	constructor(device: Device, name: string, public readonly path: string, public readonly baudRate: number,
+		public readonly byteSize: 5 | 6 | 7 | 8, public readonly parity: 'even' | 'odd' | 'none', public readonly stopBits: 1 | 2,
+		tcpPortNumber: number, webLinks: string[], ssh: SSHInfo | undefined)
+	{
+		super(device, name, tcpPortNumber, webLinks, ssh);
+		this.serialPort = new SerialPort(path, baudRate, byteSize, parity, stopBits);
+	}
+
+	get port() {
+		return this.serialPort;
+	}
+
+	toJSON() {
+		const { path, baudRate, byteSize, parity, stopBits } = this;
+		return {
+			...super.toJSON(),
+			type: 'serial',
+			path, baudRate, byteSize, parity, stopBits,
+		};
+	}
+
+	onTcpConnectImpl(socket: net.Socket) {
 		// Bi-directional pipe between the socket and the node's serial port
 		socket.on('data', buf => this.serialPort.write(buf));
 		socketListenTo(socket, this.serialPort, 'data', (buf: Buffer) => socket.write(buf));
 	}
 }
 
-type NodeCtorArgs = typeof Node extends new (device: Device, ...args: infer T) => Node ? T : never;
+class RemoteIOPort extends Port {
+	private socket: net.Socket | undefined;
+	private _portNum: number = 0;
+
+	constructor() {
+		super();
+		const server = new net.Server(socket => {
+			if(this.isOpen) {
+				this.close();
+			}
+			this.socket = socket;
+			this.state = {
+				open: true,
+			};
+			socket.on('close', () => {
+				if(this.socket === socket) {
+					this.socket = undefined;
+					this.state = {
+						open: false,
+						reason: `Remote process disconnected. Waiting for new connection on port ${this.portNum}`,
+					};
+				}
+			});
+			socket.on('data', data => this.emit('data', data));
+		});
+		server.on('listening', () => {
+			const addr = server.address() as net.AddressInfo;
+			this._portNum = addr.port;
+			this.state = {
+				open: false,
+				reason: `Waiting for connection on port ${this.portNum}`,
+			};
+		});
+		server.listen();
+	}
+
+	get portNum() {
+		return this._portNum;
+	}
+
+	get remoteAddress() {
+		return this.socket?.remoteAddress;
+	}
+
+	openImpl() {
+		throw new Error("Open this node by connecting to its port");
+	}
+
+	closeImpl() {
+		if(this.socket === undefined) {
+			throw new Error("Not open");
+		}
+		this.socket.destroy();
+		this.socket = undefined;
+	}
+
+	write(data: Buffer) {
+		if(this.socket === undefined) {
+			throw new Error("Not open");
+		}
+		this.socket.write(data);
+	}
+}
+
+export class RemoteIONode extends Node {
+	public readonly port: RemoteIOPort;
+
+	constructor(device: Device, name: string, tcpPortNumber: number, webLinks: string[]) {
+		super(device, name, tcpPortNumber, webLinks, undefined);
+		this.port = new RemoteIOPort();
+	}
+
+	toJSON() {
+		const { remoteAddress, portNum: port } = this.port;
+		return {
+			...super.toJSON(),
+			type: 'remote_io',
+			remoteAddress, port,
+		};
+	}
+
+	onTcpConnectImpl(socket: net.Socket) {
+		// Bi-directional pipe between the sockets
+		socket.on('data', buf => this.port.isOpen && this.port.write(buf));
+		socketListenTo(socket, this.port, 'data', (buf: Buffer) => socket.write(buf));
+	}
+}
 
 interface Tag {
 	name: string;
@@ -221,7 +393,8 @@ export interface RemoteInfo {
 
 // NB: The Command class causes Device to emit many events not visible here
 export default class Device extends EventEmitter {
-	private _nodes: Node[] = [];
+	protected _nodes: Node[] = [];
+	private _alive = true;
 	public readonly webConnections: Connections;
 	private readonly _commandMutex = new Mutex();
 	private _build: Build | undefined = undefined;
@@ -236,10 +409,11 @@ export default class Device extends EventEmitter {
 		return this._nodes;
 	}
 
-	addNode(...args: NodeCtorArgs): Node {
-		const node = new Node(this, ...args);
+	addNode(node: Node) {
+		if(node.device !== this) {
+			throw new Error("Node belongs to wrong device");
+		}
 		this._nodes.push(node);
-		return node;
 	}
 
 	get commandMutex(): Mutex {
@@ -289,8 +463,25 @@ export default class Device extends EventEmitter {
 		return setLockReservation(jenkinsBaseUrl, jenkinsUsername, jenkinsApiKey, this.jenkinsLockName, 'unreserve');
 	}
 
+	get alive() {
+		return this._alive;
+	}
+
+	protected kill() {
+		this._alive = false;
+		for(const node of this.nodes) {
+			if(node.isOpen()) {
+				node.port.close();
+			}
+			if(node.tcpPort.isOpen) {
+				node.tcpPort.close();
+			}
+		}
+		this.emit('updated');
+	}
+
 	toJSON() {
-		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner } = this;
+		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner, alive } = this;
 		return {
 			id,
 			name,
@@ -302,8 +493,37 @@ export default class Device extends EventEmitter {
 			build: build ? build.toJSON() : undefined,
 			jenkinsLockName,
 			jenkinsLockOwner,
+			alive,
 			remoteInfo: undefined as RemoteInfo | undefined,
 		};
+	}
+}
+
+// Dies when all nodes are closed
+export class EphemeralDevice extends Device {
+	private gracePeriod = true;
+
+	constructor(...args: (typeof Device extends new (...args: infer T) => Device ? T : never)) {
+		super(...args);
+		setTimeout(() => {
+			this.gracePeriod = false;
+			this.checkDead();
+		}, 10000);
+	}
+
+	addNode(node: Node) {
+		super.addNode(node);
+		node.on('serialStateChanged', () => {
+			if(!node.isOpen()) {
+				this.checkDead();
+			}
+		});
+	}
+
+	checkDead() {
+		if(!this.gracePeriod && !this.nodes.some(node => node.isOpen())) {
+			this.kill();
+		}
 	}
 }
 

@@ -6,11 +6,12 @@ import { Request, Response, NextFunction } from 'express-serve-static-core';
 import Url from 'url-parse';
 import chalk from 'chalk';
 import pathlib from 'path';
+import slugify from 'slugify';
 
 import { ServerServices as Services, ServiceDefinitions, DeviceJson } from '@/services';
 import { isBlacklisted, getBlacklist } from './blacklist';
 import { Config } from './config';
-import Device, { Remote } from './device';
+import Device, { Node, Remote, EphemeralDevice, RemoteIONode } from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
 import makeSetupZip from './setup-zip';
@@ -73,6 +74,45 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 					return device;
 				}
 				throw new Error(`Device not found: ${id}`);
+			},
+			async create(data, params) {
+				if(!data.name || typeof data.name !== 'string') {
+					throw new Error("Missing name");
+				}
+				if(!data.nodes || !Array.isArray(data.nodes) || data.nodes.length == 0) {
+					throw new Error("Missing nodes");
+				}
+				if(data.nodes.some(node => typeof node.name !== 'string')) {
+					throw new Error("Missing node name");
+				}
+				if(data.nodes.some(node => node.tcpPortNumber !== undefined && typeof node.tcpPortNumber !== 'number')) {
+					throw new Error("Invalid TCP port number");
+				}
+				let id = slugify(data.name, { lower: true });
+				for(let i = 2; devices.find(device => device.id === id); i++) {
+					id = slugify(data.name + i, { lower: true });
+				}
+				//TODO Probably need more validation so the user doesn't pass something insane
+				const device = new EphemeralDevice(id, data.name, data.description, data.category, data.tags ?? []);
+				for(const { name, tcpPortNumber } of data.nodes as Partial<Node>[]) {
+					const node = new RemoteIONode(device, name!, tcpPortNumber ?? 0, [ 'raw' ]);
+					device.addNode(node);
+					node.tcpPort.open();
+				}
+				attachDeviceListeners(app, device);
+				device.on('updated', () => {
+					if(!device.alive) {
+						const idx = devices.findIndex(d => d === device);
+						if(idx >= 0) {
+							devices.splice(idx, 1);
+						}
+					}
+				});
+				devices.push(device);
+				// There are some ports that need to be open before we serialize the device's JSON, but there's no good way to wait on them.
+				// Instead we just wait a tick.
+				await new Promise(resolve => process.nextTick(resolve));
+				return device;
 			},
 		},
 
@@ -275,7 +315,7 @@ function makeRawListeners(socket: SocketIO.Socket, devices: Device[], commands: 
 		if(device) {
 			const node = device.nodes.find(node => node.name == nodeName);
 			if(node) {
-				node.serialPort.write(Buffer.from(data, 'utf8'));
+				node.write(Buffer.from(data, 'utf8'));
 			}
 		}
 	});
@@ -287,18 +327,21 @@ function makeRawListeners(socket: SocketIO.Socket, devices: Device[], commands: 
 		if(device) {
 			const node = device.nodes.find(node => node.name == nodeName);
 			if(node) {
-				if(state && !node.serialPort.isOpen) {
-					node.serialPort.open();
-				} else if(!state && node.serialPort.isOpen) {
-					node.serialPort.close(`Closed by ${user.displayName}`);
+				if(state && !node.isOpen()) {
+					node.open();
+				} else if(!state && node.isOpen()) {
+					node.close(`Closed by ${user.displayName}`);
 				}
 			}
 		}
 	});
 }
 
-function attachDeviceListeners(app: Application<Services>, devices: Device[]) {
+function attachDeviceListeners(app: Application<Services>, devices: Device | Device[]) {
 	const devicesService = app.service('api/devices');
+	if(!Array.isArray(devices)) {
+		devices = [ devices ];
+	}
 	for(const device of devices) {
 		const sendUpdate = () => devicesService.emit('updated', {
 			id: device.id,

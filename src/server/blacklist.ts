@@ -15,7 +15,6 @@ export function blacklist(host: string) {
 }
 
 export function isBlacklisted(host: string): boolean {
-	console.log(host);
 	return list.has(host);
 }
 

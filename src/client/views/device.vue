@@ -53,11 +53,10 @@
 			</template>
 		</sb-navbar>
 		<main>
-			<template v-if="device.state == 'pending'">
-				<!-- TODO -->
-			</template>
+			<template v-if="device.state == 'pending'"/>
 			<a-alert v-else-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
-			<sb-layout ref="layout" v-if="nodes.length > 0" :nodes="nodes" @stdin="termStdin" @focus="node => focusedNode = node" @blur="focusedNode = undefined"/>
+			<a-alert v-else-if="!device.value.alive" type="error" message="Removed" description="Device has been removed" showIcon/>
+			<sb-layout v-else-if="nodes.length > 0" ref="layout" :nodes="nodes" @stdin="termStdin" @focus="node => focusedNode = node" @blur="focusedNode = undefined"/>
 			<div class="notifications">
 				<transition enter-active-class="animated slideInUp faster" leave-active-class="animated slideOutDown faster">
 					<div v-if="runningCommand" class="command-state">
@@ -213,7 +212,7 @@
 				.on('data', async (data: { node: string; data: Buffer }) => {
 					const terminal = await this.getTerminal(data.node);
 					if(!this.paused && terminal) {
-						terminal.terminal.write(new Uint8Array(data.data));
+						terminal.write(data.data);
 					}
 				})
 				.on('command', (data: any) => {
@@ -243,7 +242,7 @@
 							comp.$destroy();
 						},
 					});
-				})
+				});
 
 			const commandsService = this.app.service('api/commands');
 			commandsService.timeout = 30000;

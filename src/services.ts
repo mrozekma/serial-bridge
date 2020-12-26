@@ -42,7 +42,7 @@ export type NativePortJson = ReturnType<NativePort['toJSON']>;
  * This is used in the server to actually implement these methods.
  */
 interface SCServiceDefinitions<ServerClient extends 'server' | 'client'> {
-	'api/devices': M<ServerClient, 'find' | 'get', Device>;
+	'api/devices': M<ServerClient, 'find' | 'get' | 'create', Device>;
 	'api/deviceLock': M<ServerClient, 'patch'>;
 	'api/config': M<ServerClient, 'get'>;
 	'api/users': M<ServerClient, 'get' | 'patch', User>;

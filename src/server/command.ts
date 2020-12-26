@@ -54,7 +54,7 @@ export default class Command {
 				if(typeof message === 'string') {
 					message = Buffer.from(message, 'utf8');
 				}
-				node.serialPort.write(message);
+				node.write(message);
 			},
 			sendln(nodeName: string, message: string = '') {
 				this.send(nodeName, message + '\r\n');

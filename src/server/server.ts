@@ -8,7 +8,7 @@ import slugify from 'slugify';
 import banner from 'raw-loader!./banner.txt';
 import { blacklist } from './blacklist';
 import { loadConfig, Config } from './config';
-import Device, { Remote, RemoteInfo } from './device';
+import Device, { SerialNode, Remote } from './device';
 import { configureUserFactory } from './connections';
 import IdGenerator from './id-generator';
 import Command from './command';
@@ -32,7 +32,8 @@ function makeDevice(deviceConfig: Config['devices'][number], idGen: IdGenerator)
 	const tags = (deviceConfig.tags as Exclude<typeof deviceConfig.tags, never[]>).map(tag => (typeof tag === 'string') ? { name: tag } : tag);
 	const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, tags, deviceConfig.jenkinsLock);
 	for(const nodeConfig of deviceConfig.nodes) {
-		const node = device.addNode(nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh);
+		const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh);
+		device.addNode(node);
 		node.serialPort.open();
 		node.tcpPort.open();
 	}

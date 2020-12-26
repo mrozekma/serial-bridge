@@ -8,6 +8,7 @@
 		</sb-navbar>
 		<main>
 			<a-alert v-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
+			<a-alert v-else-if="device.state == 'resolved' && !device.value.alive" type="error" message="Removed" description="Device has been removed" showIcon/>
 			<div v-else class="nodes">
 				<template v-if="device.state == 'pending'">
 					<a-card v-for="i in 3" :key="i" :loading="true">.</a-card>

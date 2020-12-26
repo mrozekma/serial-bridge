@@ -1,6 +1,6 @@
 <template>
 	<div class="term-padding-wrapper">
-		<div v-show="node.state.open" ref="term" class="term"/>
+		<div v-show="node.state.open || forceVisible" ref="term" class="term"/>
 		<a-alert v-if="!node.state.open" message="Port closed" :description="node.state.reason" type="info" showIcon/>
 	</div>
 </template>
@@ -56,8 +56,10 @@
 			return {
 				terminal: new Terminal({
 					scrollback: 5000,
+
 				}),
 				fitAddon: new SbFit(),
+				forceVisible: true,
 			};
 		},
 		watch: {
@@ -69,6 +71,8 @@
 			},
 		},
 		async mounted() {
+			// If the terminal isn't visible when it's first created, it doesn't layout correctly. This forces the terminal to be visible briefly even if the node is closed
+			setTimeout(() => this.forceVisible = false, 1);
 			this.terminal.loadAddon(this.fitAddon);
 			const layout = await this.layout;
 			this.terminal.open(this.$refs.term as HTMLElement);
@@ -79,10 +83,21 @@
 			//@ts-ignore Poking around in xterm internals
 			this.terminal._core.onBlur(() => this.$emit('blur'));
 			this.terminal.onData((data: string) => this.$emit('stdin', data));
+			if(this.node.type === 'remote_io') {
+				// Echo keystrokes. Also Enter only sends a \r, so convert it to \r\n, and filter out Backspace
+				this.terminal.onData((data: string) => {
+					this.terminal.write(data.replace('\r', '\r\n').replace('\x7f', ''));
+				});
+				// When printing incoming data, convert \n to \r\n
+				this.terminal.setOption('convertEol', true);
+			}
 		},
 		methods: {
 			fit() {
 				this.fitAddon.fit();
+			},
+			write(buf: Buffer) {
+				this.terminal.write(new Uint8Array(buf));
 			},
 		},
 	});
