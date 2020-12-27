@@ -2,7 +2,9 @@
 	<div>
 		<sb-navbar>
 			<template #brand>
-				{{ deviceName }}
+				<span :title="(device.state == 'resolved') ? device.value.description : undefined">
+					{{ deviceName }}
+				</span>
 				<template v-for="{ name, description, color, showOnDevicePage } in (device.state == 'resolved' ? device.value.tags : [])">
 					<a-tag v-if="showOnDevicePage !== false" :key="name" :title="description" :color="color">{{ name }}</a-tag>
 				</template>
@@ -121,6 +123,11 @@
 				}
 				if(this.focusedNode) {
 					rtn[this.focusedNode] = { background: '#262626' };
+				}
+				for(const node of this.nodes) {
+					if(!node.state.open) {
+						rtn[node.name] = { background: '#5c0011' };
+					}
 				}
 				return rtn;
 			},
@@ -314,7 +321,10 @@
 					data = '\r\n';
 				}
 				if(this.device.state == 'resolved') {
-					this.socket.emit('node-stdin', this.device.value.id, nodeName, data);
+					const node = this.device.value.nodes.find(node => node.name === nodeName);
+					if(node?.state?.open) {
+						this.socket.emit('node-stdin', this.device.value.id, nodeName, data);
+					}
 				}
 			},
 			acquireLock() {
@@ -383,11 +393,16 @@
 
 <style lang="less" scoped>
 	.ant-menu {
-		/deep/ .brand .ant-tag {
-			position: relative;
-			top: -2px;
-			&:first-child {
-				margin-left: 5px;
+		/deep/ .brand {
+			span {
+				position: relative;
+			}
+			.ant-tag {
+				position: relative;
+				top: -2px;
+				&:first-child {
+					margin-left: 5px;
+				}
 			}
 		}
 	}

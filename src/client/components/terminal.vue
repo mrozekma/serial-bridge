@@ -1,7 +1,7 @@
 <template>
 	<div class="term-padding-wrapper">
-		<div v-show="node.state.open || forceVisible" ref="term" class="term"/>
-		<a-alert v-if="!node.state.open" message="Port closed" :description="node.state.reason" type="info" showIcon/>
+		<div ref="term" class="term"/>
+		<a-alert v-if="!node.state.open" :message="node.state.reason" type="info" showIcon/>
 	</div>
 </template>
 
@@ -59,7 +59,6 @@
 
 				}),
 				fitAddon: new SbFit(),
-				forceVisible: true,
 			};
 		},
 		watch: {
@@ -71,8 +70,6 @@
 			},
 		},
 		async mounted() {
-			// If the terminal isn't visible when it's first created, it doesn't layout correctly. This forces the terminal to be visible briefly even if the node is closed
-			setTimeout(() => this.forceVisible = false, 1);
 			this.terminal.loadAddon(this.fitAddon);
 			const layout = await this.layout;
 			this.terminal.open(this.$refs.term as HTMLElement);
@@ -112,10 +109,11 @@
 	}
 
 	.ant-alert {
-		position: relative;
-		top: 50%;
-		transform: translateY(-50%);
-		margin: 0 5px;
+		position: absolute;
+		top: 5px;
+		margin-left: 5px;
+		right: 22px; // Avoid the scrollbar
+		z-index: 10;
 	}
 
 	.term {
