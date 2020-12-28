@@ -216,11 +216,14 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 			async patch(id, data, params) { // Using 'patch' to run commands. CRUD is dumb
 				if(id === null) {
 					throw new Error("Null ID");
-				} else if(!params || !params.connection || !params.connection.device) {
+				} else if(!params?.connection?.device) {
 					throw new Error("Missing device");
 				}
 				const command = await this.get(id);
-				const device: Device = params.connection.device;
+				const device = devices.find(device => device.id === params!.connection!.device);
+				if(!device) {
+					throw new Error(`Invalid device: ${params.connection.device}`);
+				}
 				await command.run(device, params.socketId);
 				return command;
 			},
@@ -557,7 +560,8 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 		// If a connection comes in from /devices/:id, join that device's channel
 		const match = pathname?.match(devicesRoute);
 		let device: Device | undefined;
-		if(match && (device = conn.device = devices.find(device => device.id === match[1]))) {
+		if(match && (device = devices.find(device => device.id === match[1]))) {
+			conn.device = device.id;
 			device.webConnections.addConnection(conn.ip)
 			app.channel(`device/${device.id}`).join(connection);
 		}
@@ -576,7 +580,8 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 	app.on('disconnect', connection => {
 		const conn: any = connection;
 		if(conn.device) {
-			(conn.device as Device).webConnections.removeConnection(conn.ip);
+			const device = devices.find(device => device.id === conn.device);
+			device?.webConnections?.removeConnection(conn.ip);
 		}
 	});
 
