@@ -124,11 +124,14 @@
 				if(this.focusedNode) {
 					rtn[this.focusedNode] = { background: '#262626' };
 				}
+				// Changing the theme on ephemeral disconnect takes annoyingly long; skipping this for now at least
+				/*
 				for(const node of this.nodes) {
 					if(!node.state.open) {
 						rtn[node.name] = { background: '#5c0011' };
 					}
 				}
+				*/
 				return rtn;
 			},
 			showLock(): boolean {

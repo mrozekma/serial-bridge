@@ -47,6 +47,9 @@
 		}
 	}
 
+	// ANSI escape sequences reserve "ESC _ ... ESC \" for app-specific commands; I'm using them here to let remote IO nodes control keystroke echoing
+	const echoOnEscSeq = Buffer.from('\x1b_echo_on\x1b\\'), echoOffEscSeq = Buffer.from('\x1b_echo_off\x1b\\');
+
 	const component = Vue.extend({
 		props: {
 			node: Object as PropType<Node>,
@@ -59,6 +62,7 @@
 
 				}),
 				fitAddon: new SbFit(),
+				echoOn: false,
 			};
 		},
 		watch: {
@@ -81,9 +85,11 @@
 			this.terminal._core.onBlur(() => this.$emit('blur'));
 			this.terminal.onData((data: string) => this.$emit('stdin', data));
 			if(this.node.type === 'remote_io') {
-				// Echo keystrokes. Also Enter only sends a \r, so convert it to \r\n, and filter out Backspace
+				// Echo keystrokes if asked. Also Enter only sends a \r, so convert it to \r\n, and filter out Backspace
 				this.terminal.onData((data: string) => {
-					this.terminal.write(data.replace('\r', '\r\n').replace('\x7f', ''));
+					if(this.echoOn) {
+						this.terminal.write(data.replace('\r', '\r\n').replace('\x7f', ''));
+					}
 				});
 				// When printing incoming data, convert \n to \r\n
 				this.terminal.setOption('convertEol', true);
@@ -93,8 +99,21 @@
 			fit() {
 				this.fitAddon.fit();
 			},
-			write(buf: Buffer) {
-				this.terminal.write(new Uint8Array(buf));
+			write(abuf: ArrayBuffer) {
+				const arr = new Uint8Array(abuf);
+				// I want to minimize work done here until I'm at least reasonably sure there's an actual escape sequence to parse
+				if(arr.find((val, idx) => val === echoOnEscSeq[0] && arr[idx + 1] === echoOnEscSeq[1])) {
+					const buf = new Buffer(arr);
+					const onIdx = buf.lastIndexOf(echoOnEscSeq), offIdx = buf.lastIndexOf(echoOffEscSeq);
+					if(onIdx >= 0 && offIdx >= 0) {
+						this.echoOn = (onIdx > offIdx);
+					} else if(onIdx >= 0) {
+						this.echoOn = true;
+					} else if(offIdx >= 0) {
+						this.echoOn = false;
+					}
+				}
+				this.terminal.write(arr);
 			},
 		},
 	});
