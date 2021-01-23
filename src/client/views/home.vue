@@ -167,7 +167,11 @@
 			</ul>
 
 			<div v-if="version.state === 'resolved'" class="version">
-				{{ version.value.version }} | {{ version.value.date }}
+				<a target="_blank" :href="version.value.versionLink">{{ version.value.version }}</a>
+				<template v-if="version.value.buildId">
+					| <a target="_blank" :href="version.value.releaseLink">Build {{ version.value.buildId }}</a>
+				</template>
+				| Built {{ version.value.date }}
 				<template v-if="version.value.licenses">
 					| <a target="_blank" href="/licenses.txt">Licenses</a>
 				</template>
