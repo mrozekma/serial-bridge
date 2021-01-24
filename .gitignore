@@ -3,6 +3,7 @@ node_modules
 /dist
 /package
 /package.zip
+/doc/_build
 
 # local env files
 .env.local

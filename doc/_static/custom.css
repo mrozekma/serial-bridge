@@ -1,0 +1,47 @@
+.section .field-mandatory::after, .section .field-optional::after, .tag {
+	font-weight: normal;
+	box-sizing: border-box;
+	display: inline-block;
+	height: auto;
+	margin: 0 8px 0 8px;
+	padding: 0 4px;
+	font-size: 12px;
+	line-height: 16px;
+	white-space: nowrap;
+	border: 1px solid #d9d9d9;
+	border-radius: 4px;
+}
+
+ul.simple li .field-mandatory, ul.simple li .field-optional {
+	font-weight: bold;
+}
+
+ul.simple li .field-mandatory::after, ul.simple li .field-optional::after {
+	margin-right: 0 !important;
+}
+
+.section .field-mandatory::after {
+	content: "Mandatory";
+	color: #1890ff;
+	background: #e6f7ff;
+	border-color: #91d5ff;
+}
+
+.section .field-optional::after {
+	content: "Optional";
+	color: #fa8c16;
+	background: #fff7e6;
+	border-color: #ffd591;
+}
+
+.tag {
+	background-color: #108ee9;
+	color: white;
+}
+
+.figure img {
+	/* display: inline-block; */
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	padding: 4px;
+}

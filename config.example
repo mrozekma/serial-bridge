@@ -1,6 +1,5 @@
 // This file is executed by Serial Bridge in an independent Javascript context.
 // It's expected to declare a global object or function named 'config', described below.
-// The keys are camel case, but for ease of transition from Serial Bridge 1, spaced names are also allowed (e.g. "webPort" and "web port" are both valid).
 
 config = {
 	// Optional. Configuration for the web frontend. If undefined, the web server is not started.
@@ -80,11 +79,10 @@ config = {
 						username: 'username',
 						password: 'password',
 					},
-
-					// Optional. The name of the Jenkins resource lock that corresponds to this device. Must also set 'jenkinsUrl' on the config root.
-					jenkinsLock: 'lock name',
 				},
 			],
+			// Optional. The name of the Jenkins resource lock that corresponds to this device. Must also set 'jenkinsUrl' on the config root.
+			jenkinsLock: 'lock name',
 		}
 	],
 
@@ -126,7 +124,6 @@ config = {
 	jenkinsUrl: 'http://...',
 
 	// Optional. List of hostnames/IP addresses to block from connecting.
-	// Serial Bridge will attempt to convert hostnames to IPs and the reverse on startup, but after that the blacklist is fixed. Best practice is to list exactly the string you see in the console output when the target host tries to connect.
 	blacklist: [
 		'google.com',
 		'8.8.8.8',
