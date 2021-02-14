@@ -5,6 +5,7 @@ import { User, Connection } from './server/connections';
 import Command from './server/command';
 import Build from './server/jenkins';
 import NativePort from './server/native-port';
+export { SavedTerminalJson } from './server/saved-terminal';
 
 // Variant of feathers.ServiceMethods with some narrower return types
 interface ServiceMethods<T> extends feathers.ServiceMethods<T> {
@@ -49,6 +50,7 @@ interface SCServiceDefinitions<ServerClient extends 'server' | 'client'> {
 	'api/commands': M<ServerClient, 'find' | 'get' | 'patch', Command>;
 	'api/jenkins': M<ServerClient, 'get' | 'create' | 'patch' | 'remove', Build | { device: string; name: undefined }>;
 	'api/ports': M<ServerClient, 'find' | 'patch', NativePort>;
+	'api/saveState': M<ServerClient, 'get' | 'create'>;
 };
 
 // Since only the server needs SCServiceDefinitions, only that is exported here:

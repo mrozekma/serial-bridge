@@ -44,7 +44,8 @@
 		"typesafe-joi": "^2.0.6",
 		"typescript": "^3.7.0-beta",
 		"url-parse": "^1.4.7",
-		"xml2js": "^0.4.22"
+		"xml2js": "^0.4.22",
+		"xterm-addon-serialize": "^0.4.0"
 	},
 	"devDependencies": {
 		"@types/axios": "^0.14.0",

@@ -2116,7 +2116,7 @@ blob@0.0.5:
   resolved "https://registry.npmjs.org/blob/-/blob-0.0.5.tgz#d680eeef25f8cd91ad533f5b01eed48e64caf683"
   integrity sha512-gaqbzQPqOoamawKg0LGVd7SzLgXS+JH61oWprSLH+P+abTczqJbhTR8CmJ2u9/bUYNmHTGJx/UEmn6doAvvuig==
 
-bluebird@^3.1.1, bluebird@^3.5.1, bluebird@^3.5.4, bluebird@^3.5.5:
+bluebird@^3.1.1, bluebird@^3.5.1, bluebird@^3.5.5:
   version "3.7.2"
   resolved "https://registry.npmjs.org/bluebird/-/bluebird-3.7.2.tgz#9f229c15be272454ffa973ace0dbee79a1b0c36f"
   integrity sha512-XpNj6GDQzdfW+r2Wnn7xiSAd7TM3jzkxGXBGTtWKuSXv1xUV+azxAm8jdWZN06QTQk+2N2XB9jRDkvbmQmcRtg==
@@ -9220,13 +9220,6 @@ tar-stream@^2.1.4:
     inherits "^2.0.3"
     readable-stream "^3.1.1"
 
-telnet-client@^1.2.2:
-  version "1.4.6"
-  resolved "https://registry.npmjs.org/telnet-client/-/telnet-client-1.4.6.tgz#656effdaafc20539f9c71f5aab5b9d7a1a51b238"
-  integrity sha512-ukejw2Fv02oIRJ18jJw3m7TpEglbtBkrCM7Ci75H9zl7MZIKpaV+1L/TKC3Wy9KDk4tfidIJllv4jhGBBjTZBA==
-  dependencies:
-    bluebird "^3.5.4"
-
 term-size@^1.2.0:
   version "1.2.0"
   resolved "https://registry.npmjs.org/term-size/-/term-size-1.2.0.tgz#458b83887f288fc56d6fffbfad262e26638efa69"
@@ -10291,6 +10284,11 @@ xterm-addon-fit@^0.2.1:
   version "0.2.1"
   resolved "https://registry.npmjs.org/xterm-addon-fit/-/xterm-addon-fit-0.2.1.tgz#353f43921eb78e3f9ad3f3afbb14e7ac183ca738"
   integrity sha512-BlR57O3t1/bmVcnS81bn9ZnNf+GiGNbeXdNUKSBa9tKEwNUMcU3S+KFLIRv7rm1Ty0D5pMOu0vbz/RDorKRwKQ==
+
+xterm-addon-serialize@^0.4.0:
+  version "0.4.0"
+  resolved "https://registry.npmjs.org/xterm-addon-serialize/-/xterm-addon-serialize-0.4.0.tgz#9854fd87afba6157b9016e9c93f0cf9e0efc2de5"
+  integrity sha512-xEdzCNa6ZzFplDlscYTSSUogy1C6y3G3nS68Qbe5zntFAqHOBeyggExQi0E8yZg/no8ewYH0GSKZnOheo/ZoKg==
 
 xterm@^4.1.0:
   version "4.9.0"

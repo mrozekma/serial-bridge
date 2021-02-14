@@ -20,6 +20,7 @@
 			</a-sub-menu>
 			<a-sub-menu title="Manage">
 				<a-menu-item><a :href="`/devices/${id}/manage`">Ports</a></a-menu-item>
+				<a-menu-item @click="copyState">Share</a-menu-item>
 				<template v-if="device.state == 'resolved' && device.value.jenkinsLockName">
 					<a-menu-item v-if="!device.value.jenkinsLockOwner" @click="acquireLock">Reserve in Jenkins</a-menu-item>
 					<a-menu-item v-else @click="releaseLock">Unreserve in Jenkins</a-menu-item>
@@ -80,7 +81,7 @@
 
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { Connection, getDeviceConnections } from '../connections';
-	import { DeviceJson, CommandJson, ConnectionJson, BuildJson } from '@/services';
+	import { DeviceJson, CommandJson, BuildJson, SavedTerminalJson } from '@/services';
 
 	type Node = DeviceJson['nodes'][number];
 
@@ -257,6 +258,14 @@
 			const commandsService = this.app.service('api/commands');
 			commandsService.timeout = 30000;
 			this.commands = unwrapPromise(commandsService.find());
+			if(document.location.search) {
+				const params = new URLSearchParams(document.location.search.substring(1));
+				const state = params.get('state');
+				if(state) {
+					history.replaceState(null, '', document.location.origin + document.location.pathname);
+					this.loadState(state);
+				}
+			}
 		},
 		beforeDestroy() {
 			this.app.service('api/devices').removeAllListeners();
@@ -338,6 +347,82 @@
 				const lockComp = this.$refs.lock as SbLockVue | undefined;
 				if(lockComp) {
 					lockComp.release();
+				}
+			},
+			async loadState(key: string) {
+				this.paused = true;
+				let state: SavedTerminalJson;
+				try {
+					state = await this.app.service('api/saveState').get(key);
+				} catch(e) {
+					this.$error({
+						title: 'Loading state failed',
+						content: `${e}`,
+					});
+					return;
+				}
+				let errors = false;
+				for(const { nodeName, text } of state.scrollback) {
+					try {
+						const term = await this.getTerminal(nodeName);
+						term.write(new Buffer(text));
+					} catch(e) {
+						console.error(e);
+						errors = true;
+					}
+				}
+				const msg = `Finished loading state from ${state.user.displayName}`;
+				if(errors) {
+					this.$notification.error({
+						message: 'State Errors',
+						description: `${msg}. There were errors deserializing some of the stored nodes`,
+						placement: 'bottomRight',
+						duration: 5,
+					});
+				} else {
+					this.$notification.info({
+						message: 'State Loaded',
+						description: msg,
+						placement: 'bottomRight',
+						duration: 5,
+					})
+				}
+			},
+			async copyState() {
+				const state: SavedTerminalJson['scrollback'] = [];
+				for(const node of this.nodes) {
+					const term = await this.getTerminal(node.name);
+					state.push({
+						nodeName: node.name,
+						text: term.serialize(),
+					});
+				}
+				try {
+					const key = await this.app.service('api/saveState').create(state);
+					const url = `${window.location.origin}${window.location.pathname}?state=${key}`
+					await navigator.clipboard.writeText(url);
+					const el = this.$createElement('div', [
+						"Link to state copied to your clipboard: ",
+						this.$createElement('a', {
+							domProps: {
+								href: url,
+							},
+						}, [
+							key,
+						]),
+					]);
+					this.$notification.info({
+						message: 'State Saved',
+						description: el,
+						placement: 'bottomRight',
+						duration: 10,
+					});
+				} catch(e) {
+					console.error(e);
+					this.$error({
+						title: 'Save State',
+						content: `Failed to save state: ${e}`,
+					});
 				}
 			},
 		},

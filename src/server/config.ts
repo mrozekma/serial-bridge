@@ -63,6 +63,16 @@ const portsFindJoi = joi.object({
 	patterns: {},
 });
 
+const savedStateJoi = joi.object({
+	dir: joi.string().default('./saved-state'),
+	expireAfter: joi.number().default(60 * 24 * 30),
+	maxSize: joi.number(),
+}).default({
+	dir: './saved-state',
+	expireAfter: 60 * 24 * 30,
+	maxSize: undefined,
+});
+
 const remoteJoi = joi.object({
 	name: joi.string().required(),
 	url: joi.string().required(),
@@ -92,6 +102,7 @@ const configJoi = joi.object({
 	web: webJoi,
 	users: usersJoi,
 	portsFind: portsFindJoi,
+	savedState: savedStateJoi,
 	devices: joi.array().required().items(deviceJoi),
 	remotes: joi.array().items(remoteJoi).default([]),
 	commands: joi.array().items(commandJoi),
@@ -153,6 +164,25 @@ export async function loadConfig() {
 			if((node.webLinks as string[]).indexOf('ssh') >= 0 && !node.ssh) {
 				throw new Error(`Failed to parse configuration file ${filename}: Node ${device.name}.${node.name} specifies an SSH link with no SSH configuration block`);
 			}
+		}
+	}
+	if(!pathlib.isAbsolute(value.savedState.dir)) {
+		value.savedState.dir = pathlib.join(rootDir, value.savedState.dir);
+	}
+	try {
+		const stats = await fs.stat(value.savedState.dir);
+		if(!stats.isDirectory()) {
+			throw new Error(`Saved state path is not a directory: ${value.savedState.dir}`);
+		}
+	} catch(e) {
+		if(e.code === 'ENOENT') {
+			try {
+				await fs.mkdir(value.savedState.dir);
+			} catch(e2) {
+				throw new Error(`Unable to create saved state directory: ${value.savedState.dir}`);
+			}
+		} else {
+			throw new Error(`Unable to stat saved state directory: ${value.savedState.dir}`);
 		}
 	}
 	return value;

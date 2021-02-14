@@ -15,8 +15,8 @@
 	import GoldenLayout from 'golden-layout';
 	import { Terminal } from 'xterm';
 	import { FitAddon, ITerminalDimensions } from 'xterm-addon-fit';
+	import { SerializeAddon } from 'xterm-addon-serialize';
 	import 'xterm/css/xterm.css';
-	//TODO xterm-addon-search
 
 	class SbFit extends FitAddon {
 		private getFloatDimensions() {
@@ -47,6 +47,7 @@
 		}
 	}
 
+	const numScrollbackLines = 5000;
 	// ANSI escape sequences reserve "ESC _ ... ESC \" for app-specific commands; I'm using them here to let remote IO nodes control keystroke echoing
 	const echoOnEscSeq = Buffer.from('\x1b_echo_on\x1b\\'), echoOffEscSeq = Buffer.from('\x1b_echo_off\x1b\\');
 
@@ -58,10 +59,11 @@
 		data() {
 			return {
 				terminal: new Terminal({
-					scrollback: 5000,
+					scrollback: numScrollbackLines,
 
 				}),
 				fitAddon: new SbFit(),
+				serializeAddon: new SerializeAddon(),
 				echoOn: false,
 			};
 		},
@@ -75,6 +77,7 @@
 		},
 		async mounted() {
 			this.terminal.loadAddon(this.fitAddon);
+			this.terminal.loadAddon(this.serializeAddon);
 			const layout = await this.layout;
 			this.terminal.open(this.$refs.term as HTMLElement);
 			this.fit();
@@ -98,6 +101,9 @@
 		methods: {
 			fit() {
 				this.fitAddon.fit();
+			},
+			serialize() {
+				return this.serializeAddon.serialize(numScrollbackLines);
 			},
 			write(abuf: ArrayBuffer) {
 				const arr = new Uint8Array(abuf);

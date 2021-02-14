@@ -143,7 +143,7 @@ An array of nodes, Serial Bridge parlance for ports. Each node bidirectionally c
 Each object in the ``nodes`` array contains the following keys:
 
 :field-mandatory:`name`
-######################
+#######################
 The name of the node. This is displayed to users in the web UI.
 
 :field-mandatory:`comPort`
@@ -211,6 +211,7 @@ Most of this documentation assumes you will be using the web interface, but it's
 
 * :field-optional:`port` -- HTTP port to listen on. Defaults to ``80``.
 * :field-optional:`ssl` -- SSL configuration. Including this will let the specified port speak both HTTP and HTTPS. The object contains the following keys:
+
    * :field-mandatory:`cert` -- The SSL certificate.
    * :field-mandatory:`key` -- The associated SSL private key.
    * :field-optional:`passphrase` -- The encryption passphrase for the private key. If omitted, the key must be unencrypted.
@@ -263,6 +264,14 @@ Configuration for the :ref:`port-finding tool <ports_find>`. Contains the follow
 * :field-optional:`patterns` -- Pre-defined pattern sets, used to automatically identify nodes based on their output. Each key in this object is the name of the predefined set, while the value is an array of objects containing the following keys:
    * :field-mandatory:`pattern` -- A string containing a regular expression to watch for.
    * :field-mandatory:`name` -- The name of the node this pattern identifies.
+
+:field-optional:`savedState`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+How to handle the files stored on the server when a user shares their terminal state. Contains the following keys:
+
+* :field-optional:`dir` -- Directory to store saved state files in. Defaults to ``./saved-state``. Will be interpreted relative to the root Serial Bridge directory.
+* :field-optional:`expireAfter` -- Minutes to retain a saved state file before deleting it. Defaults to 43200 (30 days). Can be set to ``undefined`` to never delete saved states.
+* :field-optional:`maxSize` -- Maximum number of bytes a single saved state file can be. Defaults to ``undefined`` (no limit).
 
 :field-optional:`jenkinsUrl`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -336,7 +345,7 @@ Any real command menu item (i.e. a menu item that isn't just a submenu) must pro
          label: "Send 'hi' to 'test' node",
          icon: 'fas fa-smile',
          async fn(api) {
-            api.send('test', 'hi\r\n');
+            api.sendln('test', 'hi');
          },
       }],
       ...

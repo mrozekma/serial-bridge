@@ -17,6 +17,7 @@ import Command, { iterCommands } from './command';
 import makeSetupZip from './setup-zip';
 import { parseLockXml, checkJenkinsApiKey } from './jenkins';
 import NativePort, { onPortData } from './native-port';
+import SavedTerminalStore, { SavedTerminal, SavedTerminalJson } from './saved-terminal';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_LINK: string, BUILD_ID: string | undefined, RELEASE_LINK: string | undefined, BUILD_FILE_HASH: string, BUILD_DATE: string, HAS_LICENSES: boolean;
@@ -24,7 +25,7 @@ declare const BUILD_VERSION: string, BUILD_LINK: string, BUILD_ID: string | unde
 const devicesRoute = /^\/devices\/([^/]+)(?:\/manage)?\/?$/;
 const portsRoute = /^\/ports(?:\/find)?\/?$/;
 
-function makeServices(app: Application<Services>, config: Config, devices: Device[], remotes: Remote[], commands: Command[]): ServiceDefinitions {
+function makeServices(app: Application<Services>, config: Config, devices: Device[], remotes: Remote[], commands: Command[], saveStore: SavedTerminalStore): ServiceDefinitions {
 	function getJenkinsDevice(name: any) {
 		const device = devices.find(device => device.jenkinsLockName == name);
 		if(device) {
@@ -310,6 +311,36 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				return port;
 			},
 		},
+
+		'api/saveState': {
+			async get(id, params): Promise<SavedTerminalJson> {
+				if(typeof id !== 'string') {
+					throw new Error("Bad ID");
+				}
+				const state = await saveStore.read(id);
+				return {
+					user: await getUser(state.host),
+					when: state.when,
+					scrollback: state.scrollback,
+				};
+			},
+			async create(data, params): Promise<string> {
+				if(!Array.isArray(data)) {
+					throw new Error("Bad data");
+				} else if(!data.every(e => typeof e.nodeName === 'string' && typeof e.text === 'string')) {
+					throw new Error("Bad data");
+				} else if(!params || !params.connection || !params.connection.ip) {
+					throw new Error("No connection");
+				}
+				const term: SavedTerminal = {
+					host: params.connection.ip,
+					when: new Date().getTime(),
+					scrollback: data,
+				};
+				const key = await saveStore.write(term);
+				return key;
+			},
+		},
 	};
 	return services;
 }
@@ -518,8 +549,10 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 		next();
 	});
 
+	const saveStore = new SavedTerminalStore(config.savedState.dir, config.savedState.expireAfter, config.savedState.maxSize);
+
 	// Register services
-	const services = makeServices(app, config, devices, remotes, commands);
+	const services = makeServices(app, config, devices, remotes, commands, saveStore);
 	for(const [ name, service ] of Object.entries(services)) {
 		app.use(name, service);
 	}
@@ -628,5 +661,6 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 		const portsService = app.service('api/ports');
 		onPortData((port, data) => portsService.emit('data', { path: port.path, data }));
 	}
+
 	return app;
 }
