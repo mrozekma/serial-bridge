@@ -400,9 +400,15 @@
 				try {
 					const key = await this.app.service('api/saveState').create(state);
 					const url = `${window.location.origin}${window.location.pathname}?state=${key}`
-					await navigator.clipboard.writeText(url);
+					let msg: string;
+					if(navigator.clipboard) {
+						await navigator.clipboard.writeText(url);
+						msg = "Link to state copied to your clipboard";
+					} else {
+						msg = "Copy this link to share your state";
+					}
 					const el = this.$createElement('div', [
-						"Link to state copied to your clipboard: ",
+						`${msg}: `,
 						this.$createElement('a', {
 							domProps: {
 								href: url,
