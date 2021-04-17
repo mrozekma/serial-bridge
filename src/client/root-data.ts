@@ -15,6 +15,8 @@ const socket = io(
 );
 app.configure(socketio(socket));
 
+export const appName = 'Serial Bridge';
+
 export type PromiseResult<T> = {
 	state: 'pending';
 } | {

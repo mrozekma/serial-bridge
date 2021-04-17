@@ -44,6 +44,7 @@
 		"typesafe-joi": "^2.0.6",
 		"typescript": "^3.7.0-beta",
 		"url-parse": "^1.4.7",
+		"vue-meta": "^2.4.0",
 		"xml2js": "^0.4.22",
 		"xterm-addon-serialize": "^0.4.0"
 	},

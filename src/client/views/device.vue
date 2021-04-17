@@ -77,9 +77,10 @@
 
 <script lang="ts">
 	import Vue from 'vue';
+	import { MetaInfo } from 'vue-meta';
 	import { ITheme } from 'xterm';
 
-	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
+	import { appName, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { Connection, getDeviceConnections } from '../connections';
 	import { DeviceJson, CommandJson, BuildJson, SavedTerminalJson } from '@/services';
 
@@ -99,6 +100,11 @@
 				type: String,
 				required: true,
 			},
+		},
+		metaInfo(): MetaInfo {
+			return {
+				title: `${this.deviceName} - ${appName}`,
+			};
 		},
 		computed: {
 			...rootDataComputeds(),

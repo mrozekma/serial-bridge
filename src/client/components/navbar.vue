@@ -28,6 +28,7 @@
 
 <script lang="ts">
 	import Vue from 'vue';
+	import { appName } from '../root-data';
 
 	// Not a fan of the gaps between submenus
 	//@ts-ignore
@@ -38,7 +39,6 @@
 	import { rootDataComputeds } from '../root-data';
 	import { DeviceJson } from '@/services';
 
-	const appName = 'Serial Bridge';
 	import SbCommandMenu from '../components/command-menu.vue';
 	export default Vue.extend({
 		components: { SbCommandMenu },
