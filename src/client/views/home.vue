@@ -9,7 +9,7 @@
 				<a-menu-item><a href="/ports/find">Find ports</a></a-menu-item>
 			</a-sub-menu>
 		</sb-navbar>
-		<main>
+		<main ref="main" tabindex="0" @keydown="keydown">
 			<a-alert v-if="version.state === 'resolved' && version.value.notice" type="info" :message="version.value.notice" show-icon/>
 			<h1>
 				Devices
@@ -177,6 +177,7 @@
 				</template>
 			</div>
 		</main>
+		<sb-device-search :visible="showSearch" @select="loadDevice" @close="showSearch = false"/>
 	</div>
 </template>
 
@@ -244,9 +245,10 @@
 	}
 
 	import SbNavbar from '../components/navbar.vue';
+	import SbDeviceSearch from '../components/device-search.vue';
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	export default Vue.extend({
-		components: { SbNavbar },
+		components: { SbNavbar, SbDeviceSearch },
 		computed: {
 			...rootDataComputeds(),
 			devicesByCategory(): Category[] {
@@ -326,12 +328,17 @@
 				puttyPath: defaultPuttyPath,
 
 				showRemoteDevices: (localStorage.getItem('home-show-remotes') !== 'false'),
+				showSearch: false,
 			};
 		},
 		watch: {
 			showRemoteDevices(val) {
 				localStorage.setItem('home-show-remotes', val ? 'true' : 'false');
 			},
+		},
+		mounted() {
+			const main = this.$refs.main as HTMLElement;
+			main.focus();
 		},
 		methods: {
 			followLink(url: string, newTab: boolean = false) {
@@ -365,6 +372,12 @@
 					localStorage.setItem('jenkins-username', username);
 					localStorage.setItem('jenkins-key', key);
 				}));
+			},
+			keydown(e: KeyboardEvent) {
+				if(!this.showSearch && !e.ctrlKey && !e.altKey && !e.metaKey && e.key.match(/^[a-zA-Z0-9_-]$/)) {
+					this.showSearch = true;
+					// Letting the event propagate will cause it to trigger a key press on the modal's search input
+				}
 			},
 		},
 	});
