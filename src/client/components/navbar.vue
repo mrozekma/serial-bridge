@@ -14,7 +14,7 @@
 			<a-menu-item v-if="devices.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
 			<a-menu-item v-else-if="devices.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
 			<a-menu-item v-else v-for="device in devices.value" :key="device.name">
-				<a :href="`/devices/${device.id}`">
+				<a :href="getDeviceUrl(device)">
 					{{ device.name }}
 				</a>
 			</a-menu-item>
@@ -27,7 +27,7 @@
 </template>
 
 <script lang="ts">
-	import Vue, { PropType } from 'vue';
+	import Vue from 'vue';
 
 	// Not a fan of the gaps between submenus
 	//@ts-ignore
@@ -35,8 +35,8 @@
 	placements.bottomLeft.offset = [0, 2];
 	placements.rightTop.offset = [0, 0];
 
-	import { rootDataComputeds, PromiseResult } from '../root-data';
-	import { CommandJson } from '@/services';
+	import { rootDataComputeds } from '../root-data';
+	import { DeviceJson } from '@/services';
 
 	const appName = 'Serial Bridge';
 	import SbCommandMenu from '../components/command-menu.vue';
@@ -61,6 +61,11 @@
 			},
 			title(val) {
 				document.title = `${val} - ${appName}`;
+			},
+		},
+		methods: {
+			getDeviceUrl(device: DeviceJson) {
+				return `${device.remoteInfo?.url ?? ''}/devices/${device.id}`;
 			},
 		},
 	});
