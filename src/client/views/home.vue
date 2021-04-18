@@ -384,6 +384,10 @@
 </script>
 
 <style lang="less" scoped>
+	main {
+		outline-width: 0;
+	}
+
 	h1:not(:first-child) {
 		margin-top: 3rem;
 	}
