@@ -4,6 +4,11 @@
 -->
 <template>
 	<div v-once>
+		<li title="Write file">
+			<a-upload :custom-request="upload">
+				<i ref="upload_icon" :class="uploadIcons.idle" />
+			</a-upload>
+		</li>
 		<li v-for="link in links" :key="link.name" :ref="link.name" :title="link.description" @click="click">
 			<i :class="link.icon"/>
 		</li>
@@ -35,10 +40,22 @@
 		}},
 	];
 
+	const uploadIcons = {
+		idle: 'far fa-file-upload',
+		uploading: 'fad fa-circle-notch',
+	}
+
 	const component = Vue.extend({
+		computed: {
+			uploadIcon(): HTMLElement {
+				return this.$refs.upload_icon as HTMLElement;
+			},
+		},
 		data() {
 			return {
 				links,
+				uploadIcons,
+				uploading: false,
 				node: undefined as Node | undefined,
 			};
 		},
@@ -71,6 +88,45 @@
 						break;
 					}
 				}
+			},
+			async upload(obj: any) {
+				// There's no typing for obj; it's inlined in ant-design-vue/lib/vc-upload/src/AjaxUploader.js
+				const file: File = obj.file;
+				const node = this.node;
+				if(node === undefined) {
+					// Should never happen
+					console.error("Got tab-links click without a node");
+					return;
+				}
+				while(this.uploading) {
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+				this.uploading = true;
+				this.uploadIcon.className = uploadIcons.uploading;
+				const done = (success: boolean, description: string) => {
+					this.uploading = false;
+					this.uploadIcon.className = uploadIcons.idle;
+					this.$notification[success ? 'success' : 'error']({
+						message: 'File write',
+						description,
+						placement: 'bottomRight',
+						duration: 3,
+					});
+				};
+				const reader = new FileReader();
+				reader.addEventListener('load', e => {
+					this.$emit('stdin', node, reader.result);
+					done(true, `Write to ${node.name} complete`);
+				});
+				reader.addEventListener('abort', e => {
+					console.error(e);
+					done(false, "Write aborted");
+				});
+				reader.addEventListener('error', e => {
+					console.error(e);
+					done(false, "Write failed");
+				});
+				reader.readAsText(file);
 			},
 		},
 	});

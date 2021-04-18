@@ -107,6 +107,7 @@
 			gl.on('stackCreated', (stack: GoldenLayout.ContentItem) => {
 				const comp = new tabLinksCtor() as SbTabLinksVue;
 				comp.$mount();
+				comp.$on('stdin', (node: Node, data: string) => this.$emit('stdin', node.name, data));
 				//@ts-ignore Typing isn't quite right here, it thinks stack.header doesn't exist
 				stack.header.controlsContainer.prepend(...comp.$el.children);
 				stack.on('activeContentItemChanged', (contentItem: GoldenLayout.ContentItem) => {
