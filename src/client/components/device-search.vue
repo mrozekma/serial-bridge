@@ -19,7 +19,7 @@
 		computed: {
 			...rootDataComputeds(),
 			searchOptions(): string[] {
-				return (this.devices.state === 'resolved') ? this.devices.value.map(device => device.name) : [];
+				return (this.devices.state === 'resolved') ? [ ...new Set(this.devices.value.map(device => device.name)) ] : [];
 			},
 		},
 		data() {
