@@ -287,12 +287,15 @@
 				}
 				return layout.getNodeTerminal(node);
 			},
-			async runCommand(name: string, label: string, icon?: string) {
+			async runCommand(name: string, label: string, icon?: string, clearTerms?: boolean) {
 				while(this.runningCommand) {
 					// Sleep 1s
 					await new Promise(resolve => setTimeout(resolve, 1000));
 				}
 
+				if(clearTerms) {
+					await this.resetTerms();
+				}
 				this.runningCommand = {
 					name, label, icon,
 					state: 'pending',
