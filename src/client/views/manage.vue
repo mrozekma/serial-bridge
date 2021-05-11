@@ -9,57 +9,64 @@
 		<main>
 			<a-alert v-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
 			<a-alert v-else-if="device.state == 'resolved' && !device.value.alive" type="error" message="Removed" description="Device has been removed" showIcon/>
-			<div v-else class="nodes">
-				<template v-if="device.state == 'pending'">
-					<a-card v-for="i in 3" :key="i" :loading="true">.</a-card>
-				</template>
-				<template v-else>
-					<a-card v-for="node in nodes" :key="node.name" :title="node.name">
-						<template v-slot:extra>
-							<a-switch size="small" :checked="node.state.open" @change="checked => setNodeState([ node ], checked)"/>
-						</template>
-						<a-alert v-if="!node.state.open" :message="node.state.reason" type="info" showIcon />
-						<div class="nodeInfo">
-							<div>
-								<span>Name</span>
-								<span>{{ node.name }}</span>
+			<template v-else>
+				<div v-if="device.state == 'resolved'" class="buttons">
+					<a-button :href="deviceUrl"><i class="fas fa-arrow-left"></i> Back to device</a-button>
+					<a-button :disabled="!anyClosed" @click="setNodeState(nodes, true)"><i class="fas fa-door-open"></i> Open all serial ports</a-button>
+					<a-button :disabled="!anyOpen" type="danger" @click="setNodeState(nodes, false)"><i class="fas fa-door-closed"></i> Close all serial ports</a-button>
+				</div>
+				<div class="nodes">
+					<template v-if="device.state == 'pending'">
+						<a-card v-for="i in 3" :key="i" :loading="true">.</a-card>
+					</template>
+					<template v-else>
+						<a-card v-for="node in nodes" :key="node.name" :title="node.name">
+							<template v-slot:extra>
+								<a-switch size="small" :checked="node.state.open" @change="checked => setNodeState([ node ], checked)"/>
+							</template>
+							<a-alert v-if="!node.state.open" :message="node.state.reason" type="info" showIcon />
+							<div class="nodeInfo">
+								<div>
+									<span>Name</span>
+									<span>{{ node.name }}</span>
+								</div>
+								<div>
+									<span>Path</span>
+									<span>{{ node.path }}</span>
+								</div>
+								<div>
+									<span>Baud Rate</span>
+									<span>{{ node.baudRate }}</span>
+								</div>
+								<div>
+									<span>Data Bits</span>
+									<span>{{ node.byteSize }}</span>
+								</div>
+								<div>
+									<span>Parity</span>
+									<span>{{ node.parity }}</span>
+								</div>
+								<div>
+									<span>Stop Bits</span>
+									<span>{{ node.stopBits }}</span>
+								</div>
+								<div>
+									<span>TCP Port</span>
+									<span>{{ node.tcpPort }}</span>
+								</div>
+								<div v-if="node.webLinks.length > 0">
+									<span>Protocols</span>
+									<span>{{ node.webLinks.join(', ') }}</span>
+								</div>
+								<div v-if="node.ssh">
+									<span>SSH</span>
+									<span>{{ node.ssh.username }}@{{ node.ssh.host }}</span>
+								</div>
 							</div>
-							<div>
-								<span>Path</span>
-								<span>{{ node.path }}</span>
-							</div>
-							<div>
-								<span>Baud Rate</span>
-								<span>{{ node.baudRate }}</span>
-							</div>
-							<div>
-								<span>Data Bits</span>
-								<span>{{ node.byteSize }}</span>
-							</div>
-							<div>
-								<span>Parity</span>
-								<span>{{ node.parity }}</span>
-							</div>
-							<div>
-								<span>Stop Bits</span>
-								<span>{{ node.stopBits }}</span>
-							</div>
-							<div>
-								<span>TCP Port</span>
-								<span>{{ node.tcpPort }}</span>
-							</div>
-							<div v-if="node.webLinks.length > 0">
-								<span>Protocols</span>
-								<span>{{ node.webLinks.join(', ') }}</span>
-							</div>
-							<div v-if="node.ssh">
-								<span>SSH</span>
-								<span>{{ node.ssh.username }}@{{ node.ssh.host }}</span>
-							</div>
-						</div>
-					</a-card>
-				</template>
-			</div>
+						</a-card>
+					</template>
+				</div>
+			</template>
 		</main>
 	</div>
 </template>
@@ -85,6 +92,9 @@
 			...rootDataComputeds(),
 			deviceName(): string {
 				return (this.device.state == 'resolved') ? this.device.value.name : this.id;
+			},
+			deviceUrl(): string {
+				return `/devices/${this.id}`;
 			},
 			nodes(): Node[] {
 				return (this.device.state == 'resolved') ? this.device.value.nodes : [];
@@ -126,6 +136,16 @@
 </script>
 
 <style lang="less" scoped>
+	.buttons {
+		margin: 10px 15px;
+		.ant-btn {
+			margin-right: 10px;
+			i {
+				margin-right: 5px;
+			}
+		}
+	}
+
 	.nodes {
 		display: flex;
 		flex-wrap: wrap;
