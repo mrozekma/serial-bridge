@@ -16,16 +16,14 @@
 </template>
 
 <script lang="ts">
-	import Vue, { PropType } from 'vue';
+	import Vue from 'vue';
 
-	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
-	import { BuildJson } from '@/services';
+	import { rootDataComputeds } from '../root-data';
 
 	const component = Vue.extend({
 		props: {
 			deviceId: String,
 			owner: String,
-			jenkinsUrl: String,
 		},
 		computed: {
 			...rootDataComputeds(),
@@ -93,7 +91,7 @@
 			},
 			error(msg: string) {
 				this.$error({
-					title: `${(this.state == 'locking') ? 'Lock' : 'Unlock'} Failed`,
+					title: 'Jenkins Request Failed',
 					content: msg,
 					onOk: () => {
 						if(this.owner) {

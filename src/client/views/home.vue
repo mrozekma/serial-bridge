@@ -9,80 +9,121 @@
 				<a-menu-item><a href="/ports/find">Find ports</a></a-menu-item>
 			</a-sub-menu>
 		</sb-navbar>
-		<main ref="main" tabindex="0" @keydown="keydown">
+		<main ref="main">
 			<a-alert v-if="version.state === 'resolved' && version.value.notice" type="info" :message="version.value.notice" show-icon/>
-			<h1>
-				Devices
-				<div v-if="anyRemoteDevices" class="remote-toggle">
-					<a-tooltip placement="bottomRight" title="Show remote devices">
-						<a-switch v-model="showRemoteDevices">
-							<template #checkedChildren><i class="fal fa-link"></i></template>
-							<template #unCheckedChildren><i class="fal fa-link"></i></template>
-						</a-switch>
-					</a-tooltip>
-				</div>
-			</h1>
-			<a-alert v-if="devices.state == 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>
+			<h1>Devices</h1>
+			<a-alert v-if="devices.state === 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>
 			<div v-else>
-				<div v-if="devices.state == 'pending'" class="devices">
-					<a-card v-for="i in 3" :key="i" :loading="true">.</a-card>
+				<div v-if="tableFiltered || savedFilters.length > 0" class="table-filter-controls">
+					<a-tooltip placement="bottomRight" title="Table filter controls">
+						<i class="fas fa-filter"></i>
+					</a-tooltip>
+					<template v-if="tableFiltered">
+						<a-tooltip placement="bottomRight" title="Save current table filter">
+							<a-tag color="blue" @click="saveFilter">Save</a-tag>
+						</a-tooltip>
+						<a-tooltip placement="bottomRight" title="Clear current table filter">
+							<a-tag color="blue" @click="clearFilter">Clear</a-tag>
+						</a-tooltip>
+					</template>
+					<template v-if="savedFilters.length > 0">
+						<a-tag v-for="filter in savedFilters" :key="filter.name" closable @click="applyFilter(filter)" @close="removeFilter(filter)">
+							{{ filter.name }}
+						</a-tag>
+					</template>
 				</div>
-				<template v-else>
-					<template v-for="{ name: catName, devices } in devicesByCategory">
-						<h2 v-if="catName" :key="`header-${catName}`">{{ catName }}</h2>
-						<div :key="`devices-${catName}`" class="devices">
-							<a-card v-for="{ device, connections } in devices" :key="device.name" :title="device.name" hoverable @mousedown.left="loadDevice(device)" @mousedown.middle.prevent="loadDevice(device, true)">
-								<template v-slot:extra>
-									<a-tag v-for="{ name, description, color } in device.tags" :key="name" :title="description" :color="color">{{ name }}</a-tag>
-									<a-button size="small" @mousedown.left.stop="manageDevice(device)" @mousedown.middle.stop.prevent="manageDevice(device, true)">
-										<i class="fas fa-cogs"></i>
-									</a-button>
+				<a-table :columns="columns" :data-source="annotatedDevices" :row-key="device => device.id" :custom-row="customRow" :row-class-name="device => (device.jenkinsLockOwner !== undefined || device.build !== undefined) ? 'busy' : 'x'" :loading="devices.state == 'pending'" :pagination="false" :locale="{emptyText: 'No devices'}" class="devices" ref="table">
+					<template #lock-icon="lockOwner">
+						<a-tooltip v-if="lockOwner" placement="bottomRight" :title="`Reserved by ${lockOwner}`">
+							<i class="fas fa-lock-alt"></i>
+						</a-tooltip>
+					</template>
+					<template #build-icon="build">
+						<a-tooltip v-if="build" placement="bottomRight" :title="build.name">
+							<i class="fab fa-jenkins"></i>
+						</a-tooltip>
+					</template>
+					<template #tags="tags">
+						<a-tag v-for="{ name, description, color } in tags" :key="name" :title="description" :color="color">{{ name }}</a-tag>
+					</template>
+					<template #connections="connections">
+						<div class="connections">
+							<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
+								<template slot="title">
+									<div class="connection name">{{ connection.name }}</div>
+									<div class="connection host" v-if="connection.host != connection.name">{{ connection.host }}</div>
+									<div class="connection nodes">
+										<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
+									</div>
 								</template>
-								<div v-if="device.remoteInfo" class="remote">
-									<a-tooltip placement="bottom">
-										<template #title>
-											This device is connected to remote server &quot;<b>{{ device.remoteInfo.name }}</b>&quot;. Opening it will redirect you to that server.
-										</template>
-										<i class="fas fa-link"></i>
-										<a @mousedown.left.stop="openRemote(device)" @mousedown.middle.stop.prevent="openRemote(device)">{{ device.remoteInfo.name }}</a>
+								<a-avatar shape="square" :size="32" icon="user" :src="connection.avatar" />
+							</a-tooltip>
+						</div>
+					</template>
+					<template #description="description">
+						<div class="description">
+							{{ description }}
+						</div>
+					</template>
+					<template #remote="remote">
+						<template v-if="remote">
+							<a :href="remote.url" target="_blank" @click.stop>{{ remote.name }}</a>
+						</template>
+						<template v-else>
+							Local
+						</template>
+					</template>
+					<template #expandedRowRender="device">
+						<div class="cards">
+							<a-card title="Ports">
+								<template #extra>
+									<a-tooltip placement="bottomRight" title="Manage ports">
+										<a-button size="small" @mousedown.left.stop="manageDevice(device)" @mousedown.middle.stop.prevent="manageDevice(device, true)">
+											<i class="fas fa-cogs"></i>
+										</a-button>
 									</a-tooltip>
-								</div>
-								<div v-if="device.description" class="description">
-									{{ device.description }}
-								</div>
-								<template v-if="connections.length > 0">
-									<h4>Connections</h4>
-									<a-timeline>
-										<a-timeline-item v-for="connection in connections" :key="connection.host">
-											<template slot="dot">
-												<a-avatar v-if="connection.avatar" shape="square" size="small" :src="connection.avatar"/>
-												<a-avatar v-else shape="square" size="small" icon="user"/>
-											</template>
-											{{ connection.name }} <a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
-										</a-timeline-item>
-									</a-timeline>
 								</template>
-								<template>
-									<h4>Ports</h4>
-									<a-table :columns="nodesColumns" :dataSource="device.nodes" :rowKey="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'None'}"/>
+								<a-table :columns="nodesColumns" :data-source="device.nodes" :row-key="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'No ports'}"/>
+							</a-card>
+							<a-card title="Connections">
+								<a-table :columns="connectionsColumns[device.name]" :data-source="device.connections" :row-key="conn => conn.host" size="small" :pagination="false" :locale="{emptyText: 'No connections'}" class="connections-table">
+									<template #user="_, conn">
+										<div class="user">
+											<a-avatar shape="square" size="small" icon="user" :src="conn.avatar"/>
+											<span>{{ conn.name }}</span>
+										</div>
+									</template>
+									<template #nodes="nodes">
+										<a-tag v-for="node in nodes" :key="node">{{ node }}</a-tag>
+									</template>
+								</a-table>
+							</a-card>
+							<a-card title="Jenkins" class="jenkins-card">
+								<template #extra v-if="device.jenkinsLockName">
+									<a-tooltip v-if="device.jenkinsLockOwner" placement="bottomRight" title="Release lock">
+										<a-button size="small" @click="releaseLock(device)">
+											<i class="fas fa-unlock-alt"></i>
+										</a-button>
+									</a-tooltip>
+									<a-tooltip v-else placement="bottomRight" title="Acquire lock">
+										<a-button size="small" @click="acquireLock(device)">
+											<i class="fas fa-lock-alt"></i>
+										</a-button>
+									</a-tooltip>
 								</template>
-								<template v-if="device.jenkinsLockOwner || device.build">
-									<h4>Jenkins</h4>
-									<div v-if="device.jenkinsLockOwner">
-										<i class="fas fa-lock-alt"></i>
-										<span>Reserved by {{ device.jenkinsLockOwner }}</span>
-									</div>
-									<div v-if="device.build">
-										<i class="fab fa-jenkins"></i>
-										<a v-if="device.build.link" :href="device.build.link" target="_blank">{{ device.build.name }}</a>
-										<span v-else>{{ device.build.name }}</span>
-									</div>
-								</template>
+								<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.jenkinsLockOwner" :ref="`lock-${device.name}`" :device-id="device.id" :owner="device.jenkinsLockOwner"/>
+								<div v-else-if="device.jenkinsLockName" class="unlocked"><i class="fas fa-unlock-alt"></i>Unreserved</div>
+								<div v-else class="nolock"><i class="fas fa-question-circle"></i>Lock not configured</div>
+								<sb-jenkins v-if="device.build" :build="device.build"/>
 							</a-card>
 						</div>
 					</template>
-					<a-alert v-for="{ title, description } in deviceErrors" :key="title" :message="title" :description="description" type="error" show-icon/>
-				</template>
+				</a-table>
+				<a-alert v-for="{ title, description } in deviceErrors" :key="title" type="error" show-icon>
+					<template #message>
+						<b>{{ title }}</b>: {{ description }}
+					</template>
+				</a-alert>
 			</div>
 
 			<h1>You</h1>
@@ -176,14 +217,21 @@
 					| <a target="_blank" href="/licenses.txt">Licenses</a>
 				</template>
 			</div>
+
+			<sb-form-modal v-model="newFilter.visible" title="Add Filter" :ok="saveFilter">
+				<a-form-item label="Filter name">
+					<a-input v-model="newFilter.name" />
+				</a-form-item>
+			</sb-form-modal>
 		</main>
-		<sb-device-search :visible="showSearch" @select="loadDevice" @close="showSearch = false"/>
 	</div>
 </template>
 
 <script lang="ts">
 	import Vue from 'vue';
 	import { Application } from '@feathersjs/feathers';
+	import { AntdComponent } from 'ant-design-vue/types/component';
+	import { Column } from 'ant-design-vue/types/table/column';
 
 	import { Connection, getDeviceConnections } from '../connections';
 	import { DeviceJson, ClientServices as Services } from '@/services';
@@ -193,29 +241,32 @@
 	// Prism is getting confused by the parentheses in "Program Files (x86)" and styling "x86" as a keyword, so this hack works around it by adding an earlier token for that whole string
 	Prism.languages.insertBefore('batch', 'command', { programFiles: /Program Files \(x86\)/ }, Prism.languages);
 
-	interface AnnotatedDevice {
-		device: DeviceJson;
+	interface AnnotatedDevice extends DeviceJson {
 		connections: Connection[];
 	}
 
-	interface Category {
-		name: string | undefined;
-		devices: AnnotatedDevice[];
+	// This is a subset of the interface exposed by Ant's Table type, the only child of ATable
+	interface AntTable extends Vue {
+		columns: AntTableColumn[];
+		sFilters: {
+			[K: string]: string[]
+		};
+		sSortColumn: AntTableColumn | null;
+		sSortOrder: 'ascend' | 'descend' | undefined;
 	}
+	type AntTableColumn = Omit<Column, keyof AntdComponent>;
 
-	const nodesColumns = [{
-		title: 'Name',
-		dataIndex: 'name',
-		align: 'center',
-	}, {
-		title: 'Serial Port',
-		dataIndex: 'path',
-		align: 'center',
-	}, {
-		title: 'TCP Port',
-		dataIndex: 'tcpPort',
-		align: 'center',
-	}];
+	interface SavedFilter {
+		name: string;
+		sort: {
+			column: string;
+			order: 'ascend' | 'descend';
+		} | undefined;
+		filters: {
+			column: string;
+			values: string[];
+		}[];
+	}
 
 	function makeFormFeedback(promise: PromiseResult<any> | undefined) {
 		const rtn: any = {
@@ -244,55 +295,174 @@
 		return device.tags.some(tag => tag.name.toLowerCase() === 'error');
 	}
 
+	function sortUndefinedFirst(a: string | undefined, b: string | undefined): number {
+		return (a === undefined && b === undefined) ? 0 :
+		       (a === undefined) ? -1 :
+		       (b === undefined) ? 1 :
+		       a.toLowerCase().localeCompare(b.toLowerCase());
+	}
+
+	function uniqifyAndSort<T>(arr: T[]): T[] {
+		return [...new Set(arr)].sort();
+	}
+
 	import SbNavbar from '../components/navbar.vue';
-	import SbDeviceSearch from '../components/device-search.vue';
+	import SbLock, { SbLockVue } from '../components/lock.vue';
+	import SbJenkins from '../components/jenkins.vue';
+	import SbFormModal from '../components/form-modal.vue';
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	export default Vue.extend({
-		components: { SbNavbar, SbDeviceSearch },
+		components: { SbNavbar, SbLock, SbJenkins, SbFormModal },
 		computed: {
 			...rootDataComputeds(),
-			devicesByCategory(): Category[] {
-				const rtn: Category[] = [];
-				if(this.devices.state === 'resolved') {
-					for(const device of this.devices.value) {
-						if(isErrorDevice(device)) {
-							// Errors are shown separately
-							continue;
-						}
-						if(device.remoteInfo && !this.showRemoteDevices) {
-							continue;
-						}
-						const annotatedDevice: AnnotatedDevice = {
-							device,
-							connections: [...getDeviceConnections(device)],
-						};
-						const cat = rtn.find(c => c.name === device.category);
-						if(cat) {
-							cat.devices.push(annotatedDevice);
-						} else {
-							rtn.push({
-								name: device.category,
-								devices: [ annotatedDevice ],
-							});
-						}
-					}
-					// The default category should be first
-					const defIndex = rtn.findIndex(c => c.name === undefined);
-					if(defIndex > 0) {
-						rtn.splice(0, 0, ...rtn.splice(defIndex, 1));
-					}
+			columns(): AntTableColumn[] {
+				const tags = uniqifyAndSort(this.annotatedDevices.flatMap(device => device.tags.map(tag => tag.name)));
+				const servers = uniqifyAndSort(this.annotatedDevices.map(device => device.remoteInfo?.name ?? 'Local'));
+				const categories = uniqifyAndSort(this.annotatedDevices.map(device => device.category ?? ''));
+				const connections = new Map(this.annotatedDevices.flatMap(device => device.connections.map(conn => [ conn.host, conn.name ])));
+				const rtn: AntTableColumn[] = [{
+					dataIndex: 'jenkinsLockOwner',
+					width: 32,
+					scopedSlots: {
+						customRender: 'lock-icon',
+					},
+				}, {
+					dataIndex: 'build',
+					width: 32,
+					scopedSlots: {
+						customRender: 'build-icon',
+					},
+				}, {
+					title: 'Name',
+					dataIndex: 'name',
+					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+					defaultSortOrder: 'ascend',
+				}, {
+					title: 'Tags',
+					dataIndex: 'tags',
+					filters: tags.map(name => ({
+						text: name,
+						value: name,
+					})),
+					onFilter: (name: string, device: AnnotatedDevice) => device.tags.some(tag => tag.name === name),
+					scopedSlots: {
+						customRender: 'tags',
+					},
+				}, {
+					title: 'Connections',
+					dataIndex: 'connections',
+					filters: [...connections.entries()].map(([host, name]) => ({
+						text: `${name} (${host})`,
+						value: host,
+					})).sort((a, b) => a.text.localeCompare(b.text)),
+					onFilter: (host: string, device: AnnotatedDevice) => device.connections.some(conn => conn.host === host),
+					//@ts-ignore The type info on this is super wrong
+					customCell: _ => ({
+						class: 'connections-cell',
+					}),
+					scopedSlots: {
+						customRender: 'connections',
+					},
+				}, {
+					title: 'Description',
+					dataIndex: 'description',
+					width: 400,
+					// ellipsis: true,
+					scopedSlots: {
+						customRender: 'description',
+					},
+				}, {
+					title: 'Category',
+					dataIndex: 'category',
+					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => sortUndefinedFirst(a.category, b.category),
+					filters: categories.map(cat => ({
+						text: (cat !== '') ? cat : '(None)',
+						value: cat,
+					})),
+					onFilter: (cat: string, device: AnnotatedDevice) => (device.category ?? '') === cat,
+				}, {
+					title: 'Server',
+					dataIndex: 'remoteInfo',
+					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => sortUndefinedFirst(a.remoteInfo?.name, b.remoteInfo?.name),
+					filters: servers.map(server => ({
+						text: server,
+						value: server,
+					})).sort(),
+					onFilter: (name: string, device: AnnotatedDevice) => (device.remoteInfo?.name ?? 'Local') === name,
+					scopedSlots: {
+						customRender: 'remote',
+					},
+				}];
+				if(!this.anyRemoteDevices) {
+					rtn.splice(rtn.findIndex(col => col.title === 'Server'), 1);
 				}
 				return rtn;
+			},
+			nodesColumns(): AntTableColumn[] {
+				type Node = DeviceJson['nodes'][number];
+				return [{
+					title: 'Node',
+					dataIndex: 'name',
+					sorter: (a: Node, b: Node) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+				}, {
+					title: 'Serial Port',
+					dataIndex: 'path',
+					//@ts-ignore 'path' isn't in Node's interface
+					sorter: (a: Node, b: Node) => (a.path ?? '').toLowerCase().localeCompare((b.path ?? '').toLowerCase()),
+				}, {
+					title: 'TCP Port',
+					dataIndex: 'tcpPort',
+					sorter: (a: Node, b: Node) => a.tcpPort - b.tcpPort,
+				}];
+			},
+			connectionsColumns(): { [K: string]: AntTableColumn[] } {
+				type Connection = AnnotatedDevice['connections'][number];
+				const rtn: { [K: string]: AntTableColumn[] } = {};
+				for(const device of this.annotatedDevices) {
+					rtn[device.name] = [{
+						title: 'User',
+						dataIndex: 'name',
+						width: 100,
+						sorter: (a: Connection, b: Connection) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+						sortOrder: 'ascend',
+						scopedSlots: {
+							customRender: 'user',
+						},
+					}, {
+						title: 'Host',
+						dataIndex: 'host',
+						width: 100,
+						sorter: (a: Connection, b: Connection) => a.host.toLowerCase().localeCompare(b.host.toLowerCase()),
+					}, {
+						title: 'Nodes',
+						dataIndex: 'nodes',
+						width: 100,
+						filters: [
+							{ text: 'Web', value: 'Web' },
+							...device.nodes.map(node => ({
+								text: node.name,
+								value: node.name,
+							}))
+						],
+						onFilter: (name: string, conn: Connection) => conn.nodes.indexOf(name) >= 0,
+						scopedSlots: {
+							customRender: 'nodes',
+						},
+					}];
+				}
+				return rtn;
+			},
+			annotatedDevices(): AnnotatedDevice[] {
+				return (this.devices.state === 'resolved') ? this.devices.value.filter(device => !isErrorDevice(device)).map(device => ({
+					...device,
+					connections: [...getDeviceConnections(device)],
+				})) : [];
 			},
 			deviceErrors(): { title: string; description: string; }[] {
 				if(this.devices.state !== 'resolved') {
 					return [];
 				}
-				let devices = this.devices.value.filter(isErrorDevice);
-				if(!this.showRemoteDevices) {
-					devices = devices.filter(device => device.remoteInfo === undefined);
-				}
-				return devices.map(device => ({
+				return this.devices.value.filter(isErrorDevice).map(device => ({
 					title: device.name,
 					description: device.description ?? 'Unknown error',
 				 }));
@@ -310,8 +480,8 @@
 		data() {
 			const app = this.$root.$data.app as Application<Services>;
 			return {
-				nodesColumns,
 				version: unwrapPromise(app.service('api/config').get('version')),
+				locking: [] as string[], // Contains names of devices currently trying to acquire a Jenkins lock
 
 				usersConfig: unwrapPromise(app.service('api/config').get('users')),
 				currentUser: unwrapPromise(app.service('api/users').get('self')),
@@ -327,20 +497,37 @@
 				puttyBatFile: batFile(),
 				puttyPath: defaultPuttyPath,
 
-				showRemoteDevices: (localStorage.getItem('home-show-remotes') !== 'false'),
-				showSearch: false,
+				savedFilters: JSON.parse(localStorage.getItem('home-saved-filters') ?? '[]') as SavedFilter[],
+				tableFiltered: false,
+				newFilter: {
+					visible: false,
+					name: '',
+				},
 			};
 		},
-		watch: {
-			showRemoteDevices(val) {
-				localStorage.setItem('home-show-remotes', val ? 'true' : 'false');
-			},
-		},
-		mounted() {
+		async mounted() {
 			const main = this.$refs.main as HTMLElement;
 			main.focus();
+			await this.$nextTick();
+			const tbl = this.tbl();
+			const defaultSort = {
+				column: tbl.sSortColumn?.dataIndex,
+				order: tbl.sSortOrder,
+			};
+			const check = () => {
+				console.log(defaultSort, tbl.sSortColumn, tbl.sSortOrder);
+				this.tableFiltered = (Object.keys(tbl.sFilters).some(k => tbl.sFilters[k].length > 0)) || (tbl.sSortColumn?.dataIndex !== defaultSort.column) || (tbl.sSortOrder !== defaultSort.order);
+			};
+			tbl.$watch('sFilters', check);
+			tbl.$watch('sSortColumn', check);
+			tbl.$watch('sSortOrder', check);
 		},
 		methods: {
+			tbl(): AntTable {
+				// The 'table' ref is an ATable. Its only child is a Table.
+				// Making this a computed prop doesn't work because $refs isn't reactive
+				return (this.$refs.table as Vue).$children[0] as AntTable;
+			},
 			followLink(url: string, newTab: boolean = false) {
 				if(newTab) {
 					window.open(url, '_blank');
@@ -356,6 +543,86 @@
 			},
 			openRemote(device: DeviceJson) {
 				this.followLink(device.remoteInfo!.url, true);
+			},
+			customRow(device: AnnotatedDevice) {
+				return {
+					on: {
+						click: () => this.loadDevice(device),
+						mousedown: (e: MouseEvent) => {
+							if(e.button == 1) {
+								this.loadDevice(device, true);
+							}
+						},
+					},
+				};
+			},
+			applyFilter({ sort, filters }: SavedFilter) {
+				this.clearFilter();
+				const tbl = this.tbl();
+				for(const filter of filters) {
+					tbl.sFilters[filter.column] = [...filter.values];
+				}
+				if(sort) {
+					tbl.sSortColumn = tbl.columns.find(col => col.dataIndex === sort.column) ?? null;
+					tbl.sSortOrder = tbl.sSortColumn ? sort.order : undefined;
+				}
+			},
+			clearFilter() {
+				const tbl = this.tbl();
+				for(const k of Object.keys(tbl.sFilters)) {
+					tbl.$delete(tbl.sFilters, k);
+				}
+				tbl.sSortColumn = tbl.columns.find(col => col.defaultSortOrder !== undefined) ?? null;
+				tbl.sSortOrder = tbl.sSortColumn?.defaultSortOrder;
+			},
+			saveFilter() {
+				if(!this.newFilter.visible) {
+					this.newFilter.name = '';
+					this.newFilter.visible = true;
+					return;
+				}
+				const name = this.newFilter.name.trim();
+				if(name.length == 0) {
+					throw new Error("Filter name can't be empty");
+				}
+
+				const tbl = this.tbl();
+				const filter: SavedFilter = {
+					name,
+					sort: tbl.sSortColumn ? {
+						column: tbl.sSortColumn.dataIndex!,
+						order: tbl.sSortOrder!,
+					} : undefined,
+					filters: Object.entries<string[]>(tbl.sFilters).map(([ column, values ]) => ({ column, values })),
+				};
+				this.savedFilters.push(filter);
+				localStorage.setItem('home-saved-filters', JSON.stringify(this.savedFilters));
+			},
+			removeFilter(filter: SavedFilter) {
+				const idx = this.savedFilters.indexOf(filter);
+				this.savedFilters.splice(idx, 1);
+				localStorage.setItem('home-saved-filters', JSON.stringify(this.savedFilters));
+			},
+			async acquireLock(device: AnnotatedDevice) {
+				if(this.locking.indexOf(device.name) == -1) {
+					this.locking.push(device.name);
+					await this.$nextTick();
+					const lockComp = this.$refs[`lock-${device.name}`] as SbLockVue | undefined;
+					if(lockComp) {
+						lockComp.$once('close', () => {
+							const idx = this.locking.indexOf(device.name);
+							if(idx >= 0) {
+								this.locking.splice(idx, 1);
+							}
+						})
+					}
+				}
+			},
+			releaseLock(device: AnnotatedDevice) {
+				const lockComp = this.$refs[`lock-${device.name}`] as SbLockVue | undefined;
+				if(lockComp) {
+					lockComp.release();
+				}
 			},
 			updateUser() {
 				if(this.currentUser.state == 'resolved') {
@@ -373,12 +640,6 @@
 					localStorage.setItem('jenkins-key', key);
 				}));
 			},
-			keydown(e: KeyboardEvent) {
-				if(!this.showSearch && !e.ctrlKey && !e.altKey && !e.metaKey && e.key.match(/^[a-zA-Z0-9_-]$/)) {
-					this.showSearch = true;
-					// Letting the event propagate will cause it to trigger a key press on the modal's search input
-				}
-			},
 		},
 	});
 </script>
@@ -392,42 +653,57 @@
 		margin-top: 3rem;
 	}
 
-	.remote-toggle {
-		float: right;
-		margin-right: 20px;
-		font-size: 14px;
-	}
-
 	.ant-alert + h1 {
 		margin-top: 0;
 	}
 
 	.ant-alert {
-		margin-bottom: 5px;
+		margin-top: 5px;
 	}
 
 	h4 {
 		font-weight: bold;
 	}
 
+	.table-filter-controls {
+		margin-bottom: 10px;
+
+		.fa-filter {
+			margin-right: 8px;
+		}
+
+		.ant-tag {
+			cursor: pointer;
+		}
+	}
+
 	.devices {
-		display: flex;
-		flex-wrap: wrap;
-		margin: -15px 0;
-		margin-bottom: 1rem;
-
-		.remote {
-			float: right;
-			font-style: italic;
-			font-size: smaller;
-
-			i {
-				margin-right: 2px;
+		/deep/ tbody tr.ant-table-row {
+			&:hover {
+				cursor: pointer;
 			}
 
-			& + h4 {
-				// Don't add space above this header since the remote text is floating
-				margin-top: 0 !important;
+			&.busy {
+				background-color: #fff1f0;
+			}
+		}
+
+		/deep/ .connections-cell {
+			// padding: 0;
+			position: relative;
+		}
+
+		.icons {
+			> i:not(:first-child) {
+				margin-left: 5px;
+			}
+		}
+
+		.connections {
+			position: absolute;
+			top: 12px;
+			> * {
+				margin-right: 5px;
 			}
 		}
 
@@ -438,9 +714,67 @@
 				// Support for these is iffy, but worst case we just show the whole description all the time
 				display: -webkit-box;
 				-webkit-box-orient: vertical;
-				-webkit-line-clamp: 3;
+				-webkit-line-clamp: 1;
 				overflow: hidden;
 			}
+		}
+
+		/deep/ .ant-table-expanded-row .cards {
+			display: flex;
+			flex-wrap: wrap;
+			margin: -15px 0;
+			margin-bottom: 1rem;
+
+			.ant-card {
+				width: 400px;
+			}
+		}
+
+		.connections-table {
+			/deep/ td {
+				vertical-align: top;
+			}
+			.user {
+				span {
+					margin-left: 4px;
+				}
+				white-space: nowrap;
+			}
+			.ant-tag {
+				margin-bottom: 2px;
+			}
+		}
+
+		.jenkins-card {
+			.jenkins {
+				// padding: 0;
+				overflow: visible;
+				line-height: 1.25;
+			}
+			.unlocked, .nolock {
+				color: #001529;
+				margin: 5px 0;
+				padding: 0 10px;
+			}
+			/deep/ .ant-card-body i {
+				// Align with the link from the Jenkins box below this one
+				margin-right: 10px;
+			}
+		}
+	}
+
+	.ant-tooltip {
+		.connection.name {
+			font-weight: bold;
+		}
+
+		.connection.host {
+			margin-top: -4px;
+			font-size: smaller;
+		}
+
+		.ant-tag:not(:first-child) {
+			margin-left: 5px;
 		}
 	}
 

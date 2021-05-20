@@ -50,8 +50,7 @@
 							<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
 						</div>
 					</template>
-					<a-avatar v-if="connection.avatar" shape="square" :src="connection.avatar"/>
-					<a-avatar v-else shape="square" icon="user"/>
+					<a-avatar shape="square" icon="user" :src="connection.avatar"/>
 				</a-tooltip>
 			</template>
 		</sb-navbar>
