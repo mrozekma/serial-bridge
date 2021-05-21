@@ -491,9 +491,7 @@
 			}
 		}
 	}
-</style>
 
-<style lang="less" scoped>
 	.ant-menu {
 		/deep/ .brand {
 			span {

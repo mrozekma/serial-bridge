@@ -1,5 +1,5 @@
 <template>
-	<div>
+	<div class="home">
 		<sb-navbar>
 			<a-sub-menu>
 				<template v-slot:title>
@@ -9,221 +9,224 @@
 				<a-menu-item><a href="/ports/find">Find ports</a></a-menu-item>
 			</a-sub-menu>
 		</sb-navbar>
-		<main ref="main">
+		<main>
 			<a-alert v-if="version.state === 'resolved' && version.value.notice" type="info" :message="version.value.notice" show-icon/>
-			<h1>Devices</h1>
-			<a-alert v-if="devices.state === 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>
-			<div v-else>
-				<div v-if="tableFiltered || savedFilters.length > 0" class="table-filter-controls">
-					<a-tooltip placement="bottomRight" title="Table filter controls">
-						<i class="fas fa-filter"></i>
-					</a-tooltip>
-					<template v-if="tableFiltered">
-						<a-tooltip placement="bottomRight" title="Save current table filter">
-							<a-tag color="blue" @click="saveFilter">Save</a-tag>
-						</a-tooltip>
-						<a-tooltip placement="bottomRight" title="Clear current table filter">
-							<a-tag color="blue" @click="clearFilter">Clear</a-tag>
-						</a-tooltip>
-					</template>
-					<template v-if="savedFilters.length > 0">
-						<a-tag v-for="filter in savedFilters" :key="filter.name" closable @click="applyFilter(filter)" @close="removeFilter(filter)">
-							{{ filter.name }}
-						</a-tag>
-					</template>
-				</div>
-				<a-table :columns="columns" :data-source="annotatedDevices" :row-key="device => device.id" :custom-row="customRow" :row-class-name="device => (device.jenkinsLockOwner !== undefined || device.build !== undefined) ? 'busy' : 'x'" :loading="devices.state == 'pending'" :pagination="false" :locale="{emptyText: 'No devices'}" class="devices" ref="table">
-					<template #lock-icon="lockOwner">
-						<a-tooltip v-if="lockOwner" placement="bottomRight" :title="`Reserved by ${lockOwner}`">
-							<i class="fas fa-lock-alt"></i>
-						</a-tooltip>
-					</template>
-					<template #build-icon="build">
-						<a-tooltip v-if="build" placement="bottomRight" :title="build.name">
-							<i class="fab fa-jenkins"></i>
-						</a-tooltip>
-					</template>
-					<template #tags="tags">
-						<a-tag v-for="{ name, description, color } in tags" :key="name" :title="description" :color="color">{{ name }}</a-tag>
-					</template>
-					<template #connections="connections">
-						<div class="connections">
-							<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
-								<template slot="title">
-									<div class="connection name">{{ connection.name }}</div>
-									<div class="connection host" v-if="connection.host != connection.name">{{ connection.host }}</div>
-									<div class="connection nodes">
-										<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
-									</div>
-								</template>
-								<a-avatar shape="square" :size="32" icon="user" :src="connection.avatar" />
+			<a-tabs @change="tabSwitched">
+				<a-tab-pane key="devices" tab="Devices">
+					<a-alert v-if="devices.state === 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>
+					<div v-else>
+						<div v-if="tableFiltered || savedFilters.length > 0" class="table-filter-controls">
+							<a-tooltip placement="bottomRight" title="Table filter controls">
+								<i class="fas fa-filter"></i>
 							</a-tooltip>
+							<template v-if="tableFiltered">
+								<a-tooltip placement="bottomRight" title="Save current table filter">
+									<a-tag color="blue" @click="saveFilter">Save</a-tag>
+								</a-tooltip>
+								<a-tooltip placement="bottomRight" title="Clear current table filter">
+									<a-tag color="blue" @click="clearFilter">Clear</a-tag>
+								</a-tooltip>
+							</template>
+							<template v-if="savedFilters.length > 0">
+								<a-tag v-for="filter in savedFilters" :key="filter.name" closable @click="applyFilter(filter)" @close="removeFilter(filter)">
+									{{ filter.name }}
+								</a-tag>
+							</template>
 						</div>
-					</template>
-					<template #description="description">
-						<div class="description">
-							{{ description }}
-						</div>
-					</template>
-					<template #remote="remote">
-						<template v-if="remote">
-							<a :href="remote.url" target="_blank" @click.stop>{{ remote.name }}</a>
+						<a-table :columns="columns" :data-source="annotatedDevices" :row-key="device => device.id" :custom-row="customRow" :row-class-name="device => (device.jenkinsLockOwner !== undefined || device.build !== undefined) ? 'busy' : 'x'" :loading="devices.state == 'pending'" :pagination="false" :locale="{emptyText: 'No devices'}" class="devices" ref="table">
+							<template #lock-icon="lockOwner">
+								<a-tooltip v-if="lockOwner" placement="bottomRight" :title="`Reserved by ${lockOwner}`">
+									<i class="fas fa-lock-alt"></i>
+								</a-tooltip>
+							</template>
+							<template #build-icon="build">
+								<a-tooltip v-if="build" placement="bottomRight" :title="build.name">
+									<i class="fab fa-jenkins"></i>
+								</a-tooltip>
+							</template>
+							<template #tags="tags">
+								<a-tag v-for="{ name, description, color } in tags" :key="name" :title="description" :color="color">{{ name }}</a-tag>
+							</template>
+							<template #connections="connections">
+								<div class="connections">
+									<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
+										<template slot="title">
+											<div class="connection name">{{ connection.name }}</div>
+											<div class="connection host" v-if="connection.host != connection.name">{{ connection.host }}</div>
+											<div class="connection nodes">
+												<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
+											</div>
+										</template>
+										<a-avatar shape="square" :size="32" icon="user" :src="connection.avatar" />
+									</a-tooltip>
+								</div>
+							</template>
+							<template #description="description">
+								<div class="description">
+									{{ description }}
+								</div>
+							</template>
+							<template #remote="remote">
+								<template v-if="remote">
+									<a :href="remote.url" target="_blank" @click.stop>{{ remote.name }}</a>
+								</template>
+								<template v-else>
+									Local
+								</template>
+							</template>
+							<template #expandedRowRender="device">
+								<div class="cards">
+									<a-card title="Ports">
+										<template #extra>
+											<a-tooltip placement="bottomRight" title="Manage ports">
+												<a-button size="small" @mousedown.left.stop="manageDevice(device)" @mousedown.middle.stop.prevent="manageDevice(device, true)">
+													<i class="fas fa-cogs"></i>
+												</a-button>
+											</a-tooltip>
+										</template>
+										<a-table :columns="nodesColumns" :data-source="device.nodes" :row-key="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'No ports'}"/>
+									</a-card>
+									<a-card title="Connections">
+										<a-table :columns="connectionsColumns[device.name]" :data-source="device.connections" :row-key="conn => conn.host" size="small" :pagination="false" :locale="{emptyText: 'No connections'}" class="connections-table">
+											<template #user="_, conn">
+												<div class="user">
+													<a-avatar shape="square" size="small" icon="user" :src="conn.avatar"/>
+													<span>{{ conn.name }}</span>
+												</div>
+											</template>
+											<template #nodes="nodes">
+												<a-tag v-for="node in nodes" :key="node">{{ node }}</a-tag>
+											</template>
+										</a-table>
+									</a-card>
+									<a-card title="Jenkins" class="jenkins-card">
+										<template #extra v-if="device.jenkinsLockName">
+											<a-tooltip v-if="device.jenkinsLockOwner" placement="bottomRight" title="Release lock">
+												<a-button size="small" @click="releaseLock(device)">
+													<i class="fas fa-unlock-alt"></i>
+												</a-button>
+											</a-tooltip>
+											<a-tooltip v-else placement="bottomRight" title="Acquire lock">
+												<a-button size="small" @click="acquireLock(device)">
+													<i class="fas fa-lock-alt"></i>
+												</a-button>
+											</a-tooltip>
+										</template>
+										<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.jenkinsLockOwner" :ref="`lock-${device.name}`" :device-id="device.id" :owner="device.jenkinsLockOwner"/>
+										<div v-else-if="device.jenkinsLockName" class="unlocked"><i class="fas fa-unlock-alt"></i>Unreserved</div>
+										<div v-else class="nolock"><i class="fas fa-question-circle"></i>Lock not configured</div>
+										<sb-jenkins v-if="device.build" :build="device.build"/>
+									</a-card>
+								</div>
+							</template>
+						</a-table>
+						<a-alert v-for="{ title, description } in deviceErrors" :key="title" type="error" show-icon>
+							<template #message>
+								<b>{{ title }}</b>: {{ description }}
+							</template>
+						</a-alert>
+					</div>
+				</a-tab-pane>
+
+				<a-tab-pane key="you" tab="You">
+					<a-alert v-if="usersConfig.state == 'rejected'" type="error" message="Failed to load user directory config" :description="usersConfig.error.message" showIcon/>
+					<a-alert v-else-if="currentUser.state == 'rejected'" type="error" message="Failed to load current user info" :description="currentUser.error.message" showIcon/>
+					<a-spin v-else-if="usersConfig.state == 'pending' || currentUser.state == 'pending'"/>
+					<template v-else>
+						A list of who is connected to each device/port is displayed in several places in the UI.<br>
+						<template v-if="usersConfig.value.identifySupport">
+							Serial Bridge attempts to guess who you are based on your hostname: <code>{{ currentUser.value.host }}</code>.<br>
+							If this isn't working, you can manually specify your name here.
 						</template>
 						<template v-else>
-							Local
+							Serial Bridge isn't configured with a user directory, so by default it just displays your hostname: <code>{{ currentUser.value.host }}</code>.<br>
+							You can manually specify your name here.
 						</template>
+						<template v-if="usersConfig.value.avatarSupport">
+							You can also specify an e-mail address to show an avatar.
+						</template>
+
+						<a-form layout="inline" @submit.prevent="updateUser">
+							<a-form-item label="Name" v-bind="userFormFeedback">
+								<a-input v-model="currentUser.value.displayName" @change="changeUserInfo = undefined"/>
+							</a-form-item>
+							<a-form-item v-if="usersConfig.value.avatarSupport" label="E-mail" v-bind="userFormFeedback">
+								<a-input v-model="currentUser.value.email" @change="changeUserInfo = undefined"/>
+							</a-form-item>
+							<a-form-item>
+								<a-button type="primary" html-type="submit" :disabled="changeUserInfo && changeUserInfo.state == 'pending'">Update</a-button>
+							</a-form-item>
+						</a-form>
 					</template>
-					<template #expandedRowRender="device">
-						<div class="cards">
-							<a-card title="Ports">
-								<template #extra>
-									<a-tooltip placement="bottomRight" title="Manage ports">
-										<a-button size="small" @mousedown.left.stop="manageDevice(device)" @mousedown.middle.stop.prevent="manageDevice(device, true)">
-											<i class="fas fa-cogs"></i>
-										</a-button>
-									</a-tooltip>
-								</template>
-								<a-table :columns="nodesColumns" :data-source="device.nodes" :row-key="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'No ports'}"/>
-							</a-card>
-							<a-card title="Connections">
-								<a-table :columns="connectionsColumns[device.name]" :data-source="device.connections" :row-key="conn => conn.host" size="small" :pagination="false" :locale="{emptyText: 'No connections'}" class="connections-table">
-									<template #user="_, conn">
-										<div class="user">
-											<a-avatar shape="square" size="small" icon="user" :src="conn.avatar"/>
-											<span>{{ conn.name }}</span>
-										</div>
-									</template>
-									<template #nodes="nodes">
-										<a-tag v-for="node in nodes" :key="node">{{ node }}</a-tag>
-									</template>
-								</a-table>
-							</a-card>
-							<a-card title="Jenkins" class="jenkins-card">
-								<template #extra v-if="device.jenkinsLockName">
-									<a-tooltip v-if="device.jenkinsLockOwner" placement="bottomRight" title="Release lock">
-										<a-button size="small" @click="releaseLock(device)">
-											<i class="fas fa-unlock-alt"></i>
-										</a-button>
-									</a-tooltip>
-									<a-tooltip v-else placement="bottomRight" title="Acquire lock">
-										<a-button size="small" @click="acquireLock(device)">
-											<i class="fas fa-lock-alt"></i>
-										</a-button>
-									</a-tooltip>
-								</template>
-								<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.jenkinsLockOwner" :ref="`lock-${device.name}`" :device-id="device.id" :owner="device.jenkinsLockOwner"/>
-								<div v-else-if="device.jenkinsLockName" class="unlocked"><i class="fas fa-unlock-alt"></i>Unreserved</div>
-								<div v-else class="nolock"><i class="fas fa-question-circle"></i>Lock not configured</div>
-								<sb-jenkins v-if="device.build" :build="device.build"/>
-							</a-card>
-						</div>
+
+					<a-alert v-if="jenkinsConfig.state == 'rejected'" type="error" message="Failed to load Jenkins config" :description="jenkinsConfig.error.message" showIcon/>
+					<a-spin v-else-if="jenkinsConfig.state == 'pending'"/>
+					<template v-else-if="jenkinsConfig.value.jenkinsUrl">
+						It's also possible to control Jenkins locks from within Serial Bridge, but this requires a Jenkins API key:
+						<ul>
+							<li>Go to <a target="_blank" :href="jenkinsConfig.value.jenkinsUrl">Jenkins</a>.</li>
+							<li>Click your username at the top-right.</li>
+							<li>Click <b>Configure</b> on the left menu.</li>
+							<li>Under the <b>API Token</b> section, click <b>Add new Token</b>.</li>
+							<li>Enter the name "Serial Bridge" and click <b>Generate</b>.</li>
+							<li>Paste the generated token here.</li>
+						</ul>
+						<a-form layout="inline" @submit.prevent="updateJenkins">
+							<a-form-item label="Username">
+								<a-input v-model="jenkinsForm.username" @change="changeJenkinsKey = undefined"/>
+							</a-form-item>
+							<a-form-item v-if="usersConfig.value.avatarSupport" label="API Key" v-bind="jenkinsFormFeedback">
+								<a-input-password v-model="jenkinsForm.key" @change="changeJenkinsKey = undefined"/>
+							</a-form-item>
+							<a-form-item>
+								<a-button type="primary" html-type="submit" :disabled="changeJenkinsKey && changeJenkinsKey.state == 'pending'">Update</a-button>
+							</a-form-item>
+						</a-form>
 					</template>
-				</a-table>
-				<a-alert v-for="{ title, description } in deviceErrors" :key="title" type="error" show-icon>
-					<template #message>
-						<b>{{ title }}</b>: {{ description }}
-					</template>
-				</a-alert>
-			</div>
+				</a-tab-pane>
 
-			<h1>You</h1>
-			<a-alert v-if="usersConfig.state == 'rejected'" type="error" message="Failed to load user directory config" :description="usersConfig.error.message" showIcon/>
-			<a-alert v-else-if="currentUser.state == 'rejected'" type="error" message="Failed to load current user info" :description="currentUser.error.message" showIcon/>
-			<a-spin v-else-if="usersConfig.state == 'pending' || currentUser.state == 'pending'"/>
-			<template v-else>
-				A list of who is connected to each device/port is displayed in several places in the UI.<br>
-				<template v-if="usersConfig.value.identifySupport">
-					Serial Bridge attempts to guess who you are based on your hostname: <code>{{ currentUser.value.host }}</code>.<br>
-					If this isn't working, you can manually specify your name here.
-				</template>
-				<template v-else>
-					Serial Bridge isn't configured with a user directory, so by default it just displays your hostname: <code>{{ currentUser.value.host }}</code>.<br>
-					You can manually specify your name here.
-				</template>
-				<template v-if="usersConfig.value.avatarSupport">
-					You can also specify an e-mail address to show an avatar.
-				</template>
+				<a-tab-pane key="setup" tab="Setup">
+					Some terminal windows have <i class="far fa-external-link-alt"></i> and/or <i class="far fa-terminal"></i> icons to open telnet, raw TCP, and SSH connections. You can enter your Putty path here to generate the necessary registry files and batch script (this assumes that you'll put the batch script in Putty's directory; if not, modify the generated files):
+					<form method="get" action="/serial-bridge.zip">
+						<a-input type="text" name="path" v-model="puttyPath" placeholder="PuTTY Path"/>
+						<a-button type="primary" html-type="submit">Generate</a-button>
+					</form>
 
-				<a-form layout="inline" @submit.prevent="updateUser">
-					<a-form-item label="Name" v-bind="userFormFeedback">
-						<a-input v-model="currentUser.value.displayName" @change="changeUserInfo = undefined"/>
-					</a-form-item>
-					<a-form-item v-if="usersConfig.value.avatarSupport" label="E-mail" v-bind="userFormFeedback">
-						<a-input v-model="currentUser.value.email" @change="changeUserInfo = undefined"/>
-					</a-form-item>
-					<a-form-item>
-						<a-button type="primary" html-type="submit" :disabled="changeUserInfo && changeUserInfo.state == 'pending'">Update</a-button>
-					</a-form-item>
-				</a-form>
-			</template>
-
-			<a-alert v-if="jenkinsConfig.state == 'rejected'" type="error" message="Failed to load Jenkins config" :description="jenkinsConfig.error.message" showIcon/>
-			<a-spin v-else-if="jenkinsConfig.state == 'pending'"/>
-			<template v-else-if="jenkinsConfig.value.jenkinsUrl">
-				It's also possible to control Jenkins locks from within Serial Bridge, but this requires a Jenkins API key:
-				<ul>
-					<li>Go to <a target="_blank" :href="jenkinsConfig.value.jenkinsUrl">Jenkins</a>.</li>
-					<li>Click your username at the top-right.</li>
-					<li>Click <b>Configure</b> on the left menu.</li>
-					<li>Under the <b>API Token</b> section, click <b>Add new Token</b>.</li>
-					<li>Enter the name "Serial Bridge" and click <b>Generate</b>.</li>
-					<li>Paste the generated token here.</li>
-				</ul>
-				<a-form layout="inline" @submit.prevent="updateJenkins">
-					<a-form-item label="Username">
-						<a-input v-model="jenkinsForm.username" @change="changeJenkinsKey = undefined"/>
-					</a-form-item>
-					<a-form-item v-if="usersConfig.value.avatarSupport" label="API Key" v-bind="jenkinsFormFeedback">
-						<a-input-password v-model="jenkinsForm.key" @change="changeJenkinsKey = undefined"/>
-					</a-form-item>
-					<a-form-item>
-						<a-button type="primary" html-type="submit" :disabled="changeJenkinsKey && changeJenkinsKey.state == 'pending'">Update</a-button>
-					</a-form-item>
-				</a-form>
-			</template>
-
-			<h1>Setup</h1>
-			Some terminal windows have <i class="far fa-external-link-alt"></i> and/or <i class="far fa-terminal"></i> icons to open telnet, raw TCP, and SSH connections. You can enter your Putty path here to generate the necessary registry files and batch script (this assumes that you'll put the batch script in Putty's directory; if not, modify the generated files):
-			<form method="get" action="/serial-bridge.zip">
-				<a-input type="text" name="path" v-model="puttyPath" placeholder="PuTTY Path"/>
-				<a-button type="primary" html-type="submit">Generate</a-button>
-			</form>
-
-			To set things up manually:
-			<ul>
-				<li>For telnet links, edit the <code>HKEY_LOCAL_MACHINE\SOFTWARE\Classes\telnet\shell\open\command</code> registry key and set the default value to <code>"&lt;Application path&gt;" %l</code>. For example, <code>"C:\Program Files (x86)\PuTTY\putty.exe" %l</code>. Any telnet application can be used.</li>
-				<li>For raw and SSH links (this requires Putty):
+					To set things up manually:
 					<ul>
-						<li>Create a batch file that will receive the URI and pass the arguments to Putty:
-							<pre><code class="language-batch line-numbers">{{ puttyBatFile }}</code></pre>
-						</li>
-						<li>Create the following registry entries (the <code>HKEY_CLASSES_ROOT\putty</code> key will need to be created):
+						<li>For telnet links, edit the <code>HKEY_LOCAL_MACHINE\SOFTWARE\Classes\telnet\shell\open\command</code> registry key and set the default value to <code>"&lt;Application path&gt;" %l</code>. For example, <code>"C:\Program Files (x86)\PuTTY\putty.exe" %l</code>. Any telnet application can be used.</li>
+						<li>For raw and SSH links (this requires Putty):
 							<ul>
-								<li><code>HKEY_CLASSES_ROOT\putty\URL Protocol</code> = <code>""</code></li>
-								<li><code>HKEY_CLASSES_ROOT\putty\shell\open\command\(Default)</code> = <code>"&lt;Batch file&gt;" %1</code></li>
+								<li>Create a batch file that will receive the URI and pass the arguments to Putty:
+									<pre><code ref="putty-batch-file" class="language-batch line-numbers">{{ puttyBatFile }}</code></pre>
+								</li>
+								<li>Create the following registry entries (the <code>HKEY_CLASSES_ROOT\putty</code> key will need to be created):
+									<ul>
+										<li><code>HKEY_CLASSES_ROOT\putty\URL Protocol</code> = <code>""</code></li>
+										<li><code>HKEY_CLASSES_ROOT\putty\shell\open\command\(Default)</code> = <code>"&lt;Batch file&gt;" %1</code></li>
+									</ul>
+								</li>
 							</ul>
 						</li>
 					</ul>
-				</li>
-			</ul>
-
-			<div v-if="version.state === 'resolved'" class="version">
-				<a target="_blank" :href="version.value.versionLink">{{ version.value.version }}</a>
-				<template v-if="version.value.buildId">
-					| <a target="_blank" :href="version.value.releaseLink">Build {{ version.value.buildId }}</a>
-				</template>
-				| Built {{ version.value.date }}
-				<template v-if="version.value.licenses">
-					| <a target="_blank" href="/licenses.txt">Licenses</a>
-				</template>
-			</div>
-
-			<sb-form-modal v-model="newFilter.visible" title="Add Filter" :ok="saveFilter">
-				<a-form-item label="Filter name">
-					<a-input v-model="newFilter.name" />
-				</a-form-item>
-			</sb-form-modal>
+				</a-tab-pane>
+			</a-tabs>
 		</main>
+		<footer v-if="version.state === 'resolved'">
+			<a target="_blank" :href="version.value.versionLink">{{ version.value.version }}</a>
+			<template v-if="version.value.buildId">
+				| <a target="_blank" :href="version.value.releaseLink">Build {{ version.value.buildId }}</a>
+			</template>
+			| Built {{ version.value.date }}
+			<template v-if="version.value.licenses">
+				| <a target="_blank" href="/licenses.txt">Licenses</a>
+			</template>
+		</footer>
+		<sb-form-modal v-model="newFilter.visible" title="Add Filter" :ok="saveFilter">
+			<a-form-item label="Filter name">
+				<a-input v-model="newFilter.name" />
+			</a-form-item>
+		</sb-form-modal>
 	</div>
 </template>
 
@@ -506,8 +509,6 @@
 			};
 		},
 		async mounted() {
-			const main = this.$refs.main as HTMLElement;
-			main.focus();
 			await this.$nextTick();
 			const tbl = this.tbl();
 			const defaultSort = {
@@ -541,9 +542,6 @@
 			manageDevice(device: DeviceJson, newTab: boolean = false) {
 				this.followLink(`${device.remoteInfo?.url ?? ''}/devices/${device.id}/manage`, newTab);
 			},
-			openRemote(device: DeviceJson) {
-				this.followLink(device.remoteInfo!.url, true);
-			},
 			customRow(device: AnnotatedDevice) {
 				return {
 					on: {
@@ -555,6 +553,15 @@
 						},
 					},
 				};
+			},
+			async tabSwitched(key: string) {
+				if(key === 'setup') {
+					await this.$nextTick();
+					const code = this.$refs['putty-batch-file'] as HTMLElement;
+					if(code) {
+						Prism.highlightElement(code);
+					}
+				}
 			},
 			applyFilter({ sort, filters }: SavedFilter) {
 				this.clearFilter();
@@ -645,8 +652,14 @@
 </script>
 
 <style lang="less" scoped>
+	.home {
+		position: relative;
+		min-height: 100%;
+	}
+
 	main {
 		outline-width: 0;
+		padding-bottom: 16px + 10px + 10px;
 	}
 
 	h1:not(:first-child) {
@@ -790,12 +803,16 @@
 		}
 	}
 
-	.version {
+	footer {
+		position: absolute;
+		bottom: 10px;
+		height: 26px;
+		right: 10px;
+		padding-top: 10px;
 		font-size: smaller;
-		text-align: right;
 		color: #d9d9d9;
 		a {
-			color: #adc6ff;
+			color: inherit;
 		}
 	}
 </style>
