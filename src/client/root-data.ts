@@ -43,6 +43,15 @@ export function unwrapPromise<T>(promise: Promise<T>): PromiseResult<T> {
 	return result as PromiseResult<T>;
 }
 
+// I don't want to duplicate this code, but this is also a fairly dumb spot for this function
+export function getDeviceUrl(device: DeviceJson, type: 'device' | 'manage'): string {
+	const url = `${device.remoteInfo?.url ?? ''}/devices/${device.id}`;
+	switch(type) {
+		case 'device': return url;
+		case 'manage': return `${url}/manage`;
+	}
+}
+
 const devices: Promise<DeviceJson[]> = app.service('api/devices').find();
 
 const data = {

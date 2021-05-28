@@ -1,11 +1,14 @@
 <template>
-	<div v-if="error">
-		<sb-navbar/>
-		<main>
-			<a-alert type="error" message="Bad route" :description="error" showIcon/>
-		</main>
+	<div class="app">
+		<template v-if="error">
+			<sb-navbar/>
+			<main>
+				<a-alert type="error" message="Bad route" :description="error" showIcon/>
+			</main>
+		</template>
+		<component v-else :is="view" v-bind="props"/>
+		<sb-command-palette v-if="showPalette" @close="showPalette = false" />
 	</div>
-	<component v-else :is="view" v-bind="props"/>
 </template>
 
 <script lang="ts">
@@ -25,15 +28,24 @@
 
 	import 'animate.css/animate.css';
 
+	import hotkeys from 'hotkeys-js';
+
+	import { rootDataComputeds, getDeviceUrl } from './root-data';
+	import commandPalette from './command-palette';
+
 	// I'm avoiding a SPA here because it's convenient to start fresh when switching devices, so this is essentially a manual basic vue-router
 	import SbNavbar from './components/navbar.vue';
+	import SbCommandPalette from './components/command-palette.vue';
 	import HomeView from './views/home.vue';
 	import DeviceView from './views/device.vue';
 	import ManageView from './views/manage.vue';
 	import PortsView from './views/ports.vue';
 	import PortsFindView from './views/ports-find.vue';
 	export default Vue.extend({
-		components: { SbNavbar },
+		components: { SbNavbar, SbCommandPalette },
+		computed: {
+			...rootDataComputeds(),
+		},
 		data() {
 			let view: VueConstructor<Vue> | undefined = undefined;
 			let props = {};
@@ -56,7 +68,38 @@
 				error = `No view for route: ${path}`;
 			}
 
-			return { view, props, error };
+			return {
+				view, props, error,
+				showPalette: false,
+			};
+		},
+		mounted() {
+			hotkeys('ctrl+shift+p', e => {
+				e.preventDefault();
+				this.showPalette = true;
+			});
+			const self = this;
+			commandPalette.addProvider('app', function*() {
+				yield {
+					value: 'home',
+					text: 'Home',
+					handler: () => window.location.assign('/'),
+				};
+				if(self.devices.state === 'resolved') {
+					for(const device of self.devices.value) {
+						yield {
+							value: `devices.${device.id}.open`,
+							text: [ 'Device', device.name, 'Open' ],
+							handler: () => window.location.assign(getDeviceUrl(device, 'device')),
+						};
+						yield {
+							value: `devices.${device.id}.manage`,
+							text: [ 'Device', device.name, 'Manage' ],
+							handler: () => window.location.assign(getDeviceUrl(device, 'manage')),
+						};
+					}
+				}
+			});
 		},
 	});
 </script>
@@ -64,6 +107,11 @@
 <style lang="less">
 	* {
 		transition-duration: 0ms !important;
+	}
+
+	.app {
+		position: relative;
+		min-height: 100%;
 	}
 
 	main {

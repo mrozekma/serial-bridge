@@ -237,6 +237,7 @@
 	import { Column } from 'ant-design-vue/types/table/column';
 
 	import { Connection, getDeviceConnections } from '../connections';
+	import commandPalette from '../command-palette';
 	import { DeviceJson, ClientServices as Services } from '@/services';
 	import { batFile, defaultPuttyPath } from '@/server/setup-zip'; // Pure laziness
 
@@ -313,7 +314,7 @@
 	import SbLock, { SbLockVue } from '../components/lock.vue';
 	import SbJenkins from '../components/jenkins.vue';
 	import SbFormModal from '../components/form-modal.vue';
-	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
+	import { rootDataComputeds, unwrapPromise, getDeviceUrl, PromiseResult } from '../root-data';
 	export default Vue.extend({
 		components: { SbNavbar, SbLock, SbJenkins, SbFormModal },
 		computed: {
@@ -516,12 +517,39 @@
 				order: tbl.sSortOrder,
 			};
 			const check = () => {
-				console.log(defaultSort, tbl.sSortColumn, tbl.sSortOrder);
 				this.tableFiltered = (Object.keys(tbl.sFilters).some(k => tbl.sFilters[k].length > 0)) || (tbl.sSortColumn?.dataIndex !== defaultSort.column) || (tbl.sSortOrder !== defaultSort.order);
 			};
 			tbl.$watch('sFilters', check);
 			tbl.$watch('sSortColumn', check);
 			tbl.$watch('sSortOrder', check);
+
+			const self = this;
+			commandPalette.addProvider('home', function*() {
+				if(self.tableFiltered) {
+					yield {
+						value: 'home.current-filter.save',
+						text: [ 'Home', 'Filters', 'Save current filter' ],
+						handler: () => self.saveFilter(),
+					};
+					yield {
+						value: 'home.current-filter.clear',
+						text: [ 'Home', 'Filters', 'Clear current filter' ],
+						handler: () => self.clearFilter(),
+					};
+				}
+				for(const filter of self.savedFilters) {
+					yield {
+						value: `home.saved-filter.${filter.name}.apply`,
+						text: [ 'Home', 'Filters', filter.name, 'Apply' ],
+						handler: () => self.applyFilter(filter),
+					};
+					yield {
+						value: `home.saved-filter.${filter.name}.remove`,
+						text: [ 'Home', 'Filters', filter.name, 'Remove' ],
+						handler: () => self.removeFilter(filter),
+					};
+				}
+			});
 		},
 		methods: {
 			tbl(): AntTable {
@@ -537,10 +565,10 @@
 				}
 			},
 			loadDevice(device: DeviceJson, newTab: boolean = false) {
-				this.followLink(`${device.remoteInfo?.url ?? ''}/devices/${device.id}`, newTab);
+				this.followLink(getDeviceUrl(device, 'device'), newTab);
 			},
 			manageDevice(device: DeviceJson, newTab: boolean = false) {
-				this.followLink(`${device.remoteInfo?.url ?? ''}/devices/${device.id}/manage`, newTab);
+				this.followLink(getDeviceUrl(device, 'manage'), newTab);
 			},
 			customRow(device: AnnotatedDevice) {
 				return {
@@ -653,8 +681,7 @@
 
 <style lang="less" scoped>
 	.home {
-		position: relative;
-		min-height: 100%;
+		height: 100%;
 	}
 
 	main {

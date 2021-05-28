@@ -19,7 +19,7 @@
 				<a-menu-item @click="paused = !paused">{{ !paused ? 'Pause' : 'Unpause' }}</a-menu-item>
 			</a-sub-menu>
 			<a-sub-menu title="Manage">
-				<a-menu-item><a :href="`/devices/${id}/manage`">Ports</a></a-menu-item>
+				<a-menu-item><a :href="manageUrl">Ports</a></a-menu-item>
 				<a-menu-item @click="copyState">Share</a-menu-item>
 				<template v-if="device.state == 'resolved' && device.value.jenkinsLockName">
 					<a-menu-item v-if="!device.value.jenkinsLockOwner" @click="acquireLock">Reserve in Jenkins</a-menu-item>
@@ -79,8 +79,9 @@
 	import { MetaInfo } from 'vue-meta';
 	import { ITheme } from 'xterm';
 
-	import { appName, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
+	import { appName, getDeviceUrl, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { Connection, getDeviceConnections } from '../connections';
+	import commandPalette, { Command as PaletteCommand } from '../command-palette';
 	import { DeviceJson, CommandJson, BuildJson, SavedTerminalJson } from '@/services';
 
 	type Node = DeviceJson['nodes'][number];
@@ -115,6 +116,9 @@
 			},
 			connections(): Connection[] {
 				return (this.device.state == 'resolved') ? [...getDeviceConnections(this.device.value)] : [];
+			},
+			manageUrl(): string | undefined {
+				return (this.device.state == 'resolved') ? getDeviceUrl(this.device.value, 'manage') : undefined;
 			},
 			termThemes() {
 				const rtn: { [NodeName: string]: ITheme } = {};
@@ -259,6 +263,71 @@
 						},
 					});
 				});
+
+			const self = this;
+			function* addDeviceCommands(commands: CommandJson[], path: { text: string; icon?: string | undefined }[]): Iterable<PaletteCommand> {
+				for(const command of commands) {
+					if(command.submenu) {
+						yield* addDeviceCommands(command.submenu, [ ...path, { text: command.label, icon: command.icon } ]);
+					} else {
+						yield {
+							value: `device.command.${command.name}`,
+							text: [ ...path, {
+								text: command.label,
+								icon: command.icon,
+							 } ],
+							handler: () => self.runCommand(command.name, command.label, command.icon),
+						};
+					}
+				}
+			}
+			commandPalette.addProvider('device', function*() {
+				if(self.commands.state === 'resolved') {
+					yield* addDeviceCommands(self.commands.value, [{
+						text: 'Device',
+					}, {
+						text: 'Commands',
+					}]);
+				}
+				yield {
+					value: 'device.view.clear',
+					text: [ 'Device', 'View', 'Clear' ],
+					handler: () => self.resetTerms(),
+				};
+				yield !self.paused ? {
+					value: 'device.view.pause',
+					text: [ 'Device', 'View', 'Pause' ],
+					handler: () => self.paused = true,
+				}: {
+					value: 'device.view.unpause',
+					text: [ 'Device', 'View', 'Unpause' ],
+					handler: () => self.paused = false,
+				};
+				if(self.device.state === 'resolved') {
+					const device = self.device.value;
+					yield {
+						value: 'device.manage.ports',
+						text: [ 'Device', 'Manage', 'Ports' ],
+						handler: () => window.location.assign(self.manageUrl!),
+					};
+					yield {
+						value: 'device.manage.share',
+						text: [ 'Device', 'Manage', 'Share' ],
+						handler: () => self.copyState(),
+					};
+					if(device.jenkinsLockName) {
+						yield !device.jenkinsLockOwner ? {
+							value: 'device.manage.lock.acquire',
+							text: [ 'Device', 'Manage', 'Reserve in Jenkins' ],
+							handler: () => self.acquireLock(),
+						} : {
+							value: 'device.manage.lock.release',
+							text: [ 'Device', 'Manage', 'Unreserve in Jenkins' ],
+							handler: () => self.releaseLock(),
+						};
+					}
+				}
+			});
 
 			const commandsService = this.app.service('api/commands');
 			commandsService.timeout = 30000;
