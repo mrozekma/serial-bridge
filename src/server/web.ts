@@ -154,6 +154,10 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 			async get(id, params) {
 				switch(id) {
 				case 'version':
+					let changelog = config.changelog;
+					if(changelog?.until && new Date(changelog.until).getTime() <= new Date().getTime()) {
+						changelog = undefined;
+					}
 					return {
 						version: BUILD_VERSION,
 						versionLink: BUILD_LINK,
@@ -162,8 +166,9 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 						fileHash: BUILD_FILE_HASH,
 						date: BUILD_DATE,
 						licenses: HAS_LICENSES,
-						// Not the most logical place for this, but it's convenient:
+						// Not the most logical place for these, but it's convenient:
 						notice: config.notice,
+						changelog: changelog?.show,
 					};
 				case 'users':
 					return {

@@ -73,6 +73,11 @@ const savedStateJoi = joi.object({
 	maxSize: undefined,
 });
 
+const changelogJoi = joi.object({
+	show: joi.array().items(joi.string()).required(),
+	until: joi.string().isoDate(),
+});
+
 const remoteJoi = joi.object({
 	name: joi.string().required(),
 	url: joi.string().required(),
@@ -97,12 +102,11 @@ const webJoi = joi.object({
 });
 
 const configJoi = joi.object({
-	// Deprecated; use web.port now
-	// webPort: joi.number().integer(),
 	web: webJoi,
 	users: usersJoi,
 	portsFind: portsFindJoi,
 	savedState: savedStateJoi,
+	changelog: changelogJoi,
 	devices: joi.array().required().items(deviceJoi),
 	remotes: joi.array().items(remoteJoi).default([]),
 	commands: joi.array().items(commandJoi),

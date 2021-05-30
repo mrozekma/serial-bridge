@@ -210,6 +210,15 @@
 						</li>
 					</ul>
 				</a-tab-pane>
+
+				<a-tab-pane v-if="changelog.entries.length > 0" key="changelog">
+					<template #tab>
+						<a-badge :count="changelog.newCount">
+							New features
+						</a-badge>
+					</template>
+					<sb-changelog :entries="changelog.entries" />
+				</a-tab-pane>
 			</a-tabs>
 		</main>
 		<footer v-if="version.state === 'resolved'">
@@ -272,6 +281,14 @@
 		}[];
 	}
 
+	interface Changelog {
+		entries: {
+			key: string;
+			seen: boolean;
+		}[];
+		newCount: number;
+	}
+
 	function makeFormFeedback(promise: PromiseResult<any> | undefined) {
 		const rtn: any = {
 			hasFeedback: false,
@@ -314,9 +331,10 @@
 	import SbLock, { SbLockVue } from '../components/lock.vue';
 	import SbJenkins from '../components/jenkins.vue';
 	import SbFormModal from '../components/form-modal.vue';
+	import SbChangelog from '../components/changelog.vue';
 	import { rootDataComputeds, unwrapPromise, getDeviceUrl, PromiseResult } from '../root-data';
 	export default Vue.extend({
-		components: { SbNavbar, SbLock, SbJenkins, SbFormModal },
+		components: { SbNavbar, SbLock, SbJenkins, SbFormModal, SbChangelog },
 		computed: {
 			...rootDataComputeds(),
 			columns(): AntTableColumn[] {
@@ -486,6 +504,10 @@
 			return {
 				version: unwrapPromise(app.service('api/config').get('version')),
 				locking: [] as string[], // Contains names of devices currently trying to acquire a Jenkins lock
+				changelog: { // This is updated by a watch instead of being computed so we can manually zero newCount
+					entries: [],
+					newCount: 0,
+				} as Changelog,
 
 				usersConfig: unwrapPromise(app.service('api/config').get('users')),
 				currentUser: unwrapPromise(app.service('api/users').get('self')),
@@ -551,6 +573,23 @@
 				}
 			});
 		},
+		watch: {
+			version: {
+				handler() {
+					const seenKeys = new Set<string>(JSON.parse(localStorage.getItem('changelog.seen') ?? '[]'));
+					if(this.version.state === 'resolved' && this.version.value.changelog) {
+						for(const key of this.version.value.changelog) {
+							const seen = seenKeys.has(key);
+							this.changelog.entries.push({ key, seen });
+							if(!seen) {
+								this.changelog.newCount++;
+							}
+						}
+					}
+				},
+				deep: true,
+			},
+		},
 		methods: {
 			tbl(): AntTable {
 				// The 'table' ref is an ATable. Its only child is a Table.
@@ -583,12 +622,26 @@
 				};
 			},
 			async tabSwitched(key: string) {
-				if(key === 'setup') {
-					await this.$nextTick();
-					const code = this.$refs['putty-batch-file'] as HTMLElement;
-					if(code) {
-						Prism.highlightElement(code);
-					}
+				switch(key) {
+					case 'setup':
+						await this.$nextTick();
+						const code = this.$refs['putty-batch-file'] as HTMLElement;
+						if(code) {
+							Prism.highlightElement(code);
+						}
+						break;
+					case 'changelog':
+						if(this.changelog.newCount) {
+							const seenKeys: string[] = JSON.parse(localStorage.getItem('changelog.seen') ?? '[]');
+							for(const { key, seen } of this.changelog.entries) {
+								if(!seen && !seenKeys.includes(key)) {
+									seenKeys.push(key);
+								}
+							}
+							localStorage.setItem('changelog.seen', JSON.stringify(seenKeys));
+							this.changelog.newCount = 0;
+						}
+						break;
 				}
 			},
 			applyFilter({ sort, filters }: SavedFilter) {
