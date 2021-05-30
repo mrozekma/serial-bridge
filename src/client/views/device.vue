@@ -79,7 +79,7 @@
 	import { MetaInfo } from 'vue-meta';
 	import { ITheme } from 'xterm';
 
-	import { appName, getDeviceUrl, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
+	import { appName, getDeviceUrl, nodeLinks, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { Connection, getDeviceConnections } from '../connections';
 	import commandPalette, { Command as PaletteCommand } from '../command-palette';
 	import { DeviceJson, CommandJson, BuildJson, SavedTerminalJson } from '@/services';
@@ -324,6 +324,28 @@
 							value: 'device.manage.lock.release',
 							text: [ 'Device', 'Manage', 'Unreserve in Jenkins' ],
 							handler: () => self.releaseLock(),
+						};
+					}
+				}
+				for(const node of self.nodes) {
+					for(const linkName of node.webLinks) {
+						const link = nodeLinks.find(link => link.name === linkName);
+						if(link) {
+							yield {
+								value: `device.nodes.${node.name}.link.${link.name}`,
+								text: [ 'Device', 'Nodes', node.name, { text: link.name, icon: link.icon } ],
+								handler: () => window.location.assign(link.url(node)),
+							};
+						}
+					}
+				}
+				const layout = self.$refs.layout as SbLayoutVue;
+				if(layout && layout.ready) {
+					for(const [ name, term ] of layout.terminals) {
+						yield {
+							value: `device.nodes.${name}.focus`,
+							text: [ 'Device', 'Nodes', name, 'Focus' ],
+							handler: () => term.focus(),
 						};
 					}
 				}

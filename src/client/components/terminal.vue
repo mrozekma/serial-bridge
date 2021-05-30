@@ -121,6 +121,9 @@
 				}
 				this.terminal.write(arr);
 			},
+			focus() {
+				this.terminal.focus();
+			},
 		},
 	});
 	export type SbTerminalVue = InstanceType<typeof component>;

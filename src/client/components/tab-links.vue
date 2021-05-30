@@ -22,23 +22,7 @@
 	import { DeviceJson } from '@/services';
 	type Node = DeviceJson['nodes'][number];
 
-	interface Link {
-		name: string;
-		description: string;
-		icon: string;
-		url: (node: Node) => string;
-	}
-	const links: Link[] = [
-		{ name: 'telnet', description: 'Telnet', icon: 'far fa-external-link-alt', url: node => `telnet://${window.location.hostname}:${node.tcpPort}` },
-		{ name: 'raw',    description: 'Raw',    icon: 'far fa-external-link-alt', url: node => `putty:-raw ${window.location.hostname} -P ${node.tcpPort}` },
-		{ name: 'ssh',    description: 'SSH',    icon: 'far fa-terminal',          url: node => {
-			const { host, username, password } = node.ssh!;
-			const args = [ host ];
-			if(username) { args.push(`-l ${username}`); }
-			if(password) { args.push(`-pw ${password}`); }
-			return `putty:-ssh ${args.join(' ')}`;
-		}},
-	];
+	import { NodeLink, nodeLinks } from '../root-data';
 
 	const uploadIcons = {
 		idle: 'far fa-file-upload',
@@ -53,15 +37,15 @@
 		},
 		data() {
 			return {
-				links,
+				links: nodeLinks,
 				uploadIcons,
 				uploading: false,
 				node: undefined as Node | undefined,
 			};
 		},
 		methods: {
-			*iterListItems(): IterableIterator<{ link: Link; li: HTMLLIElement }> {
-				for(const link of links) {
+			*iterListItems(): IterableIterator<{ link: NodeLink; li: HTMLLIElement }> {
+				for(const link of this.links) {
 					// Vue makes each ref an array because they're in a v-for, even though the ref names are unique so each array is only one element
 					const li = (this.$refs[link.name] as HTMLLIElement[])[0];
 					yield { link, li };
