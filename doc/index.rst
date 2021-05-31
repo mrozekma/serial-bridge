@@ -132,6 +132,10 @@ Each element of the array can either be a string for the tag name, or an object 
 * :field-optional:`color` -- The tag color, either ``'#RRGGBB'`` or a `CSS-recognized color name <https://developer.mozilla.org/en-US/docs/Web/CSS/color_value>`_.
 * :field-optional:`showOnDevicePage` -- ``false`` if this tag should only be shown on the home page, not on the device's page as well. Defaults to ``true``.
 
+:field-optional:`metadata`
+""""""""""""""""""""""""""
+This is an object containing arbitrary extra data about a device. It is included in API requests that expose device information, but otherwise not used by Serial Bridge.
+
 :field-mandatory:`nodes`
 """"""""""""""""""""""""
 An array of nodes, Serial Bridge parlance for ports. Each node bidirectionally connects one serial port to a TCP port, and appears in the web UI as a terminal window:
@@ -198,6 +202,10 @@ This object contains the following keys:
 * :field-mandatory:`host` -- The remote hostname or IP address.
 * :field-optional:`username` -- The username to authenticate with.
 * :field-optional:`password` -- The password to authenticate with.
+
+:field-optional:`metadata`
+##########################
+This is an object containing arbitrary extra data about a node. It is included in API requests that expose node information, but otherwise not used by Serial Bridge.
 
 .. _config_device_jenkinsLock:
 

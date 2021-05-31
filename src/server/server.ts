@@ -30,9 +30,9 @@ function spinner<T>(label: string, fn: () => Promise<T>): Promise<T> {
 function makeDevice(deviceConfig: Config['devices'][number], idGen: IdGenerator): Device {
 	const id = idGen.gen(slugify(deviceConfig.name, { lower: true }));
 	const tags = (deviceConfig.tags as Exclude<typeof deviceConfig.tags, never[]>).map(tag => (typeof tag === 'string') ? { name: tag } : tag);
-	const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, tags, deviceConfig.jenkinsLock);
+	const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, tags, deviceConfig.jenkinsLock, deviceConfig.metadata);
 	for(const nodeConfig of deviceConfig.nodes) {
-		const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh);
+		const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
 		device.addNode(node);
 		node.serialPort.open();
 		node.tcpPort.open();

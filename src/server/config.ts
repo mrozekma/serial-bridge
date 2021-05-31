@@ -23,6 +23,7 @@ const nodeJoi = joi.object({
 		username: joi.string().required(),
 		password: joi.string().required(),
 	}),
+	metadata: joi.object(),
 });
 
 const deviceJoi = joi.object({
@@ -41,6 +42,7 @@ const deviceJoi = joi.object({
 	nodes: joi.array().required().items(nodeJoi),
 	//TODO commands?
 	jenkinsLock: joi.string(),
+	metadata: joi.object(),
 });
 
 const usersJoi = joi.object({

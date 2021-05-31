@@ -190,7 +190,8 @@ export abstract class Node extends EventEmitter {
 	public readonly tcpConnections: Connections;
 
 	constructor(public readonly device: Device, public readonly name: string,
-		tcpPortNumber: number, public readonly webLinks: string[], public readonly ssh: SSHInfo | undefined)
+		tcpPortNumber: number, public readonly webLinks: string[], public readonly ssh: SSHInfo | undefined,
+		public readonly metadata?: object)
 	{
 		super();
 		this.tcpPort = new TcpPort(tcpPortNumber, socket => this.onTcpConnect(socket));
@@ -211,9 +212,9 @@ export abstract class Node extends EventEmitter {
 	}
 
 	toJSON() {
-		const { name, tcpPortNumber: tcpPort, tcpConnections, webLinks, ssh } = this;
+		const { name, tcpPortNumber: tcpPort, tcpConnections, webLinks, ssh, metadata } = this;
 		return {
-			name, tcpPort, webLinks, ssh,
+			name, tcpPort, webLinks, ssh, metadata,
 			type: this.constructor.name,
 			tcpConnections: tcpConnections.toJSON(),
 			state: this.port.state,
@@ -265,9 +266,9 @@ export class SerialNode extends Node {
 
 	constructor(device: Device, name: string, public readonly path: string, public readonly baudRate: number,
 		public readonly byteSize: 5 | 6 | 7 | 8, public readonly parity: 'even' | 'odd' | 'none', public readonly stopBits: 1 | 2,
-		tcpPortNumber: number, webLinks: string[], ssh: SSHInfo | undefined)
+		tcpPortNumber: number, webLinks: string[], ssh: SSHInfo | undefined, public readonly metadata?: object)
 	{
-		super(device, name, tcpPortNumber, webLinks, ssh);
+		super(device, name, tcpPortNumber, webLinks, ssh, metadata);
 		this.serialPort = new SerialPort(path, baudRate, byteSize, parity, stopBits);
 	}
 
@@ -400,7 +401,7 @@ export default class Device extends EventEmitter {
 	private _build: Build | undefined = undefined;
 	private _jenkinsLockOwner: string | undefined = undefined;
 
-	constructor(public readonly id: string, public readonly name: string, public readonly description: string | undefined, public readonly category: string | undefined, public readonly tags: Tag[], public readonly jenkinsLockName?: string) {
+	constructor(public readonly id: string, public readonly name: string, public readonly description: string | undefined, public readonly category: string | undefined, public readonly tags: Tag[], public readonly jenkinsLockName?: string, public readonly metadata?: object) {
 		super();
 		this.webConnections = new Connections();
 	}
@@ -481,7 +482,7 @@ export default class Device extends EventEmitter {
 	}
 
 	toJSON() {
-		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner, alive } = this;
+		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner, metadata, alive } = this;
 		return {
 			id,
 			name,
@@ -493,6 +494,7 @@ export default class Device extends EventEmitter {
 			build: build ? build.toJSON() : undefined,
 			jenkinsLockName,
 			jenkinsLockOwner,
+			metadata,
 			alive,
 			remoteInfo: undefined as RemoteInfo | undefined,
 		};
