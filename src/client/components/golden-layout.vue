@@ -5,9 +5,7 @@
 <script lang="ts">
 	import Vue, { PropType } from 'vue';
 
-	import { DeviceJson } from '@/services';
-
-	type Node = DeviceJson['nodes'][number];
+	import { Node } from '../device-functions';
 
 	import 'jquery'; // Needed by golden layout :(
 	import GoldenLayout from 'golden-layout';

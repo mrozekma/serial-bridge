@@ -30,7 +30,8 @@
 
 	import hotkeys from 'hotkeys-js';
 
-	import { rootDataComputeds, getDeviceUrl } from './root-data';
+	import { rootDataComputeds } from './root-data';
+	import { getDeviceUrl } from './device-functions';
 	import commandPalette from './command-palette';
 
 	// I'm avoiding a SPA here because it's convenient to start fresh when switching devices, so this is essentially a manual basic vue-router
@@ -99,6 +100,17 @@
 						};
 					}
 				}
+				// These are after the devices because they're rarely needed
+				yield {
+					value: 'full-port-list',
+					text: 'Full port list',
+					handler: () => window.location.assign('/ports'),
+				};
+				yield {
+					value: 'find-ports',
+					text: 'Find ports',
+					handler: () => window.location.assign('/ports/find'),
+				};
 			});
 		},
 	});

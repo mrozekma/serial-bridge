@@ -76,8 +76,7 @@
 
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { DeviceJson } from '@/services';
-
-	type Node = DeviceJson['nodes'][number];
+	import { Node } from '../device-functions';
 
 	import SbNavbar from '../components/navbar.vue';
 	export default Vue.extend({

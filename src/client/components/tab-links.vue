@@ -19,10 +19,7 @@
 <script lang="ts">
 	import Vue from 'vue';
 
-	import { DeviceJson } from '@/services';
-	type Node = DeviceJson['nodes'][number];
-
-	import { NodeLink, nodeLinks } from '../root-data';
+	import { Node, NodeLink, nodeLinks } from '../device-functions';
 
 	const uploadIcons = {
 		idle: 'far fa-file-upload',

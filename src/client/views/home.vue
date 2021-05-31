@@ -5,7 +5,7 @@
 				<template v-slot:title>
 					<a href="/ports">Ports</a>
 				</template>
-				<!-- <a-menu-item><a href="/ports">Full port list</a></a-menu-item> -->
+				<a-menu-item><a href="/ports">Full port list</a></a-menu-item>
 				<a-menu-item><a href="/ports/find">Find ports</a></a-menu-item>
 			</a-sub-menu>
 		</sb-navbar>
@@ -312,10 +312,6 @@
 		return rtn;
 	}
 
-	function isErrorDevice(device: DeviceJson) {
-		return device.tags.some(tag => tag.name.toLowerCase() === 'error');
-	}
-
 	function sortUndefinedFirst(a: string | undefined, b: string | undefined): number {
 		return (a === undefined && b === undefined) ? 0 :
 		       (a === undefined) ? -1 :
@@ -332,7 +328,8 @@
 	import SbJenkins from '../components/jenkins.vue';
 	import SbFormModal from '../components/form-modal.vue';
 	import SbChangelog from '../components/changelog.vue';
-	import { rootDataComputeds, unwrapPromise, getDeviceUrl, PromiseResult } from '../root-data';
+	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
+	import { Node, getDeviceUrl, isErrorDevice } from '../device-functions';
 	export default Vue.extend({
 		components: { SbNavbar, SbLock, SbJenkins, SbFormModal, SbChangelog },
 		computed: {
@@ -421,7 +418,6 @@
 				return rtn;
 			},
 			nodesColumns(): AntTableColumn[] {
-				type Node = DeviceJson['nodes'][number];
 				return [{
 					title: 'Node',
 					dataIndex: 'name',

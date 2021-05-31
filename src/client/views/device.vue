@@ -79,12 +79,11 @@
 	import { MetaInfo } from 'vue-meta';
 	import { ITheme } from 'xterm';
 
-	import { appName, getDeviceUrl, nodeLinks, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
+	import { appName, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
+	import { getDeviceUrl, nodeLinks, Node } from '../device-functions';
 	import { Connection, getDeviceConnections } from '../connections';
 	import commandPalette, { Command as PaletteCommand } from '../command-palette';
 	import { DeviceJson, CommandJson, BuildJson, SavedTerminalJson } from '@/services';
-
-	type Node = DeviceJson['nodes'][number];
 
 	import SbNavbar from '../components/navbar.vue';
 	import SbCommandMenu from '../components/command-menu.vue';
