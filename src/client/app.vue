@@ -147,7 +147,7 @@
 				margin-top: -25px;
 			}
 
-			i {
+			i:not(.ant-spin-dot-item) {
 				margin-right: 5px;
 			}
 		}

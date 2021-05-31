@@ -112,7 +112,7 @@
 												</a-button>
 											</a-tooltip>
 										</template>
-										<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.jenkinsLockOwner" :ref="`lock-${device.name}`" :device-id="device.id" :owner="device.jenkinsLockOwner"/>
+										<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.jenkinsLockOwner" :ref="`lock-${device.name}`" :device="device" :owner="device.jenkinsLockOwner"/>
 										<div v-else-if="device.jenkinsLockName" class="unlocked"><i class="fas fa-unlock-alt"></i>Unreserved</div>
 										<div v-else class="nolock"><i class="fas fa-question-circle"></i>Lock not configured</div>
 										<sb-jenkins v-if="device.build" :build="device.build"/>
@@ -849,7 +849,7 @@
 				margin: 5px 0;
 				padding: 0 10px;
 			}
-			/deep/ .ant-card-body i {
+			/deep/ .ant-card-body i:not(.ant-spin-dot-item) {
 				// Align with the link from the Jenkins box below this one
 				margin-right: 10px;
 			}

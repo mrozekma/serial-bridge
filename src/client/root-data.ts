@@ -6,15 +6,23 @@ import {} from 'ant-design-vue/types/notification';
 
 import { ClientServices as Services, DeviceJson } from '../services';
 
-const app = feathers<Services>();
-const socket = io(
-	window.location.protocol +
-	'//' +
-	(process.env.VUE_APP_SERVER_PORT ? `${window.location.hostname}:${process.env.VUE_APP_SERVER_PORT}` : window.location.host) +
-	`?pathname=${window.location.pathname}`
-);
-app.configure(socketio(socket));
+export function makeFeathersApp(rootUrl?: string | undefined): {
+	app: feathers.Application<Services>;
+	socket: SocketIOClient.Socket;
+ } {
+	if(!rootUrl) {
+		rootUrl = window.location.protocol +
+		'//' +
+		(process.env.VUE_APP_SERVER_PORT ? `${window.location.hostname}:${process.env.VUE_APP_SERVER_PORT}` : window.location.host) +
+		`?pathname=${window.location.pathname}`;
+	}
+	const app = feathers<Services>();
+	const socket = io(rootUrl);
+	app.configure(socketio(socket));
+	return { app, socket };
+}
 
+const { app, socket } = makeFeathersApp();
 export const appName = 'Serial Bridge';
 
 export type PromiseResult<T> = {

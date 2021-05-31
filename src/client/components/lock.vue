@@ -16,13 +16,14 @@
 </template>
 
 <script lang="ts">
-	import Vue from 'vue';
+	import Vue, { PropType } from 'vue';
 
-	import { rootDataComputeds } from '../root-data';
+	import { rootDataComputeds, makeFeathersApp } from '../root-data';
+	import { DeviceJson } from '@/services';
 
 	const component = Vue.extend({
 		props: {
-			deviceId: String,
+			device: Object as PropType<DeviceJson>,
 			owner: String,
 		},
 		computed: {
@@ -69,7 +70,8 @@
 				}
 				try {
 					this.state = 'waiting';
-					await this.app.service('api/deviceLock').patch(this.deviceId, {
+					const app = this.device.remoteInfo ? makeFeathersApp(`${this.device.remoteInfo.url}?remote`).app : this.app;
+					await app.service('api/deviceLock').patch(this.device.id, {
 						action,
 						username,
 						key,

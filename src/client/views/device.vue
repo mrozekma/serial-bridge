@@ -27,7 +27,7 @@
 				</template>
 			</a-sub-menu>
 			<a-menu-item class="faux">
-				<sb-lock v-if="showLock" ref="lock" :device-id="id" :owner="(device.state == 'resolved') ? device.value.jenkinsLockOwner : undefined" @close="locking = false"/>
+				<sb-lock v-if="showLock && device.state === 'resolved'" ref="lock" :device="device.value" :owner="device.value.jenkinsLockOwner" @close="locking = false"/>
 			</a-menu-item>
 			<a-menu-item class="faux" @click="finishedBuild = undefined">
 				<sb-jenkins v-if="device.state == 'resolved' && (device.value.build || finishedBuild)" :build="device.value.build || finishedBuild"/>
