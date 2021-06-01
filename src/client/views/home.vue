@@ -312,24 +312,13 @@
 		return rtn;
 	}
 
-	function sortUndefinedFirst(a: string | undefined, b: string | undefined): number {
-		return (a === undefined && b === undefined) ? 0 :
-		       (a === undefined) ? -1 :
-		       (b === undefined) ? 1 :
-		       a.toLowerCase().localeCompare(b.toLowerCase());
-	}
-
-	function uniqifyAndSort<T>(arr: T[]): T[] {
-		return [...new Set(arr)].sort();
-	}
-
 	import SbNavbar from '../components/navbar.vue';
 	import SbLock, { SbLockVue } from '../components/lock.vue';
 	import SbJenkins from '../components/jenkins.vue';
 	import SbFormModal from '../components/form-modal.vue';
 	import SbChangelog from '../components/changelog.vue';
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
-	import { Node, getDeviceUrl, isErrorDevice } from '../device-functions';
+	import { Node, compareStrings, getDeviceUrl, isErrorDevice, uniqifyAndSort } from '../device-functions';
 	export default Vue.extend({
 		components: { SbNavbar, SbLock, SbJenkins, SbFormModal, SbChangelog },
 		computed: {
@@ -354,7 +343,7 @@
 				}, {
 					title: 'Name',
 					dataIndex: 'name',
-					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => compareStrings(a.name, b.name),
 					defaultSortOrder: 'ascend',
 				}, {
 					title: 'Tags',
@@ -373,7 +362,7 @@
 					filters: [...connections.entries()].map(([host, name]) => ({
 						text: `${name} (${host})`,
 						value: host,
-					})).sort((a, b) => a.text.localeCompare(b.text)),
+					})).sort((a, b) => compareStrings(a.text, b.text)),
 					onFilter: (host: string, device: AnnotatedDevice) => device.connections.some(conn => conn.host === host),
 					//@ts-ignore The type info on this is super wrong
 					customCell: _ => ({
@@ -393,7 +382,7 @@
 				}, {
 					title: 'Category',
 					dataIndex: 'category',
-					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => sortUndefinedFirst(a.category, b.category),
+					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => compareStrings(a.category, b.category, 'first'),
 					filters: categories.map(cat => ({
 						text: (cat !== '') ? cat : '(None)',
 						value: cat,
@@ -402,7 +391,7 @@
 				}, {
 					title: 'Server',
 					dataIndex: 'remoteInfo',
-					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => sortUndefinedFirst(a.remoteInfo?.name, b.remoteInfo?.name),
+					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => compareStrings(a.remoteInfo?.name, b.remoteInfo?.name, 'first'),
 					filters: servers.map(server => ({
 						text: server,
 						value: server,
@@ -421,12 +410,12 @@
 				return [{
 					title: 'Node',
 					dataIndex: 'name',
-					sorter: (a: Node, b: Node) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+					sorter: (a: Node, b: Node) => compareStrings(a.name, b.name),
 				}, {
 					title: 'Serial Port',
 					dataIndex: 'path',
 					//@ts-ignore 'path' isn't in Node's interface
-					sorter: (a: Node, b: Node) => (a.path ?? '').toLowerCase().localeCompare((b.path ?? '').toLowerCase()),
+					sorter: (a: Node, b: Node) => compareStrings(a.path, b.path),
 				}, {
 					title: 'TCP Port',
 					dataIndex: 'tcpPort',
@@ -441,7 +430,7 @@
 						title: 'User',
 						dataIndex: 'name',
 						width: 100,
-						sorter: (a: Connection, b: Connection) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+						sorter: (a: Connection, b: Connection) => compareStrings(a.name, b.name),
 						sortOrder: 'ascend',
 						scopedSlots: {
 							customRender: 'user',
@@ -450,7 +439,7 @@
 						title: 'Host',
 						dataIndex: 'host',
 						width: 100,
-						sorter: (a: Connection, b: Connection) => a.host.toLowerCase().localeCompare(b.host.toLowerCase()),
+						sorter: (a: Connection, b: Connection) => compareStrings(a.host, b.host),
 					}, {
 						title: 'Nodes',
 						dataIndex: 'nodes',

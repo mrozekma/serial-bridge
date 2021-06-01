@@ -249,20 +249,6 @@
 		data: Buffer;
 	}
 
-	// https://github.com/microsoft/TypeScript/issues/18211#issuecomment-380862426
-	type FilterFieldByType<T, U> = ({ [P in keyof T]: T[P] extends U ? P : never })[keyof T]
-	type Sorter<T> = (a: T, b: T) => number;
-
-	function stringSorter(nameField: FilterFieldByType<Required<NativePortJson>, string>): Sorter<NativePortJson> {
-		return (a, b) => {
-			const v1 = a[nameField], v2 = b[nameField];
-			if(v1 === undefined && v2 === undefined) { return 0; }
-			if(v1 === undefined) { return 1; }
-			if(v2 === undefined) { return -1; }
-			return v1.localeCompare(v2);
-		};
-	}
-
 	// The first column changes depending on if we're actually using it
 	const isNewColDisabled: Omit<Column, keyof AntdComponent> = {
 		dataIndex: 'isNew',
@@ -288,7 +274,7 @@
 		{
 			title: 'Path',
 			dataIndex: 'comName',
-			sorter: stringSorter('comName'),
+			sorter: (a: NativePortJson, b: NativePortJson) => compareStrings(a.comName, b.comName, 'last'),
 			defaultSortOrder: 'ascend',
 			// Filtering gets setup in the mounted hook. The filteredValue is needed to get ant-design to call the filtering function
 			filteredValue: [''],
@@ -296,27 +282,27 @@
 		{
 			title: 'Manufacturer',
 			dataIndex: 'manufacturer',
-			sorter: stringSorter('manufacturer'),
+			sorter: (a: NativePortJson, b: NativePortJson) => compareStrings(a.manufacturer, b.manufacturer, 'last'),
 		},
 		{
 			title: 'Serial Number',
 			dataIndex: 'serialNumber',
-			sorter: stringSorter('serialNumber'),
+			sorter: (a: NativePortJson, b: NativePortJson) => compareStrings(a.serialNumber, b.serialNumber, 'last'),
 		},
 		{
 			title: 'Product ID',
 			dataIndex: 'productId',
-			sorter: stringSorter('productId'),
+			sorter: (a: NativePortJson, b: NativePortJson) => compareStrings(a.productId, b.productId, 'last'),
 		},
 		{
 			title: 'Vendor ID',
 			dataIndex: 'vendorId',
-			sorter: stringSorter('vendorId'),
+			sorter: (a: NativePortJson, b: NativePortJson) => compareStrings(a.vendorId, b.vendorId, 'last'),
 		},
 		{
 			title: 'PnP ID',
 			dataIndex: 'pnpId',
-			sorter: stringSorter('pnpId'),
+			sorter: (a: NativePortJson, b: NativePortJson) => compareStrings(a.pnpId, b.pnpId, 'last'),
 		},
 	];
 
@@ -346,7 +332,7 @@
 		{
 			title: 'Path',
 			dataIndex: 'path',
-			sorter: (a: ListenPort, b: ListenPort) => a.path.localeCompare(b.path),
+			sorter: (a: ListenPort, b: ListenPort) => compareStrings(a.path, b.path),
 		},
 		{
 			title: 'Node identification',
@@ -376,16 +362,17 @@
 		{
 			title: 'Node',
 			dataIndex: 'node.name',
-			sorter: (a: ListenPort, b: ListenPort) => a.node.name.localeCompare(b.node.name),
+			sorter: (a: ListenPort, b: ListenPort) => compareStrings(a.node.name, b.node.name),
 		},
 		{
 			title: 'Port',
 			dataIndex: 'path',
-			sorter: (a: ListenPort, b: ListenPort) => a.path.localeCompare(b.path),
+			sorter: (a: ListenPort, b: ListenPort) => compareStrings(a.path, b.path),
 		},
 	];
 
 	import SbNavbar from '../components/navbar.vue';
+import { compareStrings } from '../device-functions';
 	export default Vue.extend({
 		components: { SbNavbar },
 		computed: {

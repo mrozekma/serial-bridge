@@ -31,3 +31,21 @@ export const nodeLinks: Readonly<NodeLink>[] = [
 		return `putty:-ssh ${args.join(' ')}`;
 	}},
 ];
+
+// Pretty random spot for these:
+
+export function uniqifyAndSort<T>(arr: T[]): T[] {
+	return [...new Set(arr)].sort();
+}
+
+const collator = new Intl.Collator(undefined, {
+	sensitivity: 'accent',
+	numeric: true,
+});
+export function compareStrings(a: string | undefined, b: string | undefined, undefinedWhere: 'first' | 'last' = 'last'): number {
+	const undefinedPos = (undefinedWhere === 'first') ? -1 : 1;
+	return (a === undefined && b === undefined) ? 0 :
+	       (a === undefined) ? undefinedPos :
+	       (b === undefined) ? -undefinedPos :
+	       collator.compare(a, b);
+}

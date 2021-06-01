@@ -33,7 +33,7 @@
 	import { Application } from '@feathersjs/feathers';
 
 	import { DeviceJson, ClientServices as Services } from '@/services';
-	import { Node, getDeviceUrl } from '../device-functions';
+	import { Node, compareStrings, getDeviceUrl, uniqifyAndSort } from '../device-functions';
 	import { SerialNode } from '@/server/device'; // :(. This comes up on the home view too but it just abandons type safety. SerialNode probably needs to be in the shared interface
 
 	type SerialNodeJson = ReturnType<SerialNode['toJSON']>;
@@ -72,10 +72,6 @@
 		return (node.type === 'serial');
 	}
 
-	function uniqifyAndSort<T>(arr: T[]): T[] {
-		return [...new Set(arr)].sort();
-	}
-
 	function sortUnmappedLast(a: Port, b: Port, cmp: (a: MappedPort, b: MappedPort) => number): number {
 		return !isMappedPort(a) && !isMappedPort(b) ? 0 :
 		       !isMappedPort(a) ? 1 :
@@ -93,7 +89,7 @@
 				return [{
 					title: 'Path',
 					dataIndex: 'path',
-					sorter: (a: Port, b: Port) => a.path.toLowerCase().localeCompare(b.path.toLowerCase()),
+					sorter: (a: Port, b: Port) => compareStrings(a.path, b.path),
 					defaultSortOrder: 'ascend',
 				}, {
 					title: 'State',
@@ -119,7 +115,7 @@
 					defaultFilteredValue: [ 'open', 'closed' ],
 					sorter: (a: Port, b: Port) => {
 						const getOrd = (port: Port) => !port.state.mapped ? 2 : !port.state.open ? 1 : 0;
-						return (getOrd(a) - getOrd(b)) || a.path.toLowerCase().localeCompare(b.path.toLowerCase());
+						return (getOrd(a) - getOrd(b)) || compareStrings(a.path, b.path);
 					},
 					scopedSlots: {
 						customRender: 'state',
@@ -127,7 +123,7 @@
 				}, {
 					title: 'Device',
 					dataIndex: 'device',
-					sorter: (a: Port, b: Port) => sortUnmappedLast(a, b, (a, b) => a.device.name.toLowerCase().localeCompare(b.device.name.toLowerCase())),
+					sorter: (a: Port, b: Port) => sortUnmappedLast(a, b, (a, b) => compareStrings(a.device.name, b.device.name)),
 					filters: [
 						{
 							value: '',
@@ -145,7 +141,7 @@
 				}, {
 					title: 'Node',
 					dataIndex: 'node',
-					sorter: (a: Port, b: Port) => sortUnmappedLast(a, b, (a, b) => a.node.name.toLowerCase().localeCompare(b.node.name.toLowerCase())),
+					sorter: (a: Port, b: Port) => sortUnmappedLast(a, b, (a, b) => compareStrings(a.node.name, b.node.name)),
 					filters: [
 						{
 							value: '',
