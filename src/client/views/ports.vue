@@ -129,7 +129,7 @@
 							value: '',
 							text: '(None)',
 						},
-						...((this.devices.state === 'resolved') ? this.devices.value.map(device => ({
+						...((this.devices.state === 'resolved') ? this.devices.value.filter(device => device.remoteInfo === undefined).map(device => ({
 							value: device.id,
 							text: device.name,
 						})) : []),
