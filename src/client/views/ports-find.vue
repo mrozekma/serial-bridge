@@ -203,11 +203,11 @@
 <script lang="ts">
 	import Vue from 'vue';
 	import { AntdComponent } from 'ant-design-vue/types/component';
-	import { Column, ColumnFilterItem } from 'ant-design-vue/types/table/column';
+	import { Column } from 'ant-design-vue/types/table/column';
 	import { Step } from 'ant-design-vue/types/steps/step';
 
 	import { Application } from '@feathersjs/feathers';
-	import { Terminal, ITerminalOptions } from 'xterm';
+	import { Terminal } from 'xterm';
 	import { FitAddon } from 'xterm-addon-fit';
 	import 'xterm/css/xterm.css';
 	//@ts-ignore No declaration file
@@ -512,13 +512,13 @@
 						findColumns[0] = isNewColDisabled;
 						break;
 					case STEP_PRESCAN:
-						this.portsBefore = unwrapPromise(this.app.service('api/ports').find());
+						this.portsBefore = unwrapPromise(portsService.find());
 						break;
 					case STEP_PLUG:
 						break;
 					case STEP_CHOOSE:
 						this.portsAfter = unwrapPromise((async () => {
-							const portsAfter = await this.app.service('api/ports').find();
+							const portsAfter = await portsService.find();
 							if(this.portsBefore?.state === 'resolved') {
 								const beforeNames = new Set(this.portsBefore.value.map(port => port.comName));
 								const rtn = portsAfter.map<NativePortJsonChooseStep>(port => ({

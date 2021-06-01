@@ -33,7 +33,7 @@
 								</a-tag>
 							</template>
 						</div>
-						<a-table :columns="columns" :data-source="annotatedDevices" :row-key="device => device.id" :custom-row="customRow" :row-class-name="device => (device.jenkinsLockOwner !== undefined || device.build !== undefined) ? 'busy' : 'x'" :loading="devices.state == 'pending'" :pagination="false" :locale="{emptyText: 'No devices'}" class="devices" ref="table">
+						<a-table :columns="columns" :data-source="annotatedDevices" :row-key="device => device.id" :custom-row="customRow" :row-class-name="device => (device.jenkinsLockOwner !== undefined || device.build !== undefined) ? 'busy' : ''" :loading="devices.state == 'pending'" :pagination="false" :locale="{emptyText: 'No devices'}" class="devices" ref="table">
 							<template #lock-icon="lockOwner">
 								<a-tooltip v-if="lockOwner" placement="bottomRight" :title="`Reserved by ${lockOwner}`">
 									<i class="fas fa-lock-alt"></i>
