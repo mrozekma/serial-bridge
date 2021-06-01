@@ -113,8 +113,18 @@
 											</a-tooltip>
 										</template>
 										<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.jenkinsLockOwner" :ref="`lock-${device.name}`" :device="device" :owner="device.jenkinsLockOwner"/>
-										<div v-else-if="device.jenkinsLockName" class="unlocked"><i class="fas fa-unlock-alt"></i>Unreserved</div>
-										<div v-else class="nolock"><i class="fas fa-question-circle"></i>Lock not configured</div>
+										<div v-else-if="device.jenkinsLockName" class="unlocked">
+											<i class="fas fa-unlock-alt"></i>
+											<span>
+												Unreserved
+											</span>
+										</div>
+										<div v-else class="nolock">
+											<i class="fas fa-question-circle"></i>
+											<span>
+												Lock not configured
+											</span>
+										</div>
 										<sb-jenkins v-if="device.build" :build="device.build"/>
 									</a-card>
 								</div>
@@ -799,12 +809,12 @@
 
 		/deep/ .ant-table-expanded-row .cards {
 			display: flex;
-			flex-wrap: wrap;
+			flex-wrap: nowrap;
 			margin: -15px 0;
 			margin-bottom: 1rem;
 
 			.ant-card {
-				width: 400px;
+				flex-grow: 1;
 			}
 		}
 
@@ -837,6 +847,7 @@
 			/deep/ .ant-card-body i:not(.ant-spin-dot-item) {
 				// Align with the link from the Jenkins box below this one
 				margin-right: 10px;
+				width: 14px;
 			}
 		}
 	}
