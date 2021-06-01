@@ -431,7 +431,7 @@
 						dataIndex: 'name',
 						width: 100,
 						sorter: (a: Connection, b: Connection) => compareStrings(a.name, b.name),
-						sortOrder: 'ascend',
+						defaultSortOrder: 'ascend',
 						scopedSlots: {
 							customRender: 'user',
 						},
