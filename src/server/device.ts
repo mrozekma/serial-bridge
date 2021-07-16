@@ -74,7 +74,7 @@ abstract class Port extends EventEmitter {
 }
 
 class SerialPort extends Port {
-	private static readonly reconnectPeriod = 30000;
+	private static readonly reconnectPeriods = [1000, 1000, 1000, 2000, 2000, 2000, 3000, 4000, 5000, 10000, 15000, 30000];
 	private static readonly reconnectingSuffix = ". Attempting to reconnect";
 
 	private readonly serialConn: RealSerialPort;
@@ -103,9 +103,16 @@ class SerialPort extends Port {
 			if(this.isOpen) {
 				this.state = {
 					open: false,
-					reason: (err.disconnected ? "Disconnected" : `Error: ${err}`) + SerialPort.reconnectingSuffix,
+					reason: (err?.disconnected ? "Disconnected" : `Error: ${err}`) + SerialPort.reconnectingSuffix,
 				};
-				this.retryTimer = setInterval(() => this.open(), SerialPort.reconnectPeriod);
+				const periods = [...SerialPort.reconnectPeriods].reverse();
+				const sched = () => {
+					const period = periods.pop();
+					this.retryTimer = (periods.length > 0)
+						? setTimeout(() => { sched(); this.open(); }, period)
+						: setInterval(() => this.open(), period);
+				};
+				sched();
 			}
 		});
 		this.serialConn.on('error', console.error);
