@@ -34,9 +34,10 @@
 		},
 		data() {
 			return {
-				links: nodeLinks,
+				links: nodeLinks.filter(link => link.url),
 				uploadIcons,
 				uploading: false,
+				deviceName: undefined as string | undefined,
 				node: undefined as Node | undefined,
 			};
 		},
@@ -48,7 +49,8 @@
 					yield { link, li };
 				}
 			},
-			setNode(node: Node | undefined) {
+			setNode(deviceName: string, node: Node | undefined) {
+				this.deviceName = deviceName;
 				this.node = node;
 				// Toggle link visibility based on the node's config
 				for(const { link, li } of this.iterListItems()) {
@@ -65,7 +67,7 @@
 				const clicked = icon.parentElement as HTMLElement;
 				for(const { link, li } of this.iterListItems()) {
 					if(li === clicked) {
-						window.location.href = link.url(this.node);
+						window.location.href = link.url!(this.deviceName!, this.node);
 						break;
 					}
 				}

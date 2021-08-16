@@ -58,7 +58,7 @@
 			<template v-if="device.state == 'pending'"/>
 			<a-alert v-else-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
 			<a-alert v-else-if="!device.value.alive" type="error" message="Removed" description="Device has been removed" showIcon/>
-			<sb-layout v-else-if="nodes.length > 0" ref="layout" :nodes="nodes" @stdin="termStdin" @focus="node => focusedNode = node" @blur="focusedNode = undefined"/>
+			<sb-layout v-else-if="nodes.length > 0" ref="layout" :device-name="deviceName" :nodes="nodes" @stdin="termStdin" @focus="node => focusedNode = node" @blur="focusedNode = undefined"/>
 			<div class="notifications">
 				<transition enter-active-class="animated slideInUp faster" leave-active-class="animated slideOutDown faster">
 					<div v-if="runningCommand" class="command-state">
@@ -329,11 +329,11 @@
 				for(const node of self.nodes) {
 					for(const linkName of node.webLinks) {
 						const link = nodeLinks.find(link => link.name === linkName);
-						if(link) {
+						if(link && link.url) {
 							yield {
 								value: `device.nodes.${node.name}.link.${link.name}`,
 								text: [ 'Device', 'Nodes', node.name, { text: link.name, icon: link.icon } ],
-								handler: () => window.location.assign(link.url(node)),
+								handler: () => window.location.assign(link.url!(self.deviceName, node)),
 							};
 						}
 					}

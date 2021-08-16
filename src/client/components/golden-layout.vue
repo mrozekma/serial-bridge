@@ -16,6 +16,10 @@
 	import SbTabLinks, { SbTabLinksVue } from '../components/tab-links.vue';
 	const component = Vue.extend({
 		props: {
+			deviceName: {
+				type: String,
+				required: true,
+			},
 			nodes: {
 				type: Array as PropType<Node[]>,
 				required: true,
@@ -110,7 +114,7 @@
 				stack.header.controlsContainer.prepend(...comp.$el.children);
 				stack.on('activeContentItemChanged', (contentItem: GoldenLayout.ContentItem) => {
 					const config = contentItem.config as GoldenLayout.ComponentConfig;
-					comp.setNode(this.nodes.find(node => node.name == config.componentState.nodeName));
+					comp.setNode(this.deviceName, this.nodes.find(node => node.name == config.componentState.nodeName));
 				});
 			});
 			gl.init();

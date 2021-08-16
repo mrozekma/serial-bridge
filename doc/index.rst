@@ -188,8 +188,8 @@ An array listing the buttons that should appear in the device web view. These bu
 The array can contain the following strings, each of which creates the described button:
 
 * ``'telnet'`` -- Open the node's TCP port in the system's default telnet client.
-* ``'raw'`` -- Open the node's TCP port in Putty's "raw" mode. This is Putty-specific and requires :ref:`extra setup <putty>`.
-* ``'ssh'`` -- Connect to the node over SSH. This is Putty-specific and requires :ref:`extra setup <putty>`.
+* ``'raw'`` -- Open the node's TCP port in Putty's "raw" mode. This is Putty-specific and requires :ref:`extra setup <node-link-clients>`.
+* ``'ssh'`` -- Connect to the node over SSH. This requires :ref:`extra setup <node-link-clients>`.
 
 By default, no web links are shown.
 
@@ -496,10 +496,10 @@ Then implement the specified ``file-moved.sh`` script. Incron will call it with 
       curl -X POST -d @"$dir/$file" http://serial-bridge-host/api/lock
    fi
 
-.. _putty:
+.. _node-link-clients:
 
-Putty
------
+Web link clients
+----------------
 
 Depending on the node's configuration, you will see some of these buttons in the node's titlebar on the device's web page:
 
@@ -509,10 +509,10 @@ Depending on the node's configuration, you will see some of these buttons in the
 The right three buttons control the page layout and are irrelevant here, but the left three are called "web links". They correspond to the following:
 
 * **telnet** -- Open the node's TCP port in the system's default telnet client.
-* **raw** -- Open the node's TCP port in Putty's "raw" mode.
+* **raw** -- Open the node's TCP port in PuTTY's "raw" mode.
 * **ssh** -- Connect to the node over SSH.
 
-Browsers support telnet links natively and so the telnet web link will work with whatever your default Telnet client is. The other two options are Putty specific, and require you to install a batch script and edit your registry. Instructions on how to do this are on the Serial Bridge home page in the "Setup" section.
+Browsers support telnet links natively and so the telnet web link will work with whatever your default Telnet client is. The other two options require you to install a supported client to handle those links, and possibly do some extra configuration to make the links work. Instructions on how to do this are on the Serial Bridge home page in the "Setup" tab. Raw and SSH links will not be shown to users who haven't specified their preferred client on the "Setup" tab.
 
 .. _ports_find:
 

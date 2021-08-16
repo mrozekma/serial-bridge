@@ -138,7 +138,9 @@
 					</div>
 				</a-tab-pane>
 
-				<a-tab-pane key="you" tab="You">
+
+				<a-tab-pane key="setup" tab="Setup">
+					<h2>You</h2>
 					<a-alert v-if="usersConfig.state == 'rejected'" type="error" message="Failed to load user directory config" :description="usersConfig.error.message" showIcon/>
 					<a-alert v-else-if="currentUser.state == 'rejected'" type="error" message="Failed to load current user info" :description="currentUser.error.message" showIcon/>
 					<a-spin v-else-if="usersConfig.state == 'pending' || currentUser.state == 'pending'"/>
@@ -169,10 +171,11 @@
 						</a-form>
 					</template>
 
+					<h2>Jenkins</h2>
 					<a-alert v-if="jenkinsConfig.state == 'rejected'" type="error" message="Failed to load Jenkins config" :description="jenkinsConfig.error.message" showIcon/>
 					<a-spin v-else-if="jenkinsConfig.state == 'pending'"/>
 					<template v-else-if="jenkinsConfig.value.jenkinsUrl">
-						It's also possible to control Jenkins locks from within Serial Bridge, but this requires a Jenkins API key:
+						It's possible to control Jenkins locks from within Serial Bridge, but this requires a Jenkins API key:
 						<ul>
 							<li>Go to <a target="_blank" :href="jenkinsConfig.value.jenkinsUrl">Jenkins</a>.</li>
 							<li>Click your username at the top-right.</li>
@@ -193,32 +196,63 @@
 							</a-form-item>
 						</a-form>
 					</template>
-				</a-tab-pane>
 
-				<a-tab-pane key="setup" tab="Setup">
-					Some terminal windows have <i class="far fa-external-link-alt"></i> and/or <i class="far fa-terminal"></i> icons to open telnet, raw TCP, and SSH connections. You can enter your Putty path here to generate the necessary registry files and batch script (this assumes that you'll put the batch script in Putty's directory; if not, modify the generated files):
-					<form method="get" action="/serial-bridge.zip">
-						<a-input type="text" name="path" v-model="puttyPath" placeholder="PuTTY Path"/>
-						<a-button type="primary" html-type="submit">Generate</a-button>
-					</form>
+					<h2>Clients</h2>
+					Some terminal windows have <i class="far fa-external-link-alt"></i> and/or <i class="far fa-terminal"></i> icons to open telnet, raw TCP, and SSH connections. How this works is special-cased by client. Choose the client you want Serial Bridge to use and click "Save" below:
 
-					To set things up manually:
-					<ul>
-						<li>For telnet links, edit the <code>HKEY_LOCAL_MACHINE\SOFTWARE\Classes\telnet\shell\open\command</code> registry key and set the default value to <code>"&lt;Application path&gt;" %l</code>. For example, <code>"C:\Program Files (x86)\PuTTY\putty.exe" %l</code>. Any telnet application can be used.</li>
-						<li>For raw and SSH links (this requires Putty):
-							<ul>
-								<li>Create a batch file that will receive the URI and pass the arguments to Putty:
-									<pre><code ref="putty-batch-file" class="language-batch line-numbers">{{ puttyBatFile }}</code></pre>
-								</li>
-								<li>Create the following registry entries (the <code>HKEY_CLASSES_ROOT\putty</code> key will need to be created):
-									<ul>
-										<li><code>HKEY_CLASSES_ROOT\putty\URL Protocol</code> = <code>""</code></li>
-										<li><code>HKEY_CLASSES_ROOT\putty\shell\open\command\(Default)</code> = <code>"&lt;Batch file&gt;" %1</code></li>
-									</ul>
-								</li>
-							</ul>
-						</li>
-					</ul>
+					<a-form @submit.prevent="updateNodeLinkHandler">
+						<a-radio-group v-model="nodeLinkHandler.app" class="node-link-handler">
+							<a-radio value="none">None</a-radio>
+							<div>
+								Do not show raw or SSH links. Serial Bridge will still attempt to open Telnet links via the <code>telnet</code> URI scheme, which is usually supported natively by the OS. To customize this behavior on Windows, edit the <code>HKEY_LOCAL_MACHINE\SOFTWARE\Classes\telnet\shell\open\command</code> registry key and set the default value to the command-line you want to run. Use <code>%l</code> to refer to the URL. For example, <code>"C:\Program Files (x86)\PuTTY\putty.exe" %l</code>.
+							</div><br>
+							<a-radio value="mobaxterm">MobaXterm</a-radio>
+							<div>
+								<a target="_blank" href="https://mobaxterm.mobatek.net/">MobaXterm</a> is a Windows-based terminal emulator. As long as it's been installed (i.e. you're not using the portable version), it automatically supports connections being opened from a browser. However, there are some limitations:
+								<ul>
+									<li>
+										There is no way to provide an SSH password via a browser link. You can either type in the password on each connection, type it once and tell MobaXterm to save it, or provide the path to your private key here and Serial Bridge will tell MobaXterm to use it.<br>
+										<a-input type="text" v-model="nodeLinkHandler.keyPath" placeholder="Private key path"/>
+									</li>
+									<li>
+										The free "Home Edition" only supports 12 saved connections. By default Serial Bridge will make a new connection for each node of each device, but this can quickly consume all 12 slots. Instead, Serial Bridge can keep reusing the same name, overwriting the old connection and always taking up just 1 slot. Note that the "Professional Edition" does not have this limitation.<br>
+										<a-select v-model="nodeLinkHandler.nameFormat">
+											<a-select-option value="device-node-name">Name connection after device and node</a-select-option>
+											<a-select-option value="device-name">Name connection after device only</a-select-option>
+											<a-select-option value="static">Name connection "Serial Bridge"</a-select-option>
+										</a-select>
+									</li>
+									<li>Connections created via a browser link cannot be in a folder, they will always be in the "User sessions" root.</li>
+									<li>MobaXterm does not support raw TCP connections. These will attempt to fallback to PuTTY instead.</li>
+								</ul>
+							</div>
+							<a-radio value="putty">PuTTY</a-radio>
+							<div>
+								<a target="_blank" href="https://www.chiark.greenend.org.uk/~sgtatham/putty/">PuTTY</a> is a Windows and *nix terminal emulator. It does not natively include a way to open connections from a browser, so a new URL protocol will need to be setup. You can enter your Putty path here to generate the necessary registry files and batch script (this assumes that you'll put the batch script in Putty's directory; if not, modify the generated files):
+								<form method="get" action="/serial-bridge.zip">
+									<a-input type="text" name="path" v-model="nodeLinkHandler.puttyPath" placeholder="PuTTY Path"/>
+									<a-button html-type="submit">Generate</a-button>
+								</form>
+								<a-collapse @change="puttyManualSetupToggle">
+									<a-collapse-panel header="PuTTY manual setup" key="putty-manual-setup">
+										To set things up manually instead of using the generated files:
+										<ul>
+											<li>Create a batch file that will receive the URI and pass the arguments to Putty:
+												<pre><code ref="putty-batch-file" class="language-batch line-numbers">{{ puttyBatFile }}</code></pre>
+											</li>
+											<li>Create the following registry entries (the <code>HKEY_CLASSES_ROOT\putty</code> key will need to be created):
+												<ul>
+													<li><code>HKEY_CLASSES_ROOT\putty\URL Protocol</code> = <code>""</code></li>
+													<li><code>HKEY_CLASSES_ROOT\putty\shell\open\command\(Default)</code> = <code>"&lt;Batch file&gt;" %1</code></li>
+												</ul>
+											</li>
+										</ul>
+									</a-collapse-panel>
+								</a-collapse>
+							</div>
+						</a-radio-group>
+						<a-button type="primary" html-type="submit" style="margin-left: 10px">Save</a-button>
+					</a-form>
 				</a-tab-pane>
 
 				<a-tab-pane v-if="changelog.entries.length > 0" key="changelog">
@@ -328,7 +362,7 @@
 	import SbFormModal from '../components/form-modal.vue';
 	import SbChangelog from '../components/changelog.vue';
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
-	import { Node, compareStrings, getDeviceUrl, isErrorDevice, uniqifyAndSort } from '../device-functions';
+	import { Node, compareStrings, getDeviceUrl, isErrorDevice, uniqifyAndSort, NodeLinkHandler } from '../device-functions';
 	export default Vue.extend({
 		components: { SbNavbar, SbLock, SbJenkins, SbFormModal, SbChangelog },
 		computed: {
@@ -496,6 +530,22 @@
 		},
 		data() {
 			const app = this.$root.$data.app as Application<Services>;
+			const nodeLinkHandler = {
+				app: '',
+				nameFormat: 'device-node-name',
+				keyPath: '',
+				puttyPath: defaultPuttyPath,
+			};
+			{
+				const nlhStr = localStorage.getItem('node-link-handler');
+				const nlh: NodeLinkHandler = nlhStr ? JSON.parse(nlhStr) : { app: null };
+				nodeLinkHandler.app = nlh.app ?? 'none';
+				if(nlh.app == 'mobaxterm') {
+					nodeLinkHandler.nameFormat = nlh.nameFormat;
+					nodeLinkHandler.keyPath = nlh.keyPath ?? '';
+				}
+			}
+
 			return {
 				version: unwrapPromise(app.service('api/config').get('version')),
 				locking: [] as string[], // Contains names of devices currently trying to acquire a Jenkins lock
@@ -515,8 +565,8 @@
 				},
 				changeJenkinsKey: undefined as PromiseResult<any> | undefined,
 
+				nodeLinkHandler,
 				puttyBatFile: batFile(),
-				puttyPath: defaultPuttyPath,
 
 				savedFilters: JSON.parse(localStorage.getItem('home-saved-filters') ?? '[]') as SavedFilter[],
 				tableFiltered: false,
@@ -616,15 +666,8 @@
 					},
 				};
 			},
-			async tabSwitched(key: string) {
+			tabSwitched(key: string) {
 				switch(key) {
-					case 'setup':
-						await this.$nextTick();
-						const code = this.$refs['putty-batch-file'] as HTMLElement;
-						if(code) {
-							Prism.highlightElement(code);
-						}
-						break;
 					case 'changelog':
 						if(this.changelog.newCount) {
 							const seenKeys: string[] = JSON.parse(localStorage.getItem('changelog.seen') ?? '[]');
@@ -637,6 +680,15 @@
 							this.changelog.newCount = 0;
 						}
 						break;
+				}
+			},
+			async puttyManualSetupToggle(key: string[]) {
+				if(key.indexOf('putty-manual-setup') >= 0) {
+					await this.$nextTick();
+					const code = this.$refs['putty-batch-file'] as HTMLElement;
+					if(code) {
+						Prism.highlightElement(code);
+					}
 				}
 			},
 			applyFilter({ sort, filters }: SavedFilter) {
@@ -722,6 +774,33 @@
 					localStorage.setItem('jenkins-username', username);
 					localStorage.setItem('jenkins-key', key);
 				}));
+			},
+			updateNodeLinkHandler() {
+				const serialize = ((): NodeLinkHandler => {
+					switch(this.nodeLinkHandler.app) {
+						case 'none':
+							return {
+								app: null,
+							};
+						case 'putty':
+							return {
+								app: 'putty',
+							};
+						case 'mobaxterm':
+							return {
+								app: 'mobaxterm',
+								nameFormat: this.nodeLinkHandler.nameFormat as any,
+								keyPath: this.nodeLinkHandler.keyPath || undefined,
+							};
+					}
+					throw new Error("Bad node link handler");
+				})();
+				localStorage.setItem('node-link-handler', JSON.stringify(serialize));
+				this.$message.success({
+					content: "Client preferences saved",
+					type: 'success',
+					duration: 3,
+				});
 			},
 		},
 	});
@@ -849,6 +928,32 @@
 				margin-right: 10px;
 				width: 14px;
 			}
+		}
+	}
+
+	.node-link-handler {
+		display: block;
+		margin: 10px;
+
+		/deep/ .ant-radio-wrapper {
+			display: block;
+
+			+ * {
+				margin-left: 25px;
+
+				ul {
+					margin-top: 10px;
+				}
+
+				.ant-select, .ant-input {
+					margin: 10px 0;
+					width: 400px;
+				}
+			}
+		}
+
+		/deep/ .ant-radio + * {
+			font-weight: bold;
 		}
 	}
 
