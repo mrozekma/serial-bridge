@@ -171,10 +171,10 @@
 						</a-form>
 					</template>
 
-					<h2>Jenkins</h2>
 					<a-alert v-if="jenkinsConfig.state == 'rejected'" type="error" message="Failed to load Jenkins config" :description="jenkinsConfig.error.message" showIcon/>
 					<a-spin v-else-if="jenkinsConfig.state == 'pending'"/>
 					<template v-else-if="jenkinsConfig.value.jenkinsUrl">
+						<h2>Jenkins</h2>
 						It's possible to control Jenkins locks from within Serial Bridge, but this requires a Jenkins API key:
 						<ul>
 							<li>Go to <a target="_blank" :href="jenkinsConfig.value.jenkinsUrl">Jenkins</a>.</li>

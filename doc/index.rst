@@ -85,7 +85,7 @@ The ``devices`` key is the only mandatory configuration key. It is an array cont
 
 .. TIP:: If you are adding a number of similar devices (e.g. they all have the same nodes and just vary in port assignments), it can be convenient to make a function that takes the differing information as arguments and returns the complete device object. Then your configuration can do:
 
-   .. code-block::
+   .. code-block:: typescript
 
       function makeDevice(deviceName, node1Path, ...) {
          return {
@@ -345,7 +345,7 @@ Commands are blocks of code from the configuration file that users can trigger o
 
 Any real command menu item (i.e. a menu item that isn't just a submenu) must provide a :ref:`fn <config_commands>` function in the configuration file that is executed when the user clicks the menu item. This is an optionally asynchronous function taking one object containing functions to interact with the device. This object is typically named ``api``; for example:
 
-.. code-block::
+.. code-block:: typescript
 
    config = {
       ...
@@ -513,6 +513,32 @@ The right three buttons control the page layout and are irrelevant here, but the
 * **ssh** -- Connect to the node over SSH.
 
 Browsers support telnet links natively and so the telnet web link will work with whatever your default Telnet client is. The other two options require you to install a supported client to handle those links, and possibly do some extra configuration to make the links work. Instructions on how to do this are on the Serial Bridge home page in the "Setup" tab. Raw and SSH links will not be shown to users who haven't specified their preferred client on the "Setup" tab.
+
+.. _mobaxterm:
+
+MobaXterm
+^^^^^^^^^
+
+In addition to handling web links directly, the `MobaXterm <https://mobaxterm.mobatek.net/>`_ client supports displaying a list of connections from a remote source, which it calls "shared sessions". Serial Bridge exposes a list of available connections in a format MobaXterm can read. This requires the paid "Professional Edition" of MobaXterm.
+
+To add shared sessions to MobaXterm:
+
+* Go to Settings -> Manage shared sessions.
+* Click "Add".
+* Choose the root node's name and icon.
+* Set the backend protocol to "http / https".
+* Set the sessions file URL to "``<serial bridge host>/mobaxterm.mxtsessions``".
+* Click "Save", then "Apply".
+
+.. image:: mobaxterm-shared-session-management.png
+   :height: 300
+.. image:: mobaxterm-shared-sessions.png
+   :height: 300
+
+This URL takes some optional query parameters, e.g. ``<serial bridge host>/mobaxterm.mxtsessions?key=c:\key.ppk``. The parameters are:
+
+* :field-optional:`host` -- The server's hostname. This can usually be determined automatically, but if you get an "Unable to determine host" error this should be set to Serial Bridge's own hostname.
+* :field-optional:`key` -- A path to the private key to use for all SSH connections. If this parameter is provided but left blank, it defaults to ``<My Documents>\serial-bridge.ppk``. If this parameter is omitted, no private key is used and you must provide a password when connecting.
 
 .. _ports_find:
 

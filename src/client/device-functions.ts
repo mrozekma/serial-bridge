@@ -1,4 +1,5 @@
 import { DeviceJson } from '../services';
+import { makeTelnetEntry as makeMobaTelnetEntry, makeSshEntry as makeMobaSshEntry } from '../server/mobaxterm';
 export type Node = DeviceJson['nodes'][number];
 
 export function isErrorDevice(device: DeviceJson) {
@@ -51,7 +52,6 @@ class PuttyLinkProvider extends LinkProvider {
 	}
 }
 
-// I won't pretend to understand MobaXterm's link format. I used https://stackoverflow.com/a/68448852/309308 to generate a link from an existing session and then patched it.
 class MobaxtermLinkProvider extends PuttyLinkProvider {
 	constructor(private nameFormat: 'static' | 'device-name' | 'device-node-name', private keyPath?: string) {
 		super();
@@ -71,9 +71,8 @@ class MobaxtermLinkProvider extends PuttyLinkProvider {
 
 	makeTelnetLink(deviceName: string, node: Node): string {
 		const sessionName = this.makeName(deviceName, node, 'Telnet');
-		const host = window.location.hostname;
-		const port = node.tcpPort;
-		return this.buildUri(`${sessionName}= ;  logout#98#1%${host}%${port}%%%2%%%%%0%0%%1080%#MobaFont%10%0%0%-1%15%236,236,236%30,30,30%180,180,192%0%-1%0%%xterm%-1%-1%_Std_Colors_0_%80%24%0%1%-1%<none>%%0%0%-1#0# #-1`);
+		const entry = makeMobaTelnetEntry(sessionName, window.location.hostname, deviceName, node);
+		return this.buildUri(entry);
 	}
 
 	// Just generate a PuTTY link as a fallback
@@ -83,7 +82,8 @@ class MobaxtermLinkProvider extends PuttyLinkProvider {
 		const { host, username } = node.ssh!;
 		const sessionName = this.makeName(deviceName, node, 'SSH');
 		const keyPath = this.keyPath ?? '';
-		return this.buildUri(`${sessionName}= ;  logout#117#0%${host}%22%${username}%%-1%-1%%%22%%0%0%0%${keyPath}%%-1%0%0%0%%1080%%0%0%1#MobaFont%10%0%0%-1%15%236,236,236%30,30,30%180,180,192%0%-1%0%%xterm%-1%-1%_Std_Colors_0_%80%24%0%1%-1%<none>%%0%0%-1#0# #-1`);
+		const entry = makeMobaSshEntry(sessionName, deviceName, node, keyPath);
+		return this.buildUri(entry);
 	}
 }
 

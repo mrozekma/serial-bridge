@@ -15,6 +15,7 @@ import Device, { Node, Remote, EphemeralDevice, RemoteIONode } from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
 import makeSetupZip from './setup-zip';
+import makeMobaSessionsFile from './mobaxterm';
 import { parseLockXml, checkJenkinsApiKey } from './jenkins';
 import NativePort, { onPortData } from './native-port';
 import SavedTerminalStore, { SavedTerminal, SavedTerminalJson } from './saved-terminal';
@@ -565,6 +566,19 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 	app.get('/serial-bridge.zip', async (req: Request<any>, res: Response, next: NextFunction) => {
 		const buffer = await makeSetupZip(req.query.path ? `${req.query.path}` : undefined);
 		res.contentType('application/octet-stream').send(buffer);
+	});
+
+	app.get('/mobaxterm.mxtsessions', async (req: Request<any>, res: Response, next: NextFunction) => {
+		const host = req.headers.host ?? req.query.host;
+		if(typeof host !== 'string') {
+			return res.status(500).send('Unable to determine host');
+		}
+		const keyPath = (typeof req.query.key === 'string')
+			? (req.query.key !== '' ? req.query.key : '_MyDocuments_\\serial-bridge.ppk')
+			: undefined;
+		const devices = await app.service('api/devices').find();
+		const buffer = makeMobaSessionsFile(devices as unknown as DeviceJson[], host, keyPath);
+		res.contentType('text/plain').send(buffer);
 	});
 
 	const staticDir = (process.env.NODE_ENV === 'development')
