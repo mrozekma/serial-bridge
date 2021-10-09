@@ -58,7 +58,7 @@
 			<template v-if="device.state == 'pending'"/>
 			<a-alert v-else-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
 			<a-alert v-else-if="!device.value.alive" type="error" message="Removed" description="Device has been removed" showIcon/>
-			<sb-layout v-else-if="nodes.length > 0" ref="layout" :device-name="deviceName" :nodes="nodes" @stdin="termStdin" @focus="node => focusedNode = node" @blur="focusedNode = undefined"/>
+			<sb-layout v-else-if="nodes.length > 0" ref="layout" :device-name="deviceName" :nodes="nodes" @stdin="termStdin" @focus="node => focusedNode = node" @blur="focusedNode = undefined" @contextmenu="termMenu"/>
 			<div class="notifications">
 				<transition enter-active-class="animated slideInUp faster" leave-active-class="animated slideOutDown faster">
 					<div v-if="runningCommand" class="command-state">
@@ -70,6 +70,24 @@
 					</div>
 				</transition>
 			</div>
+			<a-menu v-if="contextMenu" class="context-menu" ref="context-menu" :style="contextMenu.style">
+				<a-menu-item-group class="node-name" :title="contextMenu.node"/>
+				<!-- eslint-disable vue/valid-v-for -->
+				<template v-for="item in contextMenu.items">
+					<a-menu-divider v-if="item === '-'"/>
+					<a-menu-item-group v-else-if="item.subitems !== undefined" :title="item.text">
+						<a-menu-item v-for="subitem in item.subitems" @click="subitem.handler(); contextMenu = undefined;">
+							<i :class="subitem.icon || 'fas fa-badge'"/>
+							{{ subitem.text }}
+						</a-menu-item>
+					</a-menu-item-group>
+					<a-menu-item v-else @click="item.handler(); contextMenu = undefined;">
+						<i :class="item.icon || 'fas fa-badge'"/>
+						{{ item.text }}
+					</a-menu-item>
+				</template>
+				<!-- eslint-enable vue/valid-v-for -->
+			</a-menu>
 		</main>
 	</div>
 </template>
@@ -78,12 +96,27 @@
 	import Vue from 'vue';
 	import { MetaInfo } from 'vue-meta';
 	import { ITheme } from 'xterm';
+	import * as clipboardy from 'clipboardy';
+	import { saveAs } from 'file-saver';
 
 	import { appName, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { getDeviceUrl, nodeLinks, Node } from '../device-functions';
 	import { Connection, getDeviceConnections } from '../connections';
 	import commandPalette, { Command as PaletteCommand } from '../command-palette';
 	import { DeviceJson, CommandJson, BuildJson, SavedTerminalJson } from '@/services';
+
+	type ContextMenuItem = {
+		text: string;
+		icon?: string;
+		handler: () => void;
+	} | {
+		text: string;
+		subitems: {
+			text: string;
+			icon?: string;
+			handler: () => void;
+		}[];
+	} | '-';
 
 	import SbNavbar from '../components/navbar.vue';
 	import SbCommandMenu from '../components/command-menu.vue';
@@ -215,6 +248,14 @@
 				focusedNode: undefined as string | undefined,
 				finishedBuild: undefined as FinishedBuild | undefined,
 				locking: false, // True if currently trying to acquire a lock
+				contextMenu: undefined as {
+					node: string;
+					style: {
+						top: string;
+						left: string;
+					};
+					items: ContextMenuItem[];
+				} | undefined,
 			};
 		},
 		mounted() {
@@ -437,6 +478,169 @@
 					}
 				}
 			},
+			async termMenu(nodeName: string, e: MouseEvent) {
+				const node = this.nodes.find(node => node.name === nodeName);
+				const term = (await this.getTerminal(nodeName)).terminal;
+				function getScrollback() {
+					term.selectAll();
+					const selection = term.getSelection().trim();
+					term.clearSelection();
+					return selection;
+				}
+				function saveFile(text: string) {
+					const blob = new Blob([ text ], { type: "text/plain;charset=utf-8" });
+					saveAs(blob, `${nodeName}.txt`);
+				}
+				const self = this;
+				function* makeMenu(): Iterable<ContextMenuItem> {
+					const selection = term.getSelection().trim();
+
+					if(node?.webLinks) {
+						const linkItems = [];
+						for(const linkName of node.webLinks) {
+							const link = nodeLinks.find(link => link.name === linkName);
+							if(link && link.url) {
+								linkItems.push({
+									text: link.description,
+									icon: link.icon,
+									handler() {
+										window.location.assign(link.url!(self.deviceName, node!));
+									},
+								});
+							}
+						}
+						yield {
+							text: "Connection",
+							subitems: linkItems,
+						};
+						yield '-';
+					}
+
+					if(selection) {
+						yield {
+							text: "Selection",
+							subitems: [{
+								text: "Copy",
+								icon: 'fas fa-copy',
+								handler() {
+									clipboardy.write(selection);
+								},
+							}, {
+								text: "Export",
+								icon: 'fas fa-save',
+								handler() {
+									saveFile(selection);
+								},
+							}, {
+								text: "Unselect",
+								icon: 'fas fa-vote-nay',
+								handler() {
+									term.clearSelection();
+								},
+							}],
+						};
+						yield '-';
+					}
+					yield {
+						text: "Scrollback",
+						subitems: [{
+							text: "Copy",
+							icon: 'fas fa-copy',
+							handler() {
+								clipboardy.write(getScrollback());
+							},
+						}, {
+							text: "Export",
+							icon: 'fas fa-save',
+							handler() {
+								saveFile(getScrollback());
+							},
+						}, {
+							text: "Clear",
+							icon: 'fas fa-eraser',
+							handler() {
+								term.reset();
+							},
+						}],
+					};
+					yield '-';
+					yield {
+						text: "Paste",
+						icon: 'fas fa-paste',
+						async handler() {
+							term.write(await clipboardy.read());
+						},
+					};
+					yield {
+						text: "Upload",
+						icon: 'far fa-file-upload',
+						handler() {
+							// Can't believe this is still the best way to get a file
+							const input = document.createElement('input');
+							input.type = 'file';
+							input.addEventListener('change', () => {
+								if(!input.files?.length) {
+									return;
+								}
+								const file = input.files[0];
+								const done = (success: boolean, description: string) => {
+									self.$notification[success ? 'success' : 'error']({
+										message: 'File write',
+										description,
+										placement: 'bottomRight',
+										duration: 3,
+									});
+								};
+								const reader = new FileReader();
+								reader.addEventListener('load', e => {
+									self.termStdin(nodeName, reader.result as string);
+									done(true, `Write to ${nodeName} complete`);
+								});
+								reader.addEventListener('abort', e => {
+									console.error(e);
+									done(false, "Write aborted");
+								});
+								reader.addEventListener('error', e => {
+									console.error(e);
+									done(false, "Write failed");
+								});
+								reader.readAsText(file);
+							}, false);
+							input.click();
+						},
+					};
+				}
+				const items = Array.from(makeMenu());
+				if(items[items.length - 1] === '-') {
+					items.pop();
+				}
+				if(items.length == 0) {
+					this.contextMenu = undefined;
+					return;
+				}
+				const menu = {
+					node: nodeName,
+					style: {
+						left: `${e.clientX}px`,
+						top: `${e.clientY}px`,
+					},
+					items,
+				};
+				this.contextMenu = menu;
+				const listener = (e: MouseEvent) => {
+					if(this.contextMenu !== menu) {
+						return;
+					}
+					const el = (this.$refs['context-menu'] as Vue)?.$el as HTMLUListElement;
+					//@ts-ignore Type info on contains() seems to be wrong
+					if(el?.contains(e.target)) {
+						return;
+					}
+					this.contextMenu = undefined;
+					window.removeEventListener('mousedown', listener);
+				};
+				window.addEventListener('mousedown', listener);
+			},
 			acquireLock() {
 				// This will create the sb-lock component, which automatically tries to lock if there isn't an existing one
 				this.locking = true;
@@ -549,7 +753,7 @@
 		bottom: 10px;
 		display: flex;
 		overflow-y: hidden;
-		z-index: 50; // Maximized golden-layout windows have a z-index of 40
+		z-index: 60; // Maximized golden-layout windows have a z-index of 40
 
 		> * {
 			margin-left: auto;
@@ -579,6 +783,53 @@
 				position: relative;
 				top: 3px;
 			}
+		}
+	}
+
+	.context-menu {
+		border: 1px solid #595959;
+		background-color: #434343;
+		color: #fff;
+		position: absolute;
+		z-index: 50;
+
+		.node-name {
+			background-color: #262626;
+			/deep/ .ant-menu-item-group-title {
+				color: #fff;
+				padding: 2px;
+				text-align: center;
+				font-size: 8pt;
+			}
+		}
+		.ant-menu-item-group:not(.node-name) /deep/ .ant-menu-item-group-title {
+			padding: 4px 16px;
+			color: rgba(255, 255, 255, 0.45);
+		}
+		.ant-menu-item {
+			height: 32px;
+			line-height: 32px;
+			margin: 0;
+			i {
+				text-align: center;
+				width: 17px;
+				margin-right: 4px;
+			}
+			&.ant-menu-item-active {
+				// There seems to be a bug with menu groups where every subitem gets .ant-menu-item-active set when any of them are hovered. Work around this by checking for :hover specifically
+				color: inherit;
+				background-color: inherit;
+				&:hover {
+					background-color: #595959;
+				}
+			}
+			/deep/ .ant-upload {
+				width: 100%;
+				color: #fff;
+			}
+		}
+		.ant-menu-item-divider {
+			margin: 4px 0;
 		}
 	}
 

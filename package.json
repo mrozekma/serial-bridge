@@ -31,7 +31,9 @@
 		"activedirectory": "^0.7.2",
 		"async-mutex": "^0.1.4",
 		"axios": "^0.21.0",
+		"clipboardy": "^2.3.0",
 		"deep-rename-keys": "^0.2.1",
+		"file-saver": "^2.0.5",
 		"filesize.js": "^2.0.0",
 		"fuse.js": "^6.4.6",
 		"hash-files": "^1.1.1",
@@ -53,6 +55,7 @@
 	"devDependencies": {
 		"@types/axios": "^0.14.0",
 		"@types/cors": "^2.8.6",
+		"@types/file-saver": "^2.0.3",
 		"@types/jquery": "^3.3.31",
 		"@types/json5": "^0.0.30",
 		"@types/jszip": "^3.1.6",

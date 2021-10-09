@@ -10,9 +10,13 @@
 				<h1>Command palette</h1>
 				A VSCode-inspired command palette is available by pressing <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>. This replaces the old device search menu.
 			</template>
-			<template v-else-if="key === 'node-link-clients'">
+			<template v-else-if="key === 'nodeLinkClients'">
 				<h1>Node link client</h1>
 				The <i class="far fa-external-link-alt"></i>&nbsp;&nbsp;<i class="far fa-terminal"></i> buttons in the titlebar of each node that open Telnet and SSH connections now support MobaXterm. See the "Setup" tab on the homepage to tell Serial Bridge to make MobaXterm links, or to specify that you want to keep using the previous PuTTY links. The new default is to not show those links until a client has been specified.
+			</template>
+			<template v-else-if="key === 'contextMenu'">
+				<h1>Context menu</h1>
+				A context menu is now available when you right-click a node. This menu includes connection links, copy/paste options, and import/export options.
 			</template>
 			<a-alert v-else type="error" message="Bad entry" show-icon>
 				<template #description>

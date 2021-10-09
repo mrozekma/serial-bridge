@@ -299,7 +299,7 @@ The Serial Bridge web UI lists all the users connected to ports on a device, bot
 
 I should stress here that Serial Bridge has no concept of accounts or logins. User information comes from two sources:
 
-* Provided by the user in the "You" section of the home page.
+* Provided by the user in the "Setup" section of the home page.
 * Provided by the :ref:`users.identify <config_users>` configuration function.
 
 The ``users.identify`` function is an optionally asynchronous function that takes an object describing the user. This object has the following keys:

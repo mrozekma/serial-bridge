@@ -50,9 +50,9 @@
 				//@ts-ignore Vue internals :-\
 				comp._props = props;
 				comp.$mount();
-				comp.$on('stdin', (data: string) => this.$emit('stdin', node.name, data));
-				comp.$on('focus', () => this.$emit('focus', node.name));
-				comp.$on('blur', () => this.$emit('blur', node.name));
+				for(const event of ['stdin', 'focus', 'blur', 'contextmenu']) {
+					comp.$on(event, (data: any) => this.$emit(event, node.name, data));
+				}
 				this.$watch('nodes', (nodes: Node[]) => props.node = nodes[idx], { deep: true });
 				this.terminals.set(node.name, comp as SbTerminalVue);
 			});

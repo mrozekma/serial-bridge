@@ -1,6 +1,6 @@
 <template>
 	<div class="term-padding-wrapper">
-		<div ref="term" class="term"/>
+		<div ref="term" class="term" @contextmenu.prevent="showMenu"/>
 		<a-alert v-if="!node.state.open" :message="node.state.reason" type="info" showIcon/>
 	</div>
 </template>
@@ -58,7 +58,6 @@
 			return {
 				terminal: new Terminal({
 					scrollback: numScrollbackLines,
-
 				}),
 				fitAddon: new SbFit(),
 				serializeAddon: new SerializeAddon(),
@@ -97,6 +96,11 @@
 			}
 		},
 		methods: {
+			x(e: MouseEvent) {
+				console.log('x');
+				e.preventDefault();
+				e.stopPropagation();
+			},
 			fit() {
 				this.fitAddon.fit();
 			},
@@ -122,6 +126,12 @@
 			focus() {
 				this.terminal.focus();
 			},
+			showMenu(e: MouseEvent) {
+				this.$emit('contextmenu', e);
+				e.stopPropagation();
+				e.preventDefault();
+				return false;
+			}
 		},
 	});
 	export type SbTerminalVue = InstanceType<typeof component>;

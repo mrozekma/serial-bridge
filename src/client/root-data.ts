@@ -11,10 +11,12 @@ export function makeFeathersApp(rootUrl?: string | undefined): {
 	socket: SocketIOClient.Socket;
  } {
 	if(!rootUrl) {
-		rootUrl = window.location.protocol +
-		'//' +
-		(process.env.VUE_APP_SERVER_PORT ? `${window.location.hostname}:${process.env.VUE_APP_SERVER_PORT}` : window.location.host) +
-		`?pathname=${window.location.pathname}`;
+		if(window.location.hostname.endsWith('.githubpreview.dev')) {
+			rootUrl = window.location.protocol + '//' + window.location.host.replace(/-[0-9]+\.githubpreview\.dev$/, `-${process.env.VUE_APP_SERVER_PORT}.githubpreview.dev`);
+		} else {
+			rootUrl = window.location.protocol + '//' + (process.env.VUE_APP_SERVER_PORT ? `${window.location.hostname}:${process.env.VUE_APP_SERVER_PORT}` : window.location.host);
+		}
+		rootUrl += `?pathname=${window.location.pathname}`;
 	}
 	const app = feathers<Services>();
 	const socket = io(rootUrl);
