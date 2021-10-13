@@ -4,8 +4,14 @@
 -->
 <template>
 	<div v-once>
-		<li v-for="link in links" :key="link.name" :ref="link.name" :title="link.description" @click="click">
-			<i :class="link.icon"/>
+		<li v-for="link in links" :key="link.name" :ref="link.name" :title="link.description" @click="e => link.url ? click(e) : {}">
+			<a-popconfirm v-if="!link.url" placement="bottomRight" arrow-point-at-center ok-text="Reload" @confirm="reload">
+				<template #title>
+					 No {{ link.description }} handler specified. Choose one from the <a target="_blank" href="/#setup">Setup tab</a> and reload this page.
+				</template>
+				<i :class="link.icon"/>
+			</a-popconfirm>
+			<i v-else :class="link.icon"/>
 		</li>
 		<li class="spacer"/>
 	</div>
@@ -19,7 +25,7 @@
 	const component = Vue.extend({
 		data() {
 			return {
-				links: nodeLinks.filter(link => link.url),
+				links: nodeLinks,
 				deviceName: undefined as string | undefined,
 				node: undefined as Node | undefined,
 			};
@@ -54,6 +60,9 @@
 						break;
 					}
 				}
+			},
+			reload() {
+				window.location.reload();
 			},
 		},
 	});

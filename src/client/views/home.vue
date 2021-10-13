@@ -11,8 +11,8 @@
 		</sb-navbar>
 		<main>
 			<a-alert v-if="version.state === 'resolved' && version.value.notice" type="info" :message="version.value.notice" show-icon/>
-			<a-tabs @change="tabSwitched">
-				<a-tab-pane key="devices" tab="Devices">
+			<a-tabs :defaultActiveKey="defaultTab" @change="tabSwitched">
+				<a-tab-pane key="devices" tab="Devices" force-render>
 					<a-alert v-if="devices.state === 'rejected'" type="error" message="Failed to load devices" :description="devices.error.message" showIcon/>
 					<div v-else>
 						<div v-if="tableFiltered || savedFilters.length > 0" class="table-filter-controls">
@@ -367,6 +367,9 @@
 		components: { SbNavbar, SbLock, SbJenkins, SbFormModal, SbChangelog },
 		computed: {
 			...rootDataComputeds(),
+			defaultTab(): string {
+				return window.location.hash ? window.location.hash.substring(1) : 'devices';
+			},
 			columns(): AntTableColumn[] {
 				const tags = uniqifyAndSort(this.annotatedDevices.flatMap(device => device.tags.map(tag => tag.name)));
 				const servers = uniqifyAndSort(this.annotatedDevices.map(device => device.remoteInfo?.name ?? 'Local'));
@@ -825,7 +828,7 @@
 	}
 
 	.ant-alert {
-		margin-top: 5px;
+		margin: 5px 0;
 	}
 
 	h4 {

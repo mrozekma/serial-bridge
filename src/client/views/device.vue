@@ -499,12 +499,20 @@
 						const linkItems = [];
 						for(const linkName of node.webLinks) {
 							const link = nodeLinks.find(link => link.name === linkName);
-							if(link && link.url) {
+							if(link) {
 								linkItems.push({
 									text: link.description,
 									icon: link.icon,
 									handler() {
-										window.location.assign(link.url!(self.deviceName, node!));
+										if(link.url) {
+											window.location.assign(link.url(self.deviceName, node));
+										} else {
+											self.$notification.warning({
+												message: 'Missing setup',
+												description: `No ${link.description} handler specified. Choose one from the Setup tab and reload this page.`,
+												placement: 'bottomRight',
+											});
+										}
 									},
 								});
 							}
