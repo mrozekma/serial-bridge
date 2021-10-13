@@ -62,6 +62,7 @@
 		serialSettings: string;
 		device: DeviceJson;
 		node: Node;
+		tcpPort: number;
 	}
 
 	function isMappedPort(port: Port): port is MappedPort {
@@ -163,6 +164,9 @@
 				}, {
 					title: 'Serial Settings',
 					dataIndex: 'serialSettings',
+				}, {
+					title: 'TCP Port',
+					dataIndex: 'tcpPort',
 				}];
 			},
 			ports(): Port[] {
@@ -189,6 +193,7 @@
 									parity: node.parity,
 									stopBits: node.stopBits,
 									serialSettings: `${node.byteSize}/${node.parity[0].toUpperCase()}/${node.stopBits}`,
+									tcpPort: node.tcpPort,
 								} as MappedPort);
 							}
 						}
