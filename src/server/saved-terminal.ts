@@ -41,7 +41,7 @@ export default class SavedTerminalStore {
 		try {
 			const json = await fs.readFile(path, { encoding: 'utf8' });
 			return JSON.parse(json);
-		} catch(e) {
+		} catch(e: any) {
 			if(e.code === 'ENOENT') {
 				throw new Error(`No state with key '${key}' found`);
 			}
@@ -62,7 +62,7 @@ export default class SavedTerminalStore {
 			const path = pathlib.join(this.rootDir, key);
 			try {
 				fd = await fs.open(path, 'wx');
-			} catch(e) {
+			} catch(e: any) {
 				if(e.code === 'EEXIST') {
 					// Picked a key that's already in use; try again
 				} else {

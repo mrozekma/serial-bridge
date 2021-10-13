@@ -160,6 +160,7 @@ export async function loadConfig() {
 		};
 		delete obj.webPort;
 	}
+	//@ts-ignore "Type instantiation is excessively deep and possibly infinite". Amazing error message, Typescript.
 	const { error, value } = configJoi.validate(obj);
 	if(error) {
 		throw new Error(`Failed to parse configuration file ${filename}: ${error.message}`);
@@ -180,7 +181,7 @@ export async function loadConfig() {
 		if(!stats.isDirectory()) {
 			throw new Error(`Saved state path is not a directory: ${value.savedState.dir}`);
 		}
-	} catch(e) {
+	} catch(e: any) {
 		if(e.code === 'ENOENT') {
 			try {
 				await fs.mkdir(value.savedState.dir);

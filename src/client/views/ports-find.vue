@@ -607,8 +607,8 @@ import { compareStrings } from '../device-functions';
 				} else {
 					try {
 						pattern.pattern = new RegExp(pattern.patternString);
-					} catch(e) {
-						pattern.patternError = e;
+					} catch(e: any) {
+						pattern.patternError = e as Error;
 					}
 				}
 			},

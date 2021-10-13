@@ -128,7 +128,7 @@ export function rootDataUpdater(this: Vue) {
 				description: "A new version of Serial Bridge is available. Click here to refresh the page.",
 				onClick() {
 					if(!userClosed) {
-						window.location.reload(true);
+						window.location.reload();
 					}
 				},
 				onClose(e: any) {

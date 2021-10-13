@@ -434,7 +434,7 @@
 				try {
 					await this.app.service('api/commands').patch(name, {});
 					setTimeout(() => this.runningCommand = undefined, 2000);
-				} catch(e) {
+				} catch(e: any) {
 					console.error(e);
 					this.$error({
 						title: "Command failed",
