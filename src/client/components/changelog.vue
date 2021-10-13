@@ -18,6 +18,10 @@
 				<h1>Context menu</h1>
 				A context menu is now available when you right-click a node. This menu includes connection links, copy/paste options, and import/export options.
 			</template>
+			<template v-else-if="key === 'screenshot'">
+				<h1>Screenshots</h1>
+				There is an option in each device's <b>Manage</b> menu to take a screenshot of all nodes and save it to disk. A similar option appears in each node's context menu to screenshot that particular node.
+			</template>
 			<a-alert v-else type="error" message="Bad entry" show-icon>
 				<template #description>
 					Configuration file specifies unknown changelog entry <b>{{ key }}</b>

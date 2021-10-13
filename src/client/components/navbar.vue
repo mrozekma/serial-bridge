@@ -13,7 +13,7 @@
 			</template>
 			<a-menu-item v-if="devices.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
 			<a-menu-item v-else-if="devices.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
-			<a-menu-item v-else v-for="device in devices.value" :key="device.name">
+			<a-menu-item v-else v-for="device in filteredDevices" :key="device.name">
 				<a :href="getDeviceUrl(device)">
 					{{ device.name }}
 				</a>
@@ -28,7 +28,6 @@
 
 <script lang="ts">
 	import Vue from 'vue';
-	import { appName } from '../root-data';
 
 	// Not a fan of the gaps between submenus
 	//@ts-ignore
@@ -36,7 +35,8 @@
 	placements.bottomLeft.offset = [0, 2];
 	placements.rightTop.offset = [0, 0];
 
-	import { rootDataComputeds } from '../root-data';
+	import { isErrorDevice } from '../device-functions';
+	import { appName, rootDataComputeds } from '../root-data';
 	import { DeviceJson } from '@/services';
 
 	import SbCommandMenu from '../components/command-menu.vue';
@@ -52,6 +52,9 @@
 		},
 		computed: {
 			...rootDataComputeds(),
+			filteredDevices(): DeviceJson[] {
+				return (this.devices.state === 'resolved') ? this.devices.value.filter(device => !isErrorDevice(device)) : [];
+			},
 		},
 		watch: {
 			brand(val) {

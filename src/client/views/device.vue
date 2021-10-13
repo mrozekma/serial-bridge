@@ -21,6 +21,7 @@
 			<a-sub-menu title="Manage">
 				<a-menu-item><a :href="manageUrl">Ports</a></a-menu-item>
 				<a-menu-item @click="copyState">Share</a-menu-item>
+				<a-menu-item @click="screenshot()">Screenshot</a-menu-item>
 				<template v-if="device.state == 'resolved' && device.value.jenkinsLockName">
 					<a-menu-item v-if="!device.value.jenkinsLockOwner" @click="acquireLock">Reserve in Jenkins</a-menu-item>
 					<a-menu-item v-else @click="releaseLock">Unreserve in Jenkins</a-menu-item>
@@ -54,7 +55,7 @@
 				</a-tooltip>
 			</template>
 		</sb-navbar>
-		<main>
+		<main ref="main">
 			<template v-if="device.state == 'pending'"/>
 			<a-alert v-else-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
 			<a-alert v-else-if="!device.value.alive" type="error" message="Removed" description="Device has been removed" showIcon/>
@@ -98,6 +99,7 @@
 	import { ITheme } from 'xterm';
 	import * as clipboardy from 'clipboardy';
 	import { saveAs } from 'file-saver';
+	import html2canvas from 'html2canvas';
 
 	import { appName, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { getDeviceUrl, nodeLinks, Node } from '../device-functions';
@@ -583,38 +585,14 @@
 						text: "Upload",
 						icon: 'far fa-file-upload',
 						handler() {
-							// Can't believe this is still the best way to get a file
-							const input = document.createElement('input');
-							input.type = 'file';
-							input.addEventListener('change', () => {
-								if(!input.files?.length) {
-									return;
-								}
-								const file = input.files[0];
-								const done = (success: boolean, description: string) => {
-									self.$notification[success ? 'success' : 'error']({
-										message: 'File write',
-										description,
-										placement: 'bottomRight',
-										duration: 3,
-									});
-								};
-								const reader = new FileReader();
-								reader.addEventListener('load', e => {
-									self.termStdin(nodeName, reader.result as string);
-									done(true, `Write to ${nodeName} complete`);
-								});
-								reader.addEventListener('abort', e => {
-									console.error(e);
-									done(false, "Write aborted");
-								});
-								reader.addEventListener('error', e => {
-									console.error(e);
-									done(false, "Write failed");
-								});
-								reader.readAsText(file);
-							}, false);
-							input.click();
+							self.uploadToNode(nodeName);
+						},
+					};
+					yield {
+						text: "Screenshot",
+						icon: 'fas fa-camera-retro',
+						handler() {
+							self.screenshot(nodeName);
 						},
 					};
 				}
@@ -740,6 +718,64 @@
 						content: `Failed to save state: ${e}`,
 					});
 				}
+			},
+			uploadToNode(nodeName: string) {
+				// Can't believe this is still the best way to get a file
+				const input = document.createElement('input');
+				input.type = 'file';
+				input.addEventListener('change', () => {
+					if(!input.files?.length) {
+						return;
+					}
+					const file = input.files[0];
+					const done = (success: boolean, description: string) => {
+						this.$notification[success ? 'success' : 'error']({
+							message: 'File write',
+							description,
+							placement: 'bottomRight',
+							duration: 3,
+						});
+					};
+					const reader = new FileReader();
+					reader.addEventListener('load', e => {
+						this.termStdin(nodeName, reader.result as string);
+						done(true, `Write to ${nodeName} complete`);
+					});
+					reader.addEventListener('abort', e => {
+						console.error(e);
+						done(false, "Write aborted");
+					});
+					reader.addEventListener('error', e => {
+						console.error(e);
+						done(false, "Write failed");
+					});
+					reader.readAsText(file);
+				}, false);
+				input.click();
+			},
+			async screenshot(nodeName?: string) {
+				let el: HTMLElement | null | undefined;
+				if(nodeName) {
+					el = (await this.getTerminal('Foo')).terminal.element;
+					while(el && !el.classList.contains('lm_item')) {
+						el = el.parentElement;
+					}
+					if(!el) {
+						this.$notification.error({
+							message: 'Screenshot failed',
+							description: `Unable to find pane housing node '${nodeName}'`,
+							placement: 'bottomRight',
+							duration: 5,
+						});
+						return;
+					}
+				} else {
+					el = this.$refs.main as HTMLElement;
+				}
+				// Wait a moment for whatever UI the user is triggering this from to clear
+				await new Promise(resolve => setTimeout(resolve, 500));
+				const canvas = await html2canvas(el);
+				saveAs(canvas.toDataURL('image/png'), this.deviceName + (nodeName ? '-' + nodeName.replaceAll(' ', '-') : '') + '.png');
 			},
 		},
 	});
