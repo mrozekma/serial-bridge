@@ -387,6 +387,18 @@
 					scopedSlots: {
 						customRender: 'build-icon',
 					},
+					filters: [
+						{ value: 'locked', text: "Reserved" },
+						{ value: 'building', text: "Building" },
+						{ value: 'free', text: "Free" },
+					],
+					onFilter: (name: string, device: AnnotatedDevice) => {
+						switch(name) {
+							case 'locked': return (device.jenkinsLockOwner !== undefined);
+							case 'building': return (device.build !== undefined);
+							case 'free': return (device.jenkinsLockOwner === undefined && device.build === undefined);
+						}
+					},
 				}, {
 					title: 'Name',
 					dataIndex: 'name',
