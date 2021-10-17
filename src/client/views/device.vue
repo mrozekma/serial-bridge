@@ -756,7 +756,7 @@
 			async screenshot(nodeName?: string) {
 				let el: HTMLElement | null | undefined;
 				if(nodeName) {
-					el = (await this.getTerminal('Foo')).terminal.element;
+					el = (await this.getTerminal(nodeName)).terminal.element;
 					while(el && !el.classList.contains('lm_item')) {
 						el = el.parentElement;
 					}
