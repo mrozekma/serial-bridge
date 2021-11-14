@@ -9,7 +9,7 @@ import { ClientServices as Services, DeviceJson } from '../services';
 export function makeFeathersApp(rootUrl?: string | undefined): {
 	app: feathers.Application<Services>;
 	socket: SocketIOClient.Socket;
- } {
+} {
 	if(!rootUrl) {
 		if(window.location.hostname.endsWith('.githubpreview.dev')) {
 			rootUrl = window.location.protocol + '//' + window.location.host.replace(/-[0-9]+\.githubpreview\.dev$/, `-${process.env.VUE_APP_SERVER_PORT}.githubpreview.dev`);

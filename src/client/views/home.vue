@@ -253,6 +253,21 @@
 						</a-radio-group>
 						<a-button type="primary" html-type="submit" style="margin-left: 10px">Save</a-button>
 					</a-form>
+
+					<h2>Clipboard</h2>
+					<template v-if="clipboardAvailable === true">
+						Serial Bridge should be able to access your clipboard, so no additional setup is necessary.<br><br>
+						<a-button type="primary" @click="testClipboard">Test clipboard</a-button>
+					</template>
+					<template v-else-if="clipboardAvailable === 'http'">
+						Serial Bridge is not using SSL, so your browser will not allow clipboard access.
+						<!-- This can't be a link. I hate Google -->
+						If using Chrome, you can go to <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> and tell it to treat this host as secure.
+						Firefox does not <a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1410365">yet</a> support this.
+					</template>
+					<template v-else>
+						Your browser does not appear to allow clipboard access.
+					</template>
 				</a-tab-pane>
 
 				<a-tab-pane v-if="changelog.entries.length > 0" key="changelog">
@@ -542,6 +557,9 @@
 			jenkinsFormFeedback(): any {
 				return makeFormFeedback(this.changeJenkinsKey);
 			},
+			clipboardAvailable(): true | 'http' | 'missing' {
+				return navigator.clipboard ? true : (location.protocol !== 'https:') ? 'http' : 'missing';
+			},
 		},
 		data() {
 			const app = this.$root.$data.app as Application<Services>;
@@ -813,9 +831,24 @@
 				localStorage.setItem('node-link-handler', JSON.stringify(serialize));
 				this.$message.success({
 					content: "Client preferences saved",
-					type: 'success',
 					duration: 3,
 				});
+			},
+			async testClipboard() {
+				try {
+					await navigator.clipboard.readText();
+					// Skip this because the user allowing the clipboard permission defocuses the document
+					// await navigator.clipboard.writeText("Test text from Serial Bridge");
+					this.$message.success({
+						content: "Serial Bridge has access to your clipboard.",
+						duration: 3,
+					});
+				} catch(e) {
+					this.$message.error({
+						content: "Failed to interact with your clipboard. Check the site permissions in your browser.",
+						duration: 5,
+					});
+				}
 			},
 		},
 	});

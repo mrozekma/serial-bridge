@@ -97,7 +97,6 @@
 	import Vue from 'vue';
 	import { MetaInfo } from 'vue-meta';
 	import { ITheme } from 'xterm';
-	import * as clipboardy from 'clipboardy';
 	import { saveAs } from 'file-saver';
 	import html2canvas from 'html2canvas';
 
@@ -481,8 +480,15 @@
 				}
 			},
 			async termMenu(nodeName: string, e: MouseEvent) {
+				const self = this;
 				const node = this.nodes.find(node => node.name === nodeName);
 				const term = (await this.getTerminal(nodeName)).terminal;
+				const ctrlKey = (navigator.platform.toUpperCase().indexOf('MAC') >= 0) ? 'Cmd' : 'Ctrl';
+				const clipboard = undefined ?? {
+					readText: () => Promise.reject(),
+					writeText: (text: string) => Promise.reject(),
+				};
+
 				function getScrollback() {
 					term.selectAll();
 					const selection = term.getSelection().trim();
@@ -493,7 +499,6 @@
 					const blob = new Blob([ text ], { type: "text/plain;charset=utf-8" });
 					saveAs(blob, `${nodeName}.txt`);
 				}
-				const self = this;
 				function* makeMenu(): Iterable<ContextMenuItem> {
 					const selection = term.getSelection().trim();
 
@@ -533,7 +538,14 @@
 								text: "Copy",
 								icon: 'fas fa-copy',
 								handler() {
-									clipboardy.write(selection);
+									clipboard.writeText(selection).catch(e => {
+										self.$notification.error({
+											duration: 10,
+											placement: 'bottomRight',
+											message: "No clipboard access",
+											description: `Unable to write to the clipboard. Try pressing ${ctrlKey}+Insert to copy instead. See the Setup tab for more information on clipboard interactions.`,
+										});
+									});
 								},
 							}, {
 								text: "Export",
@@ -554,10 +566,23 @@
 					yield {
 						text: "Scrollback",
 						subitems: [{
+							text: "Select All",
+							icon: 'fas fa-object-group',
+							handler() {
+								term.selectAll();
+							},
+						}, {
 							text: "Copy",
 							icon: 'fas fa-copy',
 							handler() {
-								clipboardy.write(getScrollback());
+								clipboard.writeText(getScrollback()).catch(e => {
+									self.$notification.error({
+										duration: 10,
+										placement: 'bottomRight',
+										message: "No clipboard access",
+										description: `Unable to write to the clipboard. Try using Select All to select the entire scrollback and pressing ${ctrlKey}+Insert to copy. See the Setup tab for more information on clipboard interactions.`,
+									});
+								});
 							},
 						}, {
 							text: "Export",
@@ -578,7 +603,16 @@
 						text: "Paste",
 						icon: 'fas fa-paste',
 						async handler() {
-							term.write(await clipboardy.read());
+							try {
+								term.write(await clipboard.readText());
+							} catch(e) {
+								self.$notification.error({
+									duration: 10,
+									placement: 'bottomRight',
+									message: "No clipboard access",
+									description: 'Unable to read from the clipboard. Try using Shift+Insert to paste instead. See the Setup tab for more information on clipboard interactions.',
+								});
+							}
 						},
 					};
 					yield {

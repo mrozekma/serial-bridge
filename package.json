@@ -31,7 +31,6 @@
 		"activedirectory": "^0.7.2",
 		"async-mutex": "^0.1.4",
 		"axios": "^0.21.0",
-		"clipboardy": "^2.3.0",
 		"deep-rename-keys": "^0.2.1",
 		"file-saver": "^2.0.5",
 		"filesize.js": "^2.0.0",
