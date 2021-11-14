@@ -105,20 +105,51 @@ function makeHttpxServer(httpServer: http.Server, httpsServer: https.Server) {
 			app.listen(config.web.port);
 			console.log(`Listening on ${config.web.port}`);
 		} else {
+			let sslPort = config.web.ssl.port;
 			const { key, cert, passphrase } = config.web.ssl;
-			const httpServer = http.createServer((req, res) => {
-				res.writeHead(301, {
-					Location: `https://${req.headers.host}${req.url}`,
-				}).end();
-			});
-			const httpsServer = https.createServer({
-				key: await fs.readFile(key),
-				cert: await fs.readFile(cert),
-				passphrase,
-			}, app);
-			const server = makeHttpxServer(httpServer, httpsServer);
-			server.listen(config.web.port);
-			console.log(`Listening on ${config.web.port} (SSL)`);
+			if(!sslPort && config.web.port == 80) {
+				sslPort = 443;
+			}
+			if(sslPort) { // HTTP and HTTPS are on separate ports. Make an HTTP server that forwards requests to the HTTPS server.
+				const httpServer = http.createServer((req, res) => {
+					if(req.headers.host) {
+						res.writeHead(301, {
+							Location: `https://${req.headers.host.replace(/:[0-9]+$/, '')}:${sslPort}${req.url}`,
+						}).end();
+					} else {
+						res.writeHead(400, 'No Host');
+					}
+				});
+				httpServer.listen(config.web.port);
+				console.log(`Listening on ${config.web.port} (redirecting to SSL)`);
+				const httpsServer = https.createServer({
+					key: await fs.readFile(key),
+					cert: await fs.readFile(cert),
+					passphrase,
+				}, app);
+				app.setup(httpsServer); // Needs to be called explicitly. https://docs.feathersjs.com/api/express.html#https
+				httpsServer.listen(sslPort);
+				console.log(`Listening on ${sslPort} (SSL) (HTTP forwarded from ${config.web.port})`);
+			} else { // HTTP and HTTPS are on the same port. Make a server that can distinguish the incoming request protocol.
+				const httpServer = http.createServer((req, res) => {
+					if(req.headers.host) {
+						res.writeHead(301, {
+							Location: `https://${req.headers.host}${req.url}`,
+						}).end();
+					} else {
+						res.writeHead(400, 'No Host');
+					}
+				});
+				const httpsServer = https.createServer({
+					key: await fs.readFile(key),
+					cert: await fs.readFile(cert),
+					passphrase,
+				}, app);
+				app.setup(httpsServer); // Needs to be called explicitly. https://docs.feathersjs.com/api/express.html#https
+				const server = makeHttpxServer(httpServer, httpsServer);
+				server.listen(config.web.port);
+				console.log(`Listening on ${config.web.port} (SSL)`);
+			}
 		}
 	}
 })().catch(e => {

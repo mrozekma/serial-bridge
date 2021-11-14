@@ -97,6 +97,7 @@ const commandJoi: any = joi.object({
 const webJoi = joi.object({
 	port: joi.number().default(80),
 	ssl: joi.object({
+		port: joi.number(),
 		key: joi.string().required(),
 		cert: joi.string().required(),
 		passphrase: joi.string(),
