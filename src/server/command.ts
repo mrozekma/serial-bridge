@@ -1,4 +1,5 @@
 import Device from './device';
+import IdGenerator from './id-generator';
 
 interface CommandJson {
 	name: string;
@@ -118,6 +119,20 @@ export default class Command {
 			icon,
 			submenu: submenu ? submenu.map(command => command.toJSON()) : undefined,
 		};
+	}
+
+	// commandConfig here is type 'any' because the Joi schema for config.commands doesn't have proper inference because it's recursive, so Config['commands'] has type 'never[]'
+	static fromConfig(commandConfig: any, idGen: IdGenerator): Command {
+		const name = idGen.gen();
+		const { label, icon, fn, submenu } = commandConfig;
+		if(fn) {
+			return new Command(name, label, icon, fn);
+		} else if(submenu) {
+			const subInsts = submenu.map((config: any) => Command.fromConfig(config, idGen));
+			return new Command(name, label, icon, subInsts);
+		} else {
+			throw new Error(`Command ${name} has neither fn nor submenu`);
+		}
 	}
 }
 

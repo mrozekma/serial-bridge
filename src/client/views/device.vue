@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<sb-navbar>
+		<sb-navbar :global-manage="false">
 			<template #brand>
 				<span :title="(device.state == 'resolved') ? device.value.description : undefined">
 					{{ deviceName }}
@@ -26,6 +26,7 @@
 					<a-menu-item v-if="!device.value.jenkinsLockOwner" @click="acquireLock">Reserve in Jenkins</a-menu-item>
 					<a-menu-item v-else @click="releaseLock">Unreserve in Jenkins</a-menu-item>
 				</template>
+				<a-menu-item><a :href="`/config/reload?devices=${id}`">Reload configuration</a></a-menu-item>
 			</a-sub-menu>
 			<a-menu-item class="faux">
 				<sb-lock v-if="showLock && device.state === 'resolved'" ref="lock" :device="device.value" :owner="device.value.jenkinsLockOwner" @close="locking = false"/>
@@ -43,16 +44,7 @@
 				<a-tooltip v-if="focusedNode" placement="bottomRight" :title="`Sending keystrokes to ${focusedNode}`">
 					<i class="fal fa-edit"></i>
 				</a-tooltip>
-				<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
-					<template slot="title">
-						<div class="connection name">{{ connection.name }}</div>
-						<div class="connection host" v-if="connection.host != connection.name">{{ connection.host }}</div>
-						<div class="connection nodes">
-							<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
-						</div>
-					</template>
-					<a-avatar shape="square" icon="user" :src="connection.avatar"/>
-				</a-tooltip>
+				<sb-connection v-for="connection in connections" :key="connection.host" v-bind="connection"/>
 			</template>
 		</sb-navbar>
 		<main ref="main">
@@ -125,9 +117,10 @@
 	import SbLock, { SbLockVue } from '../components/lock.vue';
 	import SbLayout, {SbLayoutVue } from '../components/golden-layout.vue';
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
+	import SbConnection from '../components/connection.vue';
 	import SbCommandModal from '../components/command-modal.vue';
 	export default Vue.extend({
-		components: { SbNavbar, SbCommandMenu, SbJenkins, SbLock, SbLayout, SbTerminal },
+		components: { SbNavbar, SbCommandMenu, SbJenkins, SbLock, SbLayout, SbTerminal, SbConnection },
 		props: {
 			id: {
 				type: String,
@@ -923,21 +916,6 @@
 					margin-left: 5px;
 				}
 			}
-		}
-	}
-
-	.ant-tooltip {
-		.connection.name {
-			font-weight: bold;
-		}
-
-		.connection.host {
-			margin-top: -4px;
-			font-size: smaller;
-		}
-
-		.ant-tag:not(:first-child) {
-			margin-left: 5px;
 		}
 	}
 </style>

@@ -19,7 +19,8 @@
 		],
 		"execMap": {
 			"ts": "node"
-		}
+		},
+		"signal": "SIGINT"
 	},
 	"dependencies": {
 		"@feathersjs/express": "^4.3.7",

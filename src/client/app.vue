@@ -42,6 +42,7 @@
 	import ManageView from './views/manage.vue';
 	import PortsView from './views/ports.vue';
 	import PortsFindView from './views/ports-find.vue';
+	import ConfigReloadView from './views/config-reload.vue';
 	export default Vue.extend({
 		components: { SbNavbar, SbCommandPalette },
 		computed: {
@@ -65,6 +66,8 @@
 				view = PortsView;
 			} else if(path == '/ports/find') {
 				view = PortsFindView;
+			} else if(path == '/config/reload') {
+				view = ConfigReloadView;
 			} else {
 				error = `No view for route: ${path}`;
 			}
@@ -110,6 +113,11 @@
 					value: 'find-ports',
 					text: 'Find ports',
 					handler: () => window.location.assign('/ports/find'),
+				};
+				yield {
+					value: 'reload-config',
+					text: 'Reload configuration',
+					handler: () => window.location.assign('/config/reload'),
 				};
 			});
 		},

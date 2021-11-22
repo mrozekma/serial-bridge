@@ -41,6 +41,9 @@ config = {
 		},
 	},
 
+	// Optional. Enable reloading the configuration file to update devices without restarting the server.
+	configReloadable: false,
+
 	// An array of devices to connect to.
 	devices: [
 		{

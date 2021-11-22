@@ -273,6 +273,10 @@ Configuration for the :ref:`port-finding tool <ports_find>`. Contains the follow
    * :field-mandatory:`pattern` -- A string containing a regular expression to watch for.
    * :field-mandatory:`name` -- The name of the node this pattern identifies.
 
+:field-optional:`configReloadable`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A flag indicating if the configuration file should be reloadable. This will apply any changes made to devices since the server was loaded. A reload can be trigger by sending the server a ``SIGUSR2`` signal, or via "Manage" -> "Reload configuration" from the web interface.
+
 :field-optional:`savedState`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 How to handle the files stored on the server when a user shares their terminal state. Contains the following keys:
@@ -523,7 +527,7 @@ In addition to handling web links directly, the `MobaXterm <https://mobaxterm.mo
 
 To add shared sessions to MobaXterm:
 
-* Go to Settings -> Manage shared sessions.
+* Go to "Settings" -> "Manage shared sessions".
 * Click "Add".
 * Choose the root node's name and icon.
 * Set the backend protocol to "http / https".

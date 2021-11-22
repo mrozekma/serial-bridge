@@ -28,6 +28,11 @@
 				</a-menu-item>
 			</template>
 		</a-sub-menu>
+		<a-sub-menu v-if="globalManage" title="Manage">
+			<a-menu-item><a href="/ports">Full port list</a></a-menu-item>
+			<a-menu-item><a href="/ports/find">Find ports</a></a-menu-item>
+			<a-menu-item><a href="/config/reload">Reload configuration</a></a-menu-item>
+		</a-sub-menu>
 		<slot/>
 		<a-menu-item class="right faux">
 			<slot name="right"/>
@@ -62,6 +67,10 @@
 				default: appName,
 			},
 			title: String,
+			globalManage: {
+				type: Boolean,
+				default: true,
+			},
 		},
 		computed: {
 			...rootDataComputeds(),

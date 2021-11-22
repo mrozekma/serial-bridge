@@ -10,8 +10,8 @@ import slugify from 'slugify';
 
 import { ServerServices as Services, ServiceDefinitions, DeviceJson } from '@/services';
 import { isBlacklisted, getBlacklist } from './blacklist';
-import { Config } from './config';
-import Device, { Node, Remote, EphemeralDevice, RemoteIONode } from './device';
+import { Config, gitPull, hasGitDir, loadConfig } from './config';
+import Device, { Node, Remote, EphemeralDevice, RemoteIONode, Devices, DevicesConfigReloadSpec } from './device';
 import { getUser, setUserInfo } from './connections';
 import Command, { iterCommands } from './command';
 import makeSetupZip from './setup-zip';
@@ -25,8 +25,9 @@ declare const BUILD_VERSION: string, BUILD_LINK: string, BUILD_ID: string | unde
 
 const devicesRoute = /^\/devices\/([^/]+)(?:\/manage)?\/?$/;
 const portsRoute = /^\/ports(?:\/find)?\/?$/;
+const configRoute = /^\/config\/reload\/?$/;
 
-function makeServices(app: Application<Services>, config: Config, devices: Device[], remotes: Remote[], commands: Command[], saveStore: SavedTerminalStore): ServiceDefinitions {
+function makeServices(app: Application<Services>, config: Config, devices: Devices, remotes: Remote[], commands: Command[], saveStore: SavedTerminalStore): ServiceDefinitions {
 	function getJenkinsDevice(name: any) {
 		const device = devices.find(device => device.jenkinsLockName == name);
 		if(device) {
@@ -101,16 +102,12 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 					device.addNode(node);
 					node.tcpPort.open();
 				}
-				attachDeviceListeners(app, device);
 				device.on('updated', () => {
 					if(!device.alive) {
-						const idx = devices.findIndex(d => d === device);
-						if(idx >= 0) {
-							devices.splice(idx, 1);
-						}
+						devices.remove(device);
 					}
 				});
-				devices.push(device);
+				devices.add(device);
 				// There are some ports that need to be open before we serialize the device's JSON, but there's no good way to wait on them.
 				// Instead we just wait a tick.
 				await new Promise(resolve => process.nextTick(resolve));
@@ -186,8 +183,42 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 					};
 				case 'blacklist':
 					return getBlacklist();
+				case 'reload':
+					if(!config.configReloadable) {
+						return {
+							enabled: false,
+							git: false,
+							add: [],
+							change: {},
+						};
+					}
+					const newConfig = await loadConfig();
+					return {
+						...devices.reloadConfig(newConfig.devices),
+						enabled: true,
+						git: await hasGitDir(),
+					};
 				}
 				throw new Error(`Config not found: ${id}`);
+			},
+			async patch(id, data: DevicesConfigReloadSpec, params) {
+				switch(id) {
+				case 'reload':
+					if(!config.configReloadable) {
+						throw new Error("Tool disabled");
+					} else if(!data || !data.add || !data.change) {
+						throw new Error("Bad parameters");
+					}
+					const newConfig = await loadConfig();
+					devices.reloadConfig(newConfig.devices, data);
+					break;
+				case 'reload/pull':
+					if(!config.configReloadable) {
+						throw new Error("Tool disabled");
+					}
+					await gitPull();
+					break;
+				}
 			},
 		},
 
@@ -351,7 +382,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 	return services;
 }
 
-function makeRawListeners(socket: SocketIO.Socket, devices: Device[], commands: Command[]) {
+function makeRawListeners(socket: SocketIO.Socket, devices: Devices, commands: Command[]) {
 	//TODO I think there are some other events shoehorned into services that should be moved here
 	socket.on('node-stdin', (deviceId: string, nodeName: string, data: string) => {
 		const device = devices.find(device => device.id == deviceId);
@@ -380,12 +411,9 @@ function makeRawListeners(socket: SocketIO.Socket, devices: Device[], commands: 
 	});
 }
 
-function attachDeviceListeners(app: Application<Services>, devices: Device | Device[]) {
+function attachDeviceListeners(app: Application<Services>, devices: Device | Devices) {
 	const devicesService = app.service('api/devices');
-	if(!Array.isArray(devices)) {
-		devices = [ devices ];
-	}
-	for(const device of devices) {
+	for(const device of (Device.isDevice(devices) ? [ devices ] : devices)) {
 		const sendUpdate = () => devicesService.emit('updated', {
 			id: device.id,
 			remote: false,
@@ -427,7 +455,7 @@ function attachRemoteListeners(app: Application<Services>, remotes: Remote[]) {
 	}
 }
 
-export function makeWebserver(config: Config, devices: Device[], remotes: Remote[], commands: Command[]): Application<Services> {
+export function makeWebserver(config: Config, devices: Devices, remotes: Remote[], commands: Command[]): Application<Services> {
 	const app = express(feathers<Services>());
 
 	app.use((req, res, next) => {
@@ -548,8 +576,8 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 		if(match && devices.find(device => device.id === match[1])) {
 			req.url = '/';
 		}
-		// Also the ports routes
-		if(portsRoute.test(pathname)) {
+		// Also the static routes
+		if([ portsRoute, configRoute ].some(pat => pat.test(pathname))) {
 			req.url = '/';
 		}
 		next();
@@ -676,6 +704,7 @@ export function makeWebserver(config: Config, devices: Device[], remotes: Remote
 
 	attachDeviceListeners(app, devices);
 	attachRemoteListeners(app, remotes);
+	devices.on('added', (devices: Devices, device: Device) => attachDeviceListeners(app, device));
 	if(config.portsFind.enabled) {
 		const portsService = app.service('api/ports');
 		onPortData((port, data) => portsService.emit('data', { path: port.path, data }));

@@ -1,14 +1,6 @@
 <template>
 	<div class="home">
-		<sb-navbar>
-			<a-sub-menu>
-				<template v-slot:title>
-					<a href="/ports">Ports</a>
-				</template>
-				<a-menu-item><a href="/ports">Full port list</a></a-menu-item>
-				<a-menu-item><a href="/ports/find">Find ports</a></a-menu-item>
-			</a-sub-menu>
-		</sb-navbar>
+		<sb-navbar/>
 		<main>
 			<a-alert v-if="version.state === 'resolved' && version.value.notice" type="info" :message="version.value.notice" show-icon/>
 			<a-tabs :defaultActiveKey="defaultTab" @change="tabSwitched">
@@ -49,16 +41,7 @@
 							</template>
 							<template #connections="connections">
 								<div class="connections">
-									<a-tooltip v-for="connection in connections" :key="connection.host" placement="bottomRight">
-										<template slot="title">
-											<div class="connection name">{{ connection.name }}</div>
-											<div class="connection host" v-if="connection.host != connection.name">{{ connection.host }}</div>
-											<div class="connection nodes">
-												<a-tag v-for="node in connection.nodes" :key="node">{{ node }}</a-tag>
-											</div>
-										</template>
-										<a-avatar shape="square" :size="32" icon="user" :src="connection.avatar" />
-									</a-tooltip>
+									<sb-connection v-for="connection in connections" :key="connection.host" v-bind="connection"/>
 								</div>
 							</template>
 							<template #description="description">
@@ -376,10 +359,11 @@
 	import SbJenkins from '../components/jenkins.vue';
 	import SbFormModal from '../components/form-modal.vue';
 	import SbChangelog from '../components/changelog.vue';
+	import SbConnection from '../components/connection.vue';
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { Node, compareStrings, getDeviceUrl, isErrorDevice, uniqifyAndSort, NodeLinkHandler } from '../device-functions';
 	export default Vue.extend({
-		components: { SbNavbar, SbLock, SbJenkins, SbFormModal, SbChangelog },
+		components: { SbNavbar, SbLock, SbJenkins, SbFormModal, SbChangelog, SbConnection },
 		computed: {
 			...rootDataComputeds(),
 			defaultTab(): string {
@@ -917,9 +901,6 @@
 		.connections {
 			position: absolute;
 			top: 12px;
-			> * {
-				margin-right: 5px;
-			}
 		}
 
 		.description {
@@ -1002,21 +983,6 @@
 
 		/deep/ .ant-radio + * {
 			font-weight: bold;
-		}
-	}
-
-	.ant-tooltip {
-		.connection.name {
-			font-weight: bold;
-		}
-
-		.connection.host {
-			margin-top: -4px;
-			font-size: smaller;
-		}
-
-		.ant-tag:not(:first-child) {
-			margin-left: 5px;
 		}
 	}
 

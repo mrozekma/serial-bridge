@@ -30,4 +30,8 @@ export default class IdGenerator {
 		this.ids.add(id);
 		return id;
 	}
+
+	release(id: string): boolean {
+		return this.ids.delete(id);
+	}
 }

@@ -45,7 +45,7 @@ export type NativePortJson = ReturnType<NativePort['toJSON']>;
 interface SCServiceDefinitions<ServerClient extends 'server' | 'client'> {
 	'api/devices': M<ServerClient, 'find' | 'get' | 'create', Device>;
 	'api/deviceLock': M<ServerClient, 'patch'>;
-	'api/config': M<ServerClient, 'get'>;
+	'api/config': M<ServerClient, 'get' | 'patch'>;
 	'api/users': M<ServerClient, 'get' | 'patch', User>;
 	'api/commands': M<ServerClient, 'find' | 'get' | 'patch', Command>;
 	'api/jenkins': M<ServerClient, 'get' | 'create' | 'patch' | 'remove', Build | { device: string; name: undefined }>;

@@ -1,3 +1,4 @@
+import child_process from 'child_process';
 import { promises as fs } from 'fs';
 import pathlib from 'path';
 import vm from 'vm';
@@ -108,6 +109,7 @@ const configJoi = joi.object({
 	web: webJoi,
 	users: usersJoi,
 	portsFind: portsFindJoi,
+	configReloadable: joi.bool().default(false),
 	savedState: savedStateJoi,
 	changelog: changelogJoi,
 	devices: joi.array().required().items(deviceJoi),
@@ -143,7 +145,15 @@ export async function loadConfig() {
 		setTimeout,
 		__filename: filename,
 	});
-	vm.runInContext(buf, context, { filename });
+	try {
+		vm.runInContext(buf, context, { filename });
+	} catch(e: any) {
+		// Include the beginning part of the trace, which includes the path/line number and bad line of the config
+		if(typeof e.stack === 'string') {
+			throw new Error(e.stack.replace(/\n    at .*$/s, ''));
+		}
+		throw e;
+	}
 
 	if(typeof context.config === 'function') {
 		context.config = await context.config();
@@ -204,4 +214,23 @@ export interface Command {
 	// Exactly one of 'fn' or 'submenu' will be set, but encoding that in the type makes it a hassle to actually use
 	fn?: () => Promise<void>;
 	submenu?: Command[];
+}
+
+export async function hasGitDir(): Promise<boolean> {
+	try {
+		const stat = await fs.stat(pathlib.join(rootDir, '.git'));
+		return stat.isDirectory();
+	} catch(e) {
+		return false;
+	}
+}
+
+export async function gitPull() {
+	if(!await hasGitDir()) {
+		throw new Error("No git directory");
+	}
+	console.log('Running git pull');
+	child_process.execSync('git pull', {
+		cwd: rootDir,
+	});
 }

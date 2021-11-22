@@ -5,7 +5,7 @@
 			<h1>Find Ports</h1>
 			<a-spin v-if="config.state == 'pending'"/>
 			<a-alert v-else-if="config.state == 'rejected'" type="error" message="Failed to load configuration data" :description="config.error.message" showIcon/>
-			<a-alert v-else-if="!config.value.enabled" type="error" message="Tool disabled" showIcon>
+			<a-alert v-else-if="!config.value.enabled" type="error" message="Tool disabled" show-icon>
 				<template #description>
 					The ports find tool is disabled in Serial Bridge's configuration. See the <samp>portsFind.enabled</samp> key in the configuration file.
 				</template>
@@ -216,6 +216,7 @@
 
 	import { NativePortJson, ClientServices as Services } from '@/services';
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
+	import { compareStrings } from '../device-functions';
 
 	const STEP_UNPLUG = 0, STEP_PRESCAN = 1, STEP_PLUG = 2, STEP_CHOOSE = 3, STEP_PATTERNS = 4, STEP_OPEN = 5, STEP_LISTEN = 6, STEP_CONFIG = 7;
 	const textDecoder = new TextDecoder();
@@ -372,7 +373,6 @@
 	];
 
 	import SbNavbar from '../components/navbar.vue';
-import { compareStrings } from '../device-functions';
 	export default Vue.extend({
 		components: { SbNavbar },
 		computed: {

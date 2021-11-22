@@ -1,16 +1,19 @@
 import RealSerialPort from 'serialport';
 
-import chalk from 'chalk';
 import { Mutex } from 'async-mutex';
-import net from 'net';
+import chalk from 'chalk';
 import { EventEmitter } from 'events';
 import feathers from '@feathersjs/feathers';
 import socketioClient from '@feathersjs/socketio-client';
+import net from 'net';
+import slugify from 'slugify';
 import ioClient from 'socket.io-client';
 
 import { ClientServices as Services } from '@/services';
 import { isBlacklisted } from './blacklist';
+import { Config } from './config';
 import Connections, { Connection } from './connections';
+import IdGenerator from './id-generator';
 import Build, { setLockReservation } from './jenkins';
 
 interface SSHInfo {
@@ -228,6 +231,10 @@ export abstract class Node extends EventEmitter {
 		};
 	}
 
+	matchesConfig(nodeConfig: Config['devices'][number]['nodes'][number]) {
+		return false;
+	}
+
 	private log(message: string, ...args: any[]) {
 		console.log(chalk.bgRed.bold(` ${this.device.name}.${this.name} `) + ' ' + message, ...args);
 	}
@@ -290,6 +297,19 @@ export class SerialNode extends Node {
 			type: 'serial',
 			path, baudRate, byteSize, parity, stopBits,
 		};
+	}
+
+	matchesConfig(nodeConfig: Config['devices'][number]['nodes'][number]) {
+		if(this.baudRate !== nodeConfig.baudRate) { return false; }
+		if(this.byteSize !== nodeConfig.byteSize) { return false; }
+		if(this.path !== nodeConfig.comPort) { return false; }
+		if(JSON.stringify(this.metadata) !== JSON.stringify(nodeConfig.metadata)) { return false; }
+		if(this.name !== nodeConfig.name) { return false; }
+		if(this.parity !== nodeConfig.parity) { return false; }
+		if(JSON.stringify(this.ssh) !== JSON.stringify(nodeConfig.ssh)) { return false; }
+		if(this.stopBits !== nodeConfig.stop) { return false; }
+		if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== nodeConfig.tcpPort) { return false; }
+		return true;
 	}
 
 	onTcpConnectImpl(socket: net.Socket) {
@@ -399,6 +419,116 @@ export interface RemoteInfo {
 	url: string;
 }
 
+export interface DevicesConfigReloadSpec {
+	add: string[];
+	change: {
+		[K: string]: 'update' | 'remove';
+	}
+}
+
+export class Devices extends EventEmitter {
+	private devices: Device[] = [];
+
+	constructor(devices?: Device[], private readonly idGen: IdGenerator = new IdGenerator()) {
+		super();
+		if(devices) {
+			this.devices.push(...devices);
+		}
+		this.on('removed', (devices: Devices, device: Device, idx: number) => {
+			device.kill();
+			idGen.release(device.id);
+		});
+	}
+
+	// Pass some array functions through to this.devices
+	// Theoretically these could be of the form foo(...args: Parameters<Device[]['foo']), but I can't figure out how to handle the generics, so the declarations are copied from the Array<T> interface.
+	[Symbol.iterator]() {
+		return this.devices[Symbol.iterator]();
+	}
+	find<S extends Device>(predicate: (this: void, value: Device, index: number, obj: Device[]) => value is S): S | undefined;
+	find(predicate: (value: Device, index: number, obj: Device[]) => unknown): Device | undefined;
+	find(predicate: (value: Device, index: number, obj: Device[]) => unknown): Device | undefined {
+		return this.devices.find(predicate);
+	}
+	map<U>(callbackfn: (value: Device, index: number, array: Device[]) => U): U[] {
+		return this.devices.map(callbackfn);
+	}
+	some(predicate: (value: Device, index: number, array: Device[]) => unknown): boolean {
+		return this.devices.some(predicate);
+	}
+
+	add(device: Device) {
+		const len = this.devices.push(device);
+		this.emit('added', this, device, len - 1);
+	}
+
+	remove(deviceOrIdx: Device | number): Device | undefined {
+		if(typeof deviceOrIdx === 'number') {
+			const idx = deviceOrIdx;
+			if(idx >= 0 && idx < this.devices.length) {
+				const [ device ] = this.devices.splice(idx, 1);
+				this.emit('removed', this, device, idx);
+				return device;
+			}
+			return undefined;
+		} else {
+			return this.remove(this.devices.findIndex(seek => seek.id === deviceOrIdx.id));
+		}
+	}
+
+	removeByName(name: string): Device | undefined {
+		return this.remove(this.devices.findIndex(device => device.name === name));
+	}
+
+	// Return a spec of all possible changes given this new config
+	reloadConfig(devicesConfig: Config['devices']): DevicesConfigReloadSpec;
+	// Make the changes provided in the given spec
+	reloadConfig(devicesConfig: Config['devices'], spec: DevicesConfigReloadSpec): void;
+	// Make all possible changes
+	reloadConfig(devicesConfig: Config['devices'], spec: true): void;
+	reloadConfig(devicesConfig: Config['devices'], spec?: DevicesConfigReloadSpec | true): DevicesConfigReloadSpec | undefined {
+		const rtn: DevicesConfigReloadSpec | undefined = spec ? undefined : {
+			add: [],
+			change: {},
+		};
+		// Check the current devices for any that have been updated or removed
+		for(const device of this) {
+			const deviceConfig = devicesConfig.find(seek => seek.name === device.name);
+			if(!deviceConfig) { // Removed
+				if(rtn) {
+					rtn.change[device.id] = 'remove';
+				} else if(spec === true || spec!.change[device.id] === 'remove') {
+					this.remove(device);
+				}
+			} else if(!device.matchesConfig(deviceConfig)) { // Updated
+				if(rtn) {
+					rtn.change[device.id] = 'update';
+				} else if(spec === true || spec!.change[device.id] === 'update') {
+					this.remove(device);
+					this.add(Device.fromConfig(deviceConfig, device.id));
+				}
+			}
+		}
+		// Check for new devices
+		for(const deviceConfig of devicesConfig) {
+			if(!this.some(device => device.name === deviceConfig.name)) {
+				if(rtn) {
+					rtn.add.push(deviceConfig.name);
+				} else if(spec === true || spec!.add.indexOf(deviceConfig.name) >= 0) {
+					this.add(Device.fromConfig(deviceConfig, this.idGen));
+				}
+			}
+		}
+		return rtn;
+	}
+
+	static fromConfig(devicesConfig: Config['devices']): Devices {
+		//TODO Check for duplicate device/node names
+		const idGen = new IdGenerator();
+		return new Devices(devicesConfig.map(deviceConfig => Device.fromConfig(deviceConfig, idGen)), idGen);
+	}
+}
+
 // NB: The Command class causes Device to emit many events not visible here
 export default class Device extends EventEmitter {
 	protected _nodes: Node[] = [];
@@ -475,7 +605,7 @@ export default class Device extends EventEmitter {
 		return this._alive;
 	}
 
-	protected kill() {
+	kill() {
 		this._alive = false;
 		for(const node of this.nodes) {
 			if(node.isOpen()) {
@@ -505,6 +635,49 @@ export default class Device extends EventEmitter {
 			alive,
 			remoteInfo: undefined as RemoteInfo | undefined,
 		};
+	}
+
+	matchesConfig(deviceConfig: Config['devices'][number]): boolean {
+		if(this.category !== deviceConfig.category) { return false; }
+		if(this.description !== deviceConfig.description) { return false; }
+		if(this.jenkinsLockName !== deviceConfig.jenkinsLock) { return false; }
+		if(JSON.stringify(this.metadata) !== JSON.stringify(deviceConfig.metadata)) { return false; }
+		if(this.name !== deviceConfig.name) { return false; }
+		if(this.nodes.length !== deviceConfig.nodes.length) { return false; }
+		if(this.tags.length !== deviceConfig.tags.length) { return false; }
+		for(let i = 0; i < this.nodes.length; i++) {
+			if(!this.nodes[i].matchesConfig(deviceConfig.nodes[i])) { return false; }
+		}
+		const tags = Device.normalizeTags(deviceConfig.tags);
+		for(let i = 0; i < this.tags.length; i++) {
+			if(this.tags[i].name !== tags[i].name) { return false; }
+			if(this.tags[i].description !== tags[i].description) { return false; }
+			if(this.tags[i].color !== tags[i].color) { return false; }
+			if(this.tags[i].showOnDevicePage !== tags[i].showOnDevicePage) { return false; }
+		}
+		return true;
+	}
+
+	static normalizeTags(tagsConfig: Config['devices'][number]['tags']): Tag[] {
+		return (tagsConfig as Exclude<typeof tagsConfig, never[]>).map(tag => (typeof tag === 'string') ? { name: tag } : tag);
+	}
+
+	static fromConfig(deviceConfig: Config['devices'][number], id: string | IdGenerator): Device {
+		if(typeof id !== 'string') {
+			id = id.gen(slugify(deviceConfig.name, { lower: true }));
+		}
+		const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, Device.normalizeTags(deviceConfig.tags), deviceConfig.jenkinsLock, deviceConfig.metadata);
+		for(const nodeConfig of deviceConfig.nodes) {
+			const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
+			device.addNode(node);
+			node.serialPort.open();
+			node.tcpPort.open();
+		}
+		return device;
+	}
+
+	static isDevice(device: any): device is Device {
+		return !!(device.id && device.name && device.nodes);
 	}
 }
 
@@ -554,5 +727,9 @@ export class Remote {
 				url: this.url,
 			},
 		};
+	}
+
+	static fromConfig(remoteConfig: Config['remotes'][number]): Remote {
+		return new Remote(remoteConfig.name, remoteConfig.url, remoteConfig.deviceRewriter as any);
 	}
 }
