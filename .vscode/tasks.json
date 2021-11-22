@@ -25,7 +25,7 @@
 		}, {
 			"label": "Launch server",
 			"type": "shell",
-			"command": ". ~/.nvm/nvm.sh && nvm use && yarn server:dev",
+			"command": ". /usr/local/share/nvm/nvm.sh && nvm use && yarn server:dev",
 			"isBackground": true,
 			"presentation": {
 				"group": "server-client",
