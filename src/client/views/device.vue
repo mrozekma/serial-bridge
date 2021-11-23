@@ -97,6 +97,7 @@
 	import { Connection, getDeviceConnections } from '../connections';
 	import commandPalette, { Command as PaletteCommand } from '../command-palette';
 	import { DeviceJson, CommandJson, BuildJson, SavedTerminalJson } from '@/services';
+	import { User } from '@/server/connections'; // Another server type import in the client :|
 
 	type ContextMenuItem = {
 		text: string;
@@ -296,6 +297,16 @@
 							comp.$destroy();
 						},
 					});
+				})
+				.on('writeCollision', async (data: { node: string; users: User[] }) => {
+					const connections = data.users.map<Connection>(user => ({
+						host: user.host,
+						nodes: [],
+						name: user.displayName,
+						avatar: user.avatar,
+					}));
+					const terminal = await this.getTerminal(data.node);
+					terminal?.onWriteCollision(connections);
 				});
 
 			const self = this;

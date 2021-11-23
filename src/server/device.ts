@@ -198,6 +198,7 @@ function socketListenTo(socket: net.Socket, target: OnOff, event: string, listen
 export abstract class Node extends EventEmitter {
 	public readonly tcpPort: TcpPort;
 	public readonly tcpConnections: Connections;
+	private recentWrites = new Map<string, NodeJS.Timeout>(); // host -> timer
 
 	constructor(public readonly device: Device, public readonly name: string,
 		tcpPortNumber: number, public readonly webLinks: string[], public readonly ssh: SSHInfo | undefined,
@@ -270,8 +271,18 @@ export abstract class Node extends EventEmitter {
 		this.port.close(reason);
 	}
 
-	write(buf: Buffer) {
+	write(buf: Buffer, host?: string) {
 		this.port.write(buf);
+		if(host) {
+			const timer = this.recentWrites.get(host);
+			if(timer) {
+				clearTimeout(timer);
+			}
+			this.recentWrites.set(host, global.setTimeout(() => this.recentWrites.delete(host), 1000));
+			if(this.recentWrites.size > 1) {
+				this.emit('writeCollision', [...this.recentWrites.keys()]);
+			}
+		}
 	}
 }
 
@@ -314,7 +325,7 @@ export class SerialNode extends Node {
 
 	onTcpConnectImpl(socket: net.Socket) {
 		// Bi-directional pipe between the socket and the node's serial port
-		socket.on('data', buf => this.serialPort.write(buf));
+		socket.on('data', buf => this.write(buf, socket.remoteAddress!));
 		socketListenTo(socket, this.serialPort, 'data', (buf: Buffer) => socket.write(buf));
 	}
 }

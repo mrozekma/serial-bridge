@@ -44,7 +44,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 
 	const services: ServiceDefinitions = {
 		'api/devices': {
-			events: [ 'updated', 'data', 'command', 'termLine', 'commandModal' ],
+			events: [ 'updated', 'data', 'command', 'termLine', 'commandModal', 'writeCollision' ],
 			async find(params) {
 				// If requested, only return local devices. Mainly for requests from remotes.
 				if(params?.query?.local !== undefined) {
@@ -383,19 +383,19 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 }
 
 function makeRawListeners(socket: SocketIO.Socket, devices: Devices, commands: Command[]) {
+	//@ts-ignore
+	const host = socket.feathers.ip;
 	//TODO I think there are some other events shoehorned into services that should be moved here
 	socket.on('node-stdin', (deviceId: string, nodeName: string, data: string) => {
 		const device = devices.find(device => device.id == deviceId);
 		if(device) {
 			const node = device.nodes.find(node => node.name == nodeName);
 			if(node) {
-				node.write(Buffer.from(data, 'utf8'));
+				node.write(Buffer.from(data, 'utf8'), host);
 			}
 		}
 	});
 	socket.on('node-state', async (deviceId: string, nodeName: string, state: boolean) => {
-		//@ts-ignore
-		const host = socket.feathers.ip;
 		const user = await getUser(host);
 		const device = devices.find(device => device.id == deviceId);
 		if(device) {
@@ -436,6 +436,11 @@ function attachDeviceListeners(app: Application<Services>, devices: Device | Dev
 			node.on('serialStateChanged', sendUpdate);
 			node.on('tcpConnect', sendUpdate);
 			node.on('tcpDisconnect', sendUpdate);
+			node.on('writeCollision', async (hosts: string[]) => devicesService.emit('writeCollision', {
+				id: device.id,
+				node: node.name,
+				users: await Promise.all(hosts.map(host => getUser(host))),
+			}));
 		}
 	}
 }

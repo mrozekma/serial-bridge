@@ -7,7 +7,7 @@
 				<a-tag v-for="node in nodes" :key="node">{{ node }}</a-tag>
 			</div>
 		</template>
-		<a-avatar shape="square" :size="32" icon="user" :src="avatar" />
+		<a-avatar shape="square" :size="avatarSize" icon="user" :src="avatar" />
 	</a-tooltip>
 </template>
 
@@ -31,6 +31,10 @@
 			avatar: {
 				type: String,
 			},
+			avatarSize: {
+				type: Number,
+				default: 32,
+			}
 		},
 	});
 </script>

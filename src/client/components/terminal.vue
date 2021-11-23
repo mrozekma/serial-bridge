@@ -1,13 +1,22 @@
 <template>
 	<div class="term-padding-wrapper">
 		<div ref="term" class="term" @contextmenu.prevent="showMenu"/>
-		<a-alert v-if="!node.state.open" :message="node.state.reason" type="info" showIcon/>
+		<a-alert v-if="!node.state.open" :message="node.state.reason" type="info" show-icon/>
+		<div v-else-if="writeCollision" class="write-collision" @click="onWriteCollision()" @mouseenter="writeCollisionMouse(true)" @mouseleave="writeCollisionMouse(false)">
+			<a-alert type="warning" show-icon>
+				<template #message>
+					Multiple users writing at once:&nbsp;
+					<sb-connection v-for="connection in writeCollision.connections" :key="connection.host" v-bind="connection" :avatar-size="16"/>
+				</template>
+			</a-alert>
+		</div>
 	</div>
 </template>
 
 <script lang="ts">
 	import Vue, { PropType } from 'vue';
 
+	import { Connection } from '../connections';
 	import { Node } from '../device-functions';
 
 	import GoldenLayout from 'golden-layout';
@@ -49,11 +58,13 @@
 	// ANSI escape sequences reserve "ESC _ ... ESC \" for app-specific commands; I'm using them here to let remote IO nodes control keystroke echoing
 	const echoOnEscSeq = Buffer.from('\x1b_echo_on\x1b\\'), echoOffEscSeq = Buffer.from('\x1b_echo_off\x1b\\');
 
+	import SbConnection from '../components/connection.vue';
 	const component = Vue.extend({
 		props: {
 			node: Object as PropType<Node>,
 			layout: Promise as PropType<Promise<GoldenLayout>>,
 		},
+		components: { SbConnection },
 		data() {
 			return {
 				terminal: new Terminal({
@@ -62,6 +73,10 @@
 				fitAddon: new SbFit(),
 				serializeAddon: new SerializeAddon(),
 				echoOn: false,
+				writeCollision: undefined as {
+					connections: Connection[];
+					timer?: number;
+				} | undefined,
 			};
 		},
 		watch: {
@@ -76,6 +91,10 @@
 			this.terminal.loadAddon(this.fitAddon);
 			this.terminal.loadAddon(this.serializeAddon);
 			const layout = await this.layout;
+			// For some totally unknown reason, opening a tooltip by mousing over a connection in the write collision alert causes the terminal Vue instance to rerun this mounted() hook, only this.$refs.term is undefined. I can't figure out why
+			if(!this.$refs.term) {
+				return;
+			}
 			this.terminal.open(this.$refs.term as HTMLElement);
 			this.fit();
 			layout.on('stateChanged', () => this.fit());
@@ -96,11 +115,6 @@
 			}
 		},
 		methods: {
-			x(e: MouseEvent) {
-				console.log('x');
-				e.preventDefault();
-				e.stopPropagation();
-			},
 			fit() {
 				this.fitAddon.fit();
 			},
@@ -131,7 +145,26 @@
 				e.stopPropagation();
 				e.preventDefault();
 				return false;
-			}
+			},
+			onWriteCollision(connections?: Connection[]) {
+				if(this.writeCollision?.timer) {
+					clearTimeout(this.writeCollision.timer);
+				}
+				this.writeCollision = connections ? {
+					connections,
+					timer: window.setTimeout(() => this.onWriteCollision(), 5000),
+				} : undefined;
+			},
+			writeCollisionMouse(inside: boolean) {
+				if(inside) {
+					if(this.writeCollision!.timer) {
+						clearTimeout(this.writeCollision!.timer);
+						this.writeCollision!.timer = undefined;
+					}
+				} else {
+					this.writeCollision!.timer = window.setTimeout(() => this.onWriteCollision(), 2000);
+				}
+			},
 		},
 	});
 	export type SbTerminalVue = InstanceType<typeof component>;
@@ -150,6 +183,10 @@
 		margin-left: 5px;
 		right: 22px; // Avoid the scrollbar
 		z-index: 10;
+	}
+
+	.write-collision {
+		cursor: pointer;
 	}
 
 	.term {
