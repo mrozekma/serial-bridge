@@ -309,7 +309,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				} else if(dat.popTask) {
 					build.popTask();
 				} else if(dat.result !== undefined) {
-					build.result = (dat.result === true);
+					build.result = (dat.result === true || dat.result === 'true');
 					// This also ends the build so the user doesn't need to send two requests
 					device.endBuild();
 				} else {
@@ -536,8 +536,23 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 		try {
 			const locks = await parseLockXml(req.body);
 			for(const device of devices) {
-				if(device.jenkinsLockName !== undefined) {
-					device.jenkinsLockOwner = locks[device.jenkinsLockName];
+				if(device.jenkinsLockName === undefined) {
+					continue;
+				}
+				const lock = locks[device.jenkinsLockName];
+				if(lock === undefined) {
+					device.jenkinsLockOwner = undefined;
+					if(device.build?.fromXml) {
+						device.endBuild();
+					}
+				} else if(lock.type === 'user') {
+					if(device.build?.fromXml) {
+						device.endBuild();
+					}
+					device.jenkinsLockOwner = lock.owner;
+				} else if(lock.type === 'build') {
+					device.jenkinsLockOwner = undefined;
+					device.startBuild(lock.owner, undefined, true);
 				}
 			}
 			res.status(200).send();

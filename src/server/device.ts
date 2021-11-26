@@ -573,8 +573,8 @@ export default class Device extends EventEmitter {
 		return this._build;
 	}
 
-	startBuild(name: string, link?: string): Build {
-		this._build = new Build(this.name, name, link);
+	startBuild(name: string, link?: string, fromXml: boolean = false): Build {
+		this._build = new Build(this.name, name, link, fromXml);
 		this._build.on('updated', () => this.emit('updated'));
 		this._build.emit('updated', 'started');
 		return this._build;
