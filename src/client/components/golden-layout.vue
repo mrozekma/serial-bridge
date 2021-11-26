@@ -117,6 +117,23 @@
 					comp.setNode(this.deviceName, this.nodes.find(node => node.name == config.componentState.nodeName));
 				});
 			});
+			gl.on('windowOpened', (bw: GoldenLayout.BrowserWindow) => {
+				const config = bw.toConfig();
+				//@ts-ignore Bad typing
+				const nodeName = config.content[0].componentState.nodeName;
+				const term = this.getNodeTerminal(nodeName);
+				term.fit();
+				//TODO This doesn't work
+				// let timer: number | undefined = undefined;
+				// if(timer !== undefined) {
+				// 	clearTimeout(timer);
+				// }
+				// timer = window.setTimeout(() => {
+				// 	timer = undefined;
+				// 	term.fit();
+				// 	console.log('fit');
+				// }, 500);
+			});
 			gl.init();
 
 			window.addEventListener('resize', () => this.gl!.updateSize());
