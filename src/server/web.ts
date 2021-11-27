@@ -97,8 +97,8 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				}
 				//TODO Probably need more validation so the user doesn't pass something insane
 				const device = new EphemeralDevice(id, data.name, data.description, data.category, data.tags ?? []);
-				for(const { name, tcpPortNumber } of data.nodes as Partial<Node>[]) {
-					const node = new RemoteIONode(device, name!, tcpPortNumber ?? 0, [ 'raw' ]);
+				for(const { name, eol, tcpPortNumber } of data.nodes as Partial<Node>[]) {
+					const node = new RemoteIONode(device, name!, eol ?? 'crlf', tcpPortNumber ?? 0, [ 'raw' ]);
 					device.addNode(node);
 					node.tcpPort.open();
 				}

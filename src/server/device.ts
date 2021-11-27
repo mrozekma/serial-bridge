@@ -201,8 +201,8 @@ export abstract class Node extends EventEmitter {
 	private recentWrites = new Map<string, NodeJS.Timeout>(); // host -> timer
 
 	constructor(public readonly device: Device, public readonly name: string,
-		tcpPortNumber: number, public readonly webLinks: string[], public readonly ssh: SSHInfo | undefined,
-		public readonly metadata?: object)
+		public readonly eol: 'cr' | 'lf' | 'crlf',  tcpPortNumber: number, public readonly webLinks: string[],
+		public readonly ssh: SSHInfo | undefined, public readonly metadata?: object)
 	{
 		super();
 		this.tcpPort = new TcpPort(tcpPortNumber, socket => this.onTcpConnect(socket));
@@ -223,9 +223,9 @@ export abstract class Node extends EventEmitter {
 	}
 
 	toJSON() {
-		const { name, tcpPortNumber: tcpPort, tcpConnections, webLinks, ssh, metadata } = this;
+		const { name, tcpPortNumber: tcpPort, tcpConnections, webLinks, ssh, eol, metadata } = this;
 		return {
-			name, tcpPort, webLinks, ssh, metadata,
+			name, tcpPort, webLinks, ssh, eol, metadata,
 			type: this.constructor.name,
 			tcpConnections: tcpConnections.toJSON(),
 			state: this.port.state,
@@ -291,9 +291,10 @@ export class SerialNode extends Node {
 
 	constructor(device: Device, name: string, public readonly path: string, public readonly baudRate: number,
 		public readonly byteSize: 5 | 6 | 7 | 8, public readonly parity: 'even' | 'odd' | 'none', public readonly stopBits: 1 | 2,
+		public readonly eol: 'cr' | 'lf' | 'crlf',
 		tcpPortNumber: number, webLinks: string[], ssh: SSHInfo | undefined, public readonly metadata?: object)
 	{
-		super(device, name, tcpPortNumber, webLinks, ssh, metadata);
+		super(device, name, eol, tcpPortNumber, webLinks, ssh, metadata);
 		this.serialPort = new SerialPort(path, baudRate, byteSize, parity, stopBits);
 	}
 
@@ -397,8 +398,8 @@ class RemoteIOPort extends Port {
 export class RemoteIONode extends Node {
 	public readonly port: RemoteIOPort;
 
-	constructor(device: Device, name: string, tcpPortNumber: number, webLinks: string[]) {
-		super(device, name, tcpPortNumber, webLinks, undefined);
+	constructor(device: Device, name: string, eol: 'cr' | 'lf' | 'crlf', tcpPortNumber: number, webLinks: string[]) {
+		super(device, name, eol, tcpPortNumber, webLinks, undefined);
 		this.port = new RemoteIOPort();
 	}
 
@@ -679,7 +680,7 @@ export default class Device extends EventEmitter {
 		}
 		const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, Device.normalizeTags(deviceConfig.tags), deviceConfig.jenkinsLock, deviceConfig.metadata);
 		for(const nodeConfig of deviceConfig.nodes) {
-			const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
+			const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.eol, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
 			device.addNode(node);
 			node.serialPort.open();
 			node.tcpPort.open();

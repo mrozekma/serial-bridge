@@ -63,7 +63,7 @@
 					</div>
 				</transition>
 			</div>
-			<a-menu v-if="contextMenu" class="context-menu" ref="context-menu" :style="contextMenu.style">
+			<a-menu v-if="contextMenu" class="device-context-menu" :style="contextMenu.style">
 				<a-menu-item-group class="node-name" :title="contextMenu.node"/>
 				<!-- eslint-disable vue/valid-v-for -->
 				<template v-for="item in contextMenu.items">
@@ -74,6 +74,17 @@
 							{{ subitem.text }}
 						</a-menu-item>
 					</a-menu-item-group>
+					<a-sub-menu v-else-if="item.options !== undefined" class="device-context-menu" popup-class-name="device-context-menu">
+						<template #title>
+							<i :class="item.icon || 'fas fa-badge'"/>
+							{{ item.text }}
+						</template>
+						<a-menu-item v-for="option in item.options">
+							<a-radio :checked="option === item.selected" @click="item.handler(option); contextMenu = undefined;">
+								{{ option }}
+							</a-radio>
+						</a-menu-item>
+					</a-sub-menu>
 					<a-menu-item v-else @click="item.handler(); contextMenu = undefined;">
 						<i :class="item.icon || 'fas fa-badge'"/>
 						{{ item.text }}
@@ -99,7 +110,7 @@
 	import { DeviceJson, CommandJson, BuildJson, SavedTerminalJson } from '@/services';
 	import { User } from '@/server/connections'; // Another server type import in the client :|
 
-	type ContextMenuItem = {
+	type ContextMenuItem<T = string> = {
 		text: string;
 		icon?: string;
 		handler: () => void;
@@ -110,6 +121,12 @@
 			icon?: string;
 			handler: () => void;
 		}[];
+	} | {
+		text: string;
+		icon?: string;
+		options: T[];
+		selected: string;
+		handler: (selection: T) => void;
 	} | '-';
 
 	import SbNavbar from '../components/navbar.vue';
@@ -223,6 +240,13 @@
 					}
 				}
 			},
+			nodes(nodes: Node[]) {
+				this.nodeEols = Object.fromEntries(nodes.map(node => {
+					const name = node.name;
+					const eol: any = localStorage.getItem(`devices.${this.id}.${node.name}.eol`);
+					return [ name, eol ?? node.eol ];
+				}));
+			},
 		},
 		data() {
 			return {
@@ -251,6 +275,7 @@
 					};
 					items: ContextMenuItem[];
 				} | undefined,
+				nodeEols: {} as { [K: string]: 'cr' | 'lf' | 'crlf' },
 			};
 		},
 		mounted() {
@@ -473,9 +498,12 @@
 				}
 			},
 			termStdin(nodeName: string, data: string) {
-				if(data == '\r') {
-					data = '\r\n';
-				}
+				const eol = {
+					cr: '\r',
+					lf: '\n',
+					crlf: '\r\n',
+				}[this.nodeEols[nodeName]];
+				data = data.replace(/\r/g, eol);
 				if(this.device.state == 'resolved') {
 					const node = this.device.value.nodes.find(node => node.name === nodeName);
 					if(node?.state?.open) {
@@ -633,6 +661,25 @@
 							self.screenshot(nodeName);
 						},
 					};
+					yield {
+						text: "Newline",
+						icon: 'fas fa-level-down',
+						options: [ 'Carriage Return', 'Line Feed', 'Both' ],
+						selected: {
+							'cr': 'Carriage Return',
+							'lf': 'Line Feed',
+							'crlf': 'Both',
+						}[self.nodeEols[nodeName]],
+						handler(desc) {
+							const eol = ({
+								'Carriage Return': 'cr',
+								'Line Feed': 'lf',
+								'Both': 'crlf',
+							} as const)[desc]!;
+							localStorage.setItem(`devices.${self.id}.${nodeName}.eol`, eol);
+							self.nodeEols[nodeName] = eol;
+						},
+					};
 				}
 				const items = Array.from(makeMenu());
 				if(items[items.length - 1] === '-') {
@@ -655,10 +702,11 @@
 					if(this.contextMenu !== menu) {
 						return;
 					}
-					const el = (this.$refs['context-menu'] as Vue)?.$el as HTMLUListElement;
-					//@ts-ignore Type info on contains() seems to be wrong
-					if(el?.contains(e.target)) {
-						return;
+					for(const el of document.getElementsByClassName('device-context-menu')) {
+						//@ts-ignore Type info on contains() seems to be wrong
+						if(el?.contains(e.target)) {
+							return;
+						}
 					}
 					this.contextMenu = undefined;
 					window.removeEventListener('mousedown', listener);
@@ -868,53 +916,6 @@
 		}
 	}
 
-	.context-menu {
-		border: 1px solid #595959;
-		background-color: #434343;
-		color: #fff;
-		position: absolute;
-		z-index: 50;
-
-		.node-name {
-			background-color: #262626;
-			/deep/ .ant-menu-item-group-title {
-				color: #fff;
-				padding: 2px;
-				text-align: center;
-				font-size: 8pt;
-			}
-		}
-		.ant-menu-item-group:not(.node-name) /deep/ .ant-menu-item-group-title {
-			padding: 4px 16px;
-			color: rgba(255, 255, 255, 0.45);
-		}
-		.ant-menu-item {
-			height: 32px;
-			line-height: 32px;
-			margin: 0;
-			i {
-				text-align: center;
-				width: 17px;
-				margin-right: 4px;
-			}
-			&.ant-menu-item-active {
-				// There seems to be a bug with menu groups where every subitem gets .ant-menu-item-active set when any of them are hovered. Work around this by checking for :hover specifically
-				color: inherit;
-				background-color: inherit;
-				&:hover {
-					background-color: #595959;
-				}
-			}
-			/deep/ .ant-upload {
-				width: 100%;
-				color: #fff;
-			}
-		}
-		.ant-menu-item-divider {
-			margin: 4px 0;
-		}
-	}
-
 	.ant-menu {
 		/deep/ .brand {
 			span {
@@ -927,6 +928,66 @@
 					margin-left: 5px;
 				}
 			}
+		}
+	}
+</style>
+
+<style lang="less">
+	// This has to be non-scoped because Ant generates a root-level unscoped div for submenus
+	.ant-menu.device-context-menu, .ant-menu-submenu.device-context-menu .ant-menu {
+		background-color: #434343;
+		color: #fff;
+		z-index: 50;
+		&:not(.ant-menu-submenu) {
+			border: 1px solid #595959;
+			position: absolute;
+		}
+		.node-name {
+			background-color: #262626;
+			.ant-menu-item-group-title {
+				color: #fff;
+				padding: 2px;
+				text-align: center;
+				font-size: 8pt;
+			}
+		}
+		.ant-menu-item-group:not(.node-name) .ant-menu-item-group-title {
+			padding: 4px 16px;
+			color: rgba(255, 255, 255, 0.45);
+		}
+		.ant-menu-item, .ant-menu-submenu, .ant-menu-submenu-title {
+			height: 32px;
+			line-height: 32px;
+			margin: 0;
+			i {
+				text-align: center;
+				width: 17px;
+				margin-right: 4px;
+			}
+			&.ant-menu-item-active, &.ant-menu-submenu-active {
+				// There seems to be a bug with menu groups where every subitem gets .ant-menu-item-active set when any of them are hovered. Work around this by checking for :hover specifically
+				color: inherit;
+				background-color: inherit;
+				&:hover {
+					background-color: #595959;
+				}
+			}
+			.ant-radio-wrapper {
+				color: #fff;
+			}
+			.ant-upload {
+				width: 100%;
+				color: #fff;
+			}
+		}
+		.ant-menu-submenu-title {
+			color: #fff;
+			.ant-menu-submenu-arrow::before, .ant-menu-submenu-arrow::after {
+				background: linear-gradient(to right, #fff, #fff) !important;
+			}
+		}
+		.ant-menu-item-divider {
+			margin: 4px 0;
 		}
 	}
 </style>

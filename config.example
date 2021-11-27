@@ -66,6 +66,7 @@ config = {
 					parity: 'none', // even, odd, none. Default none.
 					stop: 1, // 1 or 2. Default 1.
 					tcpPort: 10000,
+					eol: 'crlf', // cr, lf, crlf. Default crlf. Controls what line ending is sent when a user presses Enter while writing to a node.
 
 					// Optional. An array of links to show in a node's titlebar that provide quick access to that node.
 					// If undefined, no links will be shown.

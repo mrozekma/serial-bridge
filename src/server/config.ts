@@ -15,6 +15,7 @@ const nodeJoi = joi.object({
 	parity: joi.string().default('none').valid('even', 'odd', 'none'),
 	stop: joi.number().default(1).valid(1, 2),
 	tcpPort: joi.number().required().port(),
+	eol: joi.string().default('crlf').valid('cr', 'lf', 'crlf'),
 	webLinks: joi.array().items(
 		joi.string().allow('telnet', 'ssh', 'raw')
 	).default([]),
