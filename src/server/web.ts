@@ -723,8 +723,12 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 	app.service('api/ports').publish(data => app.channel('ports-find'));
 
 	attachDeviceListeners(app, devices);
-	attachRemoteListeners(app, remotes);
 	devices.on('added', (devices: Devices, device: Device) => attachDeviceListeners(app, device));
+	// This is a bit asymmetrical, but there's no reason not to just remove every listener here instead of just the ones added in attachDeviceListeners(), and it's much easier.
+	// It's important that this 'removed' event happens after the one that calls Device.kill(), since that one emits an event, but that handler is already registered.
+	devices.on('removed', (devices: Devices, device: Device) => device.deepRemoveAllListeners());
+	attachRemoteListeners(app, remotes);
+
 	if(config.portsFind.enabled) {
 		const portsService = app.service('api/ports');
 		onPortData((port, data) => portsService.emit('data', { path: port.path, data }));

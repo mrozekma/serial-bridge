@@ -259,6 +259,13 @@ export abstract class Node extends EventEmitter {
 
 	protected abstract onTcpConnectImpl(socket: net.Socket): void;
 
+	deepRemoveAllListeners() {
+		super.removeAllListeners();
+		this.tcpPort.removeAllListeners();
+		this.tcpConnections.removeAllListeners();
+		return this;
+	}
+
 	isOpen() {
 		return this.port.isOpen;
 	}
@@ -555,6 +562,13 @@ export default class Device extends EventEmitter {
 		this.webConnections = new Connections();
 	}
 
+	emit(event: string | symbol, ...args: any[]) {
+		if(!this._alive) {
+			console.log(`Event ${String(event)} on dead device ${this.id}`);
+		}
+		return super.emit(event, ...args);
+	}
+
 	get nodes(): Readonly<Node[]> {
 		return this._nodes;
 	}
@@ -628,6 +642,15 @@ export default class Device extends EventEmitter {
 			}
 		}
 		this.emit('updated');
+	}
+
+	deepRemoveAllListeners() {
+		super.removeAllListeners();
+		this.webConnections.removeAllListeners();
+		for(const node of this.nodes) {
+			node.removeAllListeners();
+		}
+		return this;
 	}
 
 	toJSON() {
