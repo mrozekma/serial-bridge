@@ -48,7 +48,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 			async find(params) {
 				// If requested, only return local devices. Mainly for requests from remotes.
 				if(params?.query?.local !== undefined) {
-					return devices;
+					return [...devices.map(device => device.toJSON())];
 				}
 				const remoteDeviceLists = await Promise.all(
 					remotes.map(remote => {
