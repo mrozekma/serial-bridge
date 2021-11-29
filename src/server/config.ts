@@ -6,6 +6,8 @@ import vm from 'vm';
 import * as joi from 'typesafe-joi';
 //@ts-ignore No declaration file
 import deepRenameKeys from 'deep-rename-keys';
+//@ts-ignore No declaration file
+import requireLike from 'require-like';
 
 const nodeJoi = joi.object({
 	name: joi.string().required(),
@@ -142,7 +144,7 @@ export async function loadConfig() {
 	});
 	const context = vm.createContext({
 		console,
-		require: __non_webpack_require__,
+		require: requireLike(filename, true),
 		setTimeout,
 		__filename: filename,
 	});
