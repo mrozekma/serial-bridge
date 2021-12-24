@@ -98,6 +98,14 @@ export default class Build extends EventEmitter {
 			result,
 		};
 	}
+
+	static makeFrom(build: Build): Build {
+		const rtn = new Build(build.device, build.name, build.link, build.fromXml);
+		rtn.start.setTime(build.start.getTime());
+		rtn._result = build._result;
+		rtn.stages = build.stages;
+		return rtn;
+	}
 }
 
 interface Locks {

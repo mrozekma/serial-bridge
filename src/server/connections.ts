@@ -131,6 +131,16 @@ export default class Connections extends EventEmitter {
 		this.emit('connect', connection);
 	}
 
+	addFrom(conns: Connections) {
+		const existingHosts = new Set(this.connections.map(conn => conn.host));
+		for(const connection of conns.connections) {
+			if(!existingHosts.has(connection.host)) {
+				this.connections.push(connection);
+				this.emit('connect', connection);
+			}
+		}
+	}
+
 	removeConnection(host: string) {
 		const idx = this.connections.findIndex(connection => connection.host == host);
 		if(idx >= 0) {

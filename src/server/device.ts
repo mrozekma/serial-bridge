@@ -523,8 +523,10 @@ export class Devices extends EventEmitter {
 				if(rtn) {
 					rtn.change[device.id] = 'update';
 				} else if(spec === true || spec!.change[device.id] === 'update') {
+					const newDevice = Device.fromConfig(deviceConfig, device.id);
+					newDevice.copyRuntimeData(device);
 					this.remove(device);
-					this.add(Device.fromConfig(deviceConfig, device.id));
+					this.add(newDevice);
 				}
 			}
 		}
@@ -691,6 +693,13 @@ export default class Device extends EventEmitter {
 			if(this.tags[i].showOnDevicePage !== tags[i].showOnDevicePage) { return false; }
 		}
 		return true;
+	}
+
+	copyRuntimeData(device: Device) {
+		this.webConnections.addFrom(device.webConnections);
+		this._build = device._build ? Build.makeFrom(device._build) : undefined;
+		this._build?.on('updated', () => this.emit('updated'));
+		this._jenkinsLockOwner = device._jenkinsLockOwner;
 	}
 
 	static normalizeTags(tagsConfig: Config['devices'][number]['tags']): Tag[] {
