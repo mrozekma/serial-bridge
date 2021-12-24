@@ -69,6 +69,18 @@
 										</template>
 										<a-table :columns="nodesColumns" :data-source="device.nodes" :row-key="node => node.name" size="small" :pagination="false" :locale="{emptyText: 'No ports'}"/>
 									</a-card>
+									<a-card v-if="device.metadata && Object.entries(device.metadata).length > 0" title="Metadata">
+										<a-tree :tree-data="makeTreeData(device.metadata)" default-expand-all :selectable="false">
+											<template #tag-title="{ title: [ title, value ] }">
+												<a-tag>{{ title }}</a-tag>&nbsp;
+												<a-checkbox v-if="typeof value === 'boolean'" :checked="value" />
+												<template v-else>{{ value }}</template>
+											</template>
+											<template #flag-title="{ title: flag }">
+												<a-checkbox :checked="flag" />
+											</template>
+										</a-tree>
+									</a-card>
 									<a-card title="Connections">
 										<a-table :columns="connectionsColumns[device.name]" :data-source="device.connections" :row-key="conn => conn.host" size="small" :pagination="false" :locale="{emptyText: 'No connections'}" class="connections-table">
 											<template #user="_, conn">
@@ -310,6 +322,20 @@
 		sSortOrder: 'ascend' | 'descend' | undefined;
 	}
 	type AntTableColumn = Omit<Column, keyof AntdComponent>;
+
+	interface AntTree {
+		title: string | boolean | [ string, string | boolean ];
+		key?: string;
+		children?: AntTree[];
+		slots?: {
+			title?: string;
+			icon?: string;
+		};
+		scopedSlots?: {
+			title?: string;
+			icon?: string;
+		};
+	}
 
 	interface SavedFilter {
 		name: string;
@@ -774,6 +800,59 @@
 				const lockComp = this.$refs[`lock-${device.name}`] as SbLockVue | undefined;
 				if(lockComp) {
 					lockComp.release();
+				}
+			},
+			makeTreeData(obj: any): AntTree[] {
+				if(Array.isArray(obj)) {
+					return obj.map((v, idx) => {
+						if(typeof v === 'object') {
+							return {
+								title: ' ',
+								children: this.makeTreeData(v),
+							};
+						} else if(typeof v === 'boolean') {
+							return {
+								title: v,
+								scopedSlots: {
+									title: 'flag-title',
+								},
+							};
+						} else {
+							return {
+								title: `${v}`,
+							};
+						}
+					});
+				} else if(typeof obj === 'object') {
+					return Object.entries(obj).map(([k, v]) => {
+						if(typeof v === 'object') {
+							return {
+								title: k,
+								children: this.makeTreeData(v),
+							};
+						} else {
+							return {
+								title: [ k, (typeof v === 'boolean') ? v : `${v}` ],
+								scopedSlots: {
+									title: 'tag-title',
+								},
+							};
+						}
+					});
+				} else if(typeof obj === 'boolean') {
+					return [{
+						title: obj,
+						scopedSlots: {
+							title: 'flag-title',
+						},
+					}];
+				} else {
+					return [{
+						title: `${obj}`,
+						slots: {
+							icon: 'icon',
+						},
+					}];
 				}
 			},
 			updateUser() {
