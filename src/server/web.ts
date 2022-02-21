@@ -589,7 +589,7 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 	// app.publish((data, hook) => app.channel('everybody'));
 	app.publish(data => []);
 
-	app.use((req: Request<any>, res: Response, next: NextFunction) => {
+	app.use((req, res, next) => {
 		const { pathname } = new Url(req.url);
 		// Register a rewriter for /devices/:id for all valid IDs
 		const match = pathname.match(devicesRoute);
@@ -638,7 +638,7 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 	const errorHandler = express.errorHandler({
 		logger: undefined,
 	});
-	app.use((err: any, req: Request<any>, res: Response, next: NextFunction) => {
+	app.use('/', (err: any, req: any, res: any, next: NextFunction) => {
 		// The default error handler doesn't log errors from services for some reason, so we do it here
 		if(err) {
 			console.error(err);

@@ -38,7 +38,7 @@
 					<template v-else-if="portsBefore.state === 'resolved'">
 						<div class="description">
 							<p>{{ portsBefore.value.length }} {{ (portsBefore.value.length == 1) ? 'port' : 'ports' }} found (no action required; click Next below to continue):</p>
-							<a-table key="portsBefore" :columns="findColumns" :data-source="portsBefore.value" :pagination="false" :scroll="{ y: 600 }" row-key="comName"/>
+							<a-table key="portsBefore" :columns="findColumns" :data-source="portsBefore.value" :pagination="false" :scroll="{ y: 600 }" row-key="path"/>
 						</div>
 						<div class="actions">
 							<a-button type="primary" @click="setStep(STEP_PLUG)">Next</a-button>
@@ -68,7 +68,7 @@
 								Select which ports you want to scan for output:
 							</p>
 							<a-input-search placeholder="Search" enter-button allow-clear @search="val => searchString = val" />
-							<a-table key="portsAfter" :columns="findColumns" :data-source="portsAfter.value" :pagination="false" :scroll="{ y: 600 }" row-key="comName" :row-selection="{ selectedRowKeys: selectedPorts, onChange: rowSelectionChange }">
+							<a-table key="portsAfter" :columns="findColumns" :data-source="portsAfter.value" :pagination="false" :scroll="{ y: 600 }" row-key="path" :row-selection="{ selectedRowKeys: selectedPorts, onChange: rowSelectionChange }">
 								<template #isNew="text">
 									<a-tag v-if="text" color="volcano">New</a-tag>
 								</template>
@@ -274,8 +274,8 @@
 		isNewColDisabled,
 		{
 			title: 'Path',
-			dataIndex: 'comName',
-			sorter: (a: NativePortJson, b: NativePortJson) => compareStrings(a.comName, b.comName, 'last'),
+			dataIndex: 'path',
+			sorter: (a: NativePortJson, b: NativePortJson) => compareStrings(a.path, b.path, 'last'),
 			defaultSortOrder: 'ascend',
 			// Filtering gets setup in the mounted hook. The filteredValue is needed to get ant-design to call the filtering function
 			filteredValue: [''],
@@ -441,7 +441,7 @@
 					return true;
 				}
 				const seek = this.searchString.toLowerCase();
-				const fields: (string | undefined)[] = [ port.comName, port.manufacturer, port.serialNumber, port.productId, port.vendorId ];
+				const fields: (string | undefined)[] = [ port.path, port.manufacturer, port.serialNumber, port.productId, port.vendorId ];
 				return fields.some(field => field?.toLowerCase().includes(seek));
 			};
 		},
@@ -507,12 +507,12 @@
 						this.portsAfter = unwrapPromise((async () => {
 							const portsAfter = await portsService.find();
 							if(this.portsBefore?.state === 'resolved') {
-								const beforeNames = new Set(this.portsBefore.value.map(port => port.comName));
+								const beforeNames = new Set(this.portsBefore.value.map(port => port.path));
 								const rtn = portsAfter.map<NativePortJsonChooseStep>(port => ({
 									...port,
-									isNew: !beforeNames.has(port.comName),
+									isNew: !beforeNames.has(port.path),
 								}));
-								this.selectedPorts = rtn.filter(port => port.isNew).map(port => port.comName);
+								this.selectedPorts = rtn.filter(port => port.isNew).map(port => port.path);
 								this.numNewPorts = this.selectedPorts.length;
 								findColumns[0] = this.numNewPorts ? isNewColEnabled : isNewColDisabled;
 								return rtn;

@@ -23,7 +23,7 @@ Platform
 There currently aren't any automated tests, so I can only speak to configurations I personally use:
 
 * **Operating System**: Known to work on both Windows and Linux. macOS is likely also fine, but untested.
-* **Node.js**: Known to work under Node 10. Builds fine under Node 12, but untested. Node 14+ doesn't currently work because of a build problem in a dependency. I'll likely fix this at some point, but it's not a high priority. If you need to run a separate copy of Node for this project, I recommend looking into `nvm <https://github.com/nvm-sh/nvm>`_.
+* **Node.js**: Currently works under Node 12, 14, and 16. Newer versions might work; older versions definitely don't. This is mostly based on `Node SerialPort's support matrix <https://serialport.io/docs/guide-platform-support>`_, which is based on `Node's support matrix <https://github.com/nodejs/Release#release-schedule>`_. If you need to run a separate copy of Node for this project, I recommend looking into `nvm <https://github.com/nvm-sh/nvm>`_.
 
 .. _installation:
 

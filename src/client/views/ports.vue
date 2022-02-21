@@ -201,10 +201,10 @@
 				}
 				if(this.nativePorts.state === 'resolved') {
 					for(const port of this.nativePorts.value) {
-						if(!nodePaths.has(port.comName)) {
+						if(!nodePaths.has(port.path)) {
 							rtn.push({
-								key: `<native-port>/${port.comName}`,
-								path: port.comName,
+								key: `<native-port>/${port.path}`,
+								path: port.path,
 								state: {
 									mapped: false,
 								},

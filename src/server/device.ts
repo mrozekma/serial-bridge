@@ -1,4 +1,4 @@
-import RealSerialPort from 'serialport';
+import { SerialPort as RealSerialPort } from 'serialport';
 
 import { Mutex } from 'async-mutex';
 import chalk from 'chalk';
@@ -85,7 +85,8 @@ class SerialPort extends Port {
 
 	constructor(path: string, private baudRate: number, private byteSize: 5 | 6 | 7 | 8, private parity: 'even' | 'odd' | 'none', private stopBits: 1 | 2) {
 		super();
-		this.serialConn = new RealSerialPort(path, {
+		this.serialConn = new RealSerialPort({
+			path,
 			baudRate,
 			parity,
 			stopBits,
@@ -102,7 +103,7 @@ class SerialPort extends Port {
 				open: true,
 			};
 		});
-		this.serialConn.on('close', err => {
+		this.serialConn.on('close', (err: any) => {
 			if(this.isOpen) {
 				this.state = {
 					open: false,

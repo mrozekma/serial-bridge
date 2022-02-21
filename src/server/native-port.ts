@@ -1,6 +1,6 @@
 import EventEmitter from 'events';
-import RealSerialPort, { PortInfo } from 'serialport';
-import SerialPort from 'serialport';
+import { SerialPort as RealSerialPort } from 'serialport';
+import { PortInfo } from '@serialport/bindings-interface/dist/index'
 
 const POLL_FREQ = 30000;
 
@@ -18,17 +18,17 @@ interface PortSettings {
 
 export default class NativePort {
 	private openSettings: PortSettings | undefined;
-	private serialPort: SerialPort | undefined;
+	private serialPort: RealSerialPort | undefined;
 	private lastPolled: Date | undefined = undefined;
 
 	private constructor(private portInfo: PortInfo) {}
 
 	get path() {
-		return this.portInfo.comName;
+		return this.portInfo.path;
 	}
 
 	updateInfo(portInfo: PortInfo) {
-		if(this.path != portInfo.comName) {
+		if(this.path != portInfo.path) {
 			throw new Error("Can't change native port path");
 		}
 		this.portInfo = portInfo;
@@ -53,7 +53,8 @@ export default class NativePort {
 			rtn = Promise.resolve();
 		} else {
 			rtn = new Promise((resolve, reject) => {
-				this.serialPort = new SerialPort(this.path, {
+				this.serialPort = new RealSerialPort({
+					path: this.path,
 					baudRate: settings.baudRate,
 					parity: settings.parity,
 					stopBits: settings.stopBits,
@@ -99,13 +100,13 @@ export default class NativePort {
 
 	// static make(path: string, baudRate: number, byteSize: 5 | 6 | 7 | 8, parity: 'even' | 'odd' | 'none', stopBits: 1 | 2): NativePort {
 	static make(portInfo: PortInfo) {
-		let rtn = allNativePorts.get(portInfo.comName);
+		let rtn = allNativePorts.get(portInfo.path);
 		if(rtn) {
 			rtn.updateInfo(portInfo);
 			return rtn;
 		}
 		rtn = new NativePort(portInfo);
-		allNativePorts.set(portInfo.comName, rtn);
+		allNativePorts.set(portInfo.path, rtn);
 		return rtn;
 	}
 

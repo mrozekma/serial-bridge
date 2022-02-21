@@ -1,5 +1,5 @@
 const fs = require('fs');
-const path = 'node_modules/@serialport/bindings/lib/linux-list.js';
+const path = 'node_modules/@serialport/bindings-cpp/dist/linux-list.js';
 const data = fs.readFileSync(path, {
 	encoding: 'utf8',
 });
