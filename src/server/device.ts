@@ -524,9 +524,9 @@ export class Devices extends EventEmitter {
 				if(rtn) {
 					rtn.change[device.id] = 'update';
 				} else if(spec === true || spec!.change[device.id] === 'update') {
+					this.remove(device);
 					const newDevice = Device.fromConfig(deviceConfig, device.id);
 					newDevice.copyRuntimeData(device);
-					this.remove(device);
 					this.add(newDevice);
 				}
 			}
