@@ -17,11 +17,11 @@
 			<a-sub-menu title="View">
 				<a-menu-item @click="resetTerms">Clear</a-menu-item>
 				<a-menu-item @click="paused = !paused">{{ !paused ? 'Pause' : 'Unpause' }}</a-menu-item>
-			</a-sub-menu>
-			<a-sub-menu title="Manage">
-				<a-menu-item><a :href="manageUrl">Ports</a></a-menu-item>
-				<a-menu-item @click="copyState">Share</a-menu-item>
 				<a-menu-item @click="screenshot()">Screenshot</a-menu-item>
+				<a-menu-item @click="copyState">Share</a-menu-item>
+			</a-sub-menu>
+			<a-sub-menu title="State">
+				<a-menu-item><a :href="manageUrl">Manage</a></a-menu-item>
 				<template v-if="device.state == 'resolved' && device.value.jenkinsLockName">
 					<a-menu-item v-if="!device.value.jenkinsLockOwner" @click="acquireLock">Reserve in Jenkins</a-menu-item>
 					<a-menu-item v-else @click="releaseLock">Unreserve in Jenkins</a-menu-item>

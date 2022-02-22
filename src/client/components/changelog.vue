@@ -22,6 +22,10 @@
 				<h1>Screenshots</h1>
 				There is an option in each device's <b>Manage</b> menu to take a screenshot of all nodes and save it to disk. A similar option appears in each node's context menu to screenshot that particular node.
 			</template>
+			<template v-else-if="key === 'manageMenu'">
+				<h1>Manage menu</h1>
+				The <b>Manage</b> menu on the device view has been renamed <b>State</b>, the <b>Ports</b> menu item under it is now <b>Manage</b>, and several other menu items were moved to the <b>View</b> menu.
+			</template>
 			<a-alert v-else type="error" message="Bad entry" show-icon>
 				<template #description>
 					Configuration file specifies unknown changelog entry <b>{{ key }}</b>
