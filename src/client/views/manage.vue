@@ -1,17 +1,15 @@
 <template>
 	<div>
-		<sb-navbar :brand="deviceName" :title="`Manage ${deviceName}`">
-			<a-sub-menu title="Manage">
-				<a-menu-item v-if="anyClosed" @click="setNodeState(nodes, true)"><i class="fas fa-door-open"></i> Open all serial ports</a-menu-item>
-				<a-menu-item v-if="anyOpen" @click="setNodeState(nodes, false)"><i class="fas fa-door-closed"></i>Close all serial ports</a-menu-item>
-			</a-sub-menu>
-		</sb-navbar>
+		<sb-navbar :brand="deviceName" :title="`Manage ${deviceName}`"/>
 		<main>
 			<a-alert v-if="device.state == 'rejected'" type="error" message="Failed to load device" :description="device.error.message" showIcon/>
 			<a-alert v-else-if="device.state == 'resolved' && !device.value.alive" type="error" message="Removed" description="Device has been removed" showIcon/>
 			<template v-else>
 				<div v-if="device.state == 'resolved'" class="buttons">
 					<a-button :href="deviceUrl"><i class="fas fa-arrow-left"></i> Back to device</a-button>
+				</div>
+				<h2>Ports</h2>
+				<div v-if="device.state == 'resolved'" class="buttons">
 					<a-button :disabled="!anyClosed" @click="setNodeState(nodes, true)"><i class="fas fa-door-open"></i> Open all serial ports</a-button>
 					<a-button :disabled="!anyOpen" type="danger" @click="setNodeState(nodes, false)"><i class="fas fa-door-closed"></i> Close all serial ports</a-button>
 				</div>
@@ -66,6 +64,9 @@
 						</a-card>
 					</template>
 				</div>
+				<h2>Metadata</h2>
+				<sb-metadata-tree v-if="device.state == 'resolved' && device.value.metadata && Object.entries(device.value.metadata).length > 0" :metadata="device.value.metadata"/>
+				<template v-else>None</template>
 			</template>
 		</main>
 	</div>
@@ -79,8 +80,9 @@
 	import { Node } from '../device-functions';
 
 	import SbNavbar from '../components/navbar.vue';
+	import SbMetadataTree from '../components/metadata-tree.vue';
 	export default Vue.extend({
-		components: { SbNavbar },
+		components: { SbNavbar, SbMetadataTree },
 		props: {
 			id: {
 				type: String,
@@ -135,8 +137,12 @@
 </script>
 
 <style lang="less" scoped>
+	main {
+		margin-left: 15px;
+	}
+
 	.buttons {
-		margin: 10px 15px;
+		margin: 10px 0;
 		.ant-btn {
 			margin-right: 10px;
 			i {
