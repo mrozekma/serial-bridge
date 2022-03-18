@@ -4,7 +4,7 @@
 -->
 <template>
 	<div v-once>
-		<li v-for="link in links" :key="link.name" :ref="link.name" :title="link.description" @click="e => link.url ? click(e) : {}">
+		<div v-for="link in links" :key="link.name" :ref="link.name" :title="link.description" class="link" @click="e => link.url ? click(e) : {}">
 			<a-popconfirm v-if="!link.url" placement="bottomRight" arrow-point-at-center ok-text="Reload" @confirm="reload">
 				<template #title>
 					 No {{ link.description }} handler specified. Choose one from the <a target="_blank" href="/#setup">Setup tab</a> and reload this page.
@@ -12,8 +12,8 @@
 				<i :class="link.icon"/>
 			</a-popconfirm>
 			<i v-else :class="link.icon"/>
-		</li>
-		<li class="spacer"/>
+		</div>
+		<div class="spacer"/>
 	</div>
 </template>
 
@@ -71,14 +71,20 @@
 </script>
 
 <style lang="less" scoped>
-	li i {
-		position: relative;
-		top: -2px;
-		font-size: 8pt;
-		color: #000;
+	.link {
+		&:not(:hover) {
+			opacity: .6; // Golden Layout sets the opacity to .4, but these icons end up looking dim compared to the stock ones, so brighten them a little
+		}
+
+		i {
+			position: relative;
+			top: -2px;
+			font-size: 8pt;
+			color: #000;
+		}
 	}
 
-	li.spacer {
+	.spacer {
 		width: 10px;
 	}
 </style>

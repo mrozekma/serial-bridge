@@ -62,7 +62,7 @@
 	const component = Vue.extend({
 		props: {
 			node: Object as PropType<Node>,
-			layout: Promise as PropType<Promise<GoldenLayout>>,
+			layout: Promise as PropType<Promise<GoldenLayout.GoldenLayout>>,
 		},
 		components: { SbConnection },
 		data() {

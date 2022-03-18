@@ -7,10 +7,9 @@
 
 	import { Node } from '../device-functions';
 
-	import 'jquery'; // Needed by golden layout :(
-	import GoldenLayout from 'golden-layout';
-	import 'golden-layout/src/css/goldenlayout-base.css';
-	import 'golden-layout/src/css/goldenlayout-light-theme.css';
+	import { ComponentContainer, ComponentItemConfig, ContentItem, GoldenLayout, ResolvedComponentItemConfig, RowOrColumnItemConfig, Stack } from 'golden-layout';
+	import 'golden-layout/dist/css/goldenlayout-base.css';
+	import 'golden-layout/dist/css/themes/goldenlayout-light-theme.css';
 
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
 	import SbTabLinks, { SbTabLinksVue } from '../components/tab-links.vue';
@@ -57,17 +56,17 @@
 				this.terminals.set(node.name, comp as SbTerminalVue);
 			});
 
-			//TODO Load config from local storage
-			const nodeConfigs = this.nodes.map<GoldenLayout.ItemConfigType>(node => ({
+			const nodeConfigs = this.nodes.map<ComponentItemConfig>(node => ({
 				type: 'component',
 				componentName: 'terminal',
+				componentType: 'terminal',
 				title: node.name,
 				componentState: {
-					nodeName: node.name,
+					node,
 				},
 			}));
 
-			const row = [...function*(): IterableIterator<GoldenLayout.ItemConfigType> {
+			const row = [...function*(): IterableIterator<RowOrColumnItemConfig> {
 				let i = 0;
 				if(nodeConfigs.length % 2) {
 					// If odd, put the first node in a column alone
@@ -85,63 +84,55 @@
 				}
 			}()];
 
-			const gl = this.gl = new GoldenLayout({
-				content: [{
-					type: 'row',
-					content: row,
-				}],
-				labels: {
-					close: 'Close',
-					maximise: 'Maximize',
-					minimise: 'Minimize',
-					popout: 'Open in new window',
-					//@ts-ignore This isn't in the interface or the docs, but it exists
-					popin: 'Pop back in to main window',
-					tabDropdown: 'Additional tabs',
-				},
-			}, this.$el);
-			gl.on('initialised', () => layoutResolve(gl));
-			gl.registerComponent('terminal', (container: GoldenLayout.Container, state: { nodeName: string }) => {
-				const term = this.getNodeTerminal(state.nodeName);
-				container.getElement().append(term.$el);
+			const gl = this.gl = new GoldenLayout(this.$el as HTMLDivElement, (container: ComponentContainer, itemConfig: ResolvedComponentItemConfig) => {
+				const node: Node = (itemConfig.componentState as any).node;
+				const term = this.getNodeTerminal(node.name);
+				container.element.append(term.$el);
+				return {
+					component: term.$el,
+					virtual: false,
+				};
 			});
+			// The GL beforeunload handler gets triggered when following a tab-links link and destroys the layout, so this unregisters it.
+			//@ts-ignore The listener isn't part of the public interface
+			window.removeEventListener('beforeunload', gl._windowUnloadListener);
+			this.gl.resizeWithContainerAutomatically = true;
+
 			const tabLinksCtor = Vue.extend(SbTabLinks);
-			gl.on('stackCreated', (stack: GoldenLayout.ContentItem) => {
+			gl.on('itemCreated', e => {
+				if(!(e.target as any).isStack) {
+					return;
+				}
+				const stack = e.target as Stack;
 				const comp = new tabLinksCtor() as SbTabLinksVue;
 				comp.$mount();
 				comp.$on('stdin', (node: Node, data: string) => this.$emit('stdin', node.name, data));
-				//@ts-ignore Typing isn't quite right here, it thinks stack.header doesn't exist
-				stack.header.controlsContainer.prepend(...comp.$el.children);
-				stack.on('activeContentItemChanged', (contentItem: GoldenLayout.ContentItem) => {
-					const config = contentItem.config as GoldenLayout.ComponentConfig;
-					comp.setNode(this.deviceName, this.nodes.find(node => node.name == config.componentState.nodeName));
+				stack.header.controlsContainerElement.prepend(...comp.$el.children);
+				stack.on('activeContentItemChanged', (contentItem: ContentItem) => {
+					const config = contentItem.toConfig() as ComponentItemConfig;
+					const node: Node = (config.componentState as any).node;
+					comp.setNode(this.deviceName, this.nodes.find(seek => seek.name == node.name));
 				});
 			});
-			gl.on('windowOpened', (bw: GoldenLayout.BrowserWindow) => {
-				const config = bw.toConfig();
-				//@ts-ignore Bad typing
-				const nodeName = config.content[0].componentState.nodeName;
-				const term = this.getNodeTerminal(nodeName);
-				term.fit();
-				//TODO This doesn't work
-				// let timer: number | undefined = undefined;
-				// if(timer !== undefined) {
-				// 	clearTimeout(timer);
-				// }
-				// timer = window.setTimeout(() => {
-				// 	timer = undefined;
-				// 	term.fit();
-				// 	console.log('fit');
-				// }, 500);
+			this.gl.loadLayout({
+				root: {
+					type: 'row',
+					content: row,
+				},
+				header: {
+					close: 'Close',
+					maximise: 'Maximize',
+					minimise: 'Minimize',
+					// popout: 'Open in new window',
+					popout: false,
+					popin: 'Pop back in to main window',
+					tabDropdown: 'Additional tabs',
+				},
 			});
-			gl.init();
-
-			window.addEventListener('resize', () => this.gl!.updateSize());
+			layoutResolve!(gl);
 		},
 		beforeDestroy() {
-			if(this.gl) {
-				this.gl.destroy();
-			}
+			this.gl?.destroy();
 		},
 		methods: {
 			getNodeTerminal(node: string): SbTerminalVue {
