@@ -17,6 +17,7 @@
 			<a-sub-menu title="View">
 				<a-menu-item @click="resetTerms">Clear</a-menu-item>
 				<a-menu-item @click="paused = !paused">{{ !paused ? 'Pause' : 'Unpause' }}</a-menu-item>
+				<a-menu-item @click="resetLayout">Reset Layout</a-menu-item>
 				<a-menu-item @click="screenshot()">Screenshot</a-menu-item>
 				<a-menu-item @click="copyState">Share</a-menu-item>
 			</a-sub-menu>
@@ -373,6 +374,11 @@
 					text: [ 'Device', 'View', 'Unpause' ],
 					handler: () => self.paused = false,
 				};
+				yield {
+					value: 'device.view.resetLayout',
+					text: [ 'Device', 'View', 'Reset Layout' ],
+					handler: () => self.resetLayout(),
+				};
 				if(self.device.state === 'resolved') {
 					const device = self.device.value;
 					yield {
@@ -496,6 +502,10 @@
 				for(const node of this.nodes) {
 					(await this.getTerminal(node.name)).terminal.reset();
 				}
+			},
+			resetLayout() {
+				const layout = this.$refs.layout as SbLayoutVue;
+				layout.resetLayout();
 			},
 			termStdin(nodeName: string, data: string) {
 				const eol = {

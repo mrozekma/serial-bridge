@@ -7,7 +7,7 @@
 
 	import { Node } from '../device-functions';
 
-	import { ComponentContainer, ComponentItemConfig, ContentItem, GoldenLayout, ResolvedComponentItemConfig, RowOrColumnItemConfig, Stack } from 'golden-layout';
+	import { ComponentContainer, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, RowOrColumnItemConfig, Stack } from 'golden-layout';
 	import 'golden-layout/dist/css/goldenlayout-base.css';
 	import 'golden-layout/dist/css/themes/goldenlayout-light-theme.css';
 
@@ -27,6 +27,7 @@
 		data() {
 			return {
 				gl: undefined as GoldenLayout | undefined,
+				layoutConfig: undefined as LayoutConfig | undefined,
 				ready: false,
 				terminals: new Map<string, SbTerminalVue>(), // node name -> SbTerminal
 			};
@@ -114,7 +115,7 @@
 					comp.setNode(this.deviceName, this.nodes.find(seek => seek.name == node.name));
 				});
 			});
-			this.gl.loadLayout({
+			this.layoutConfig = {
 				root: {
 					type: 'row',
 					content: row,
@@ -128,7 +129,8 @@
 					popin: 'Pop back in to main window',
 					tabDropdown: 'Additional tabs',
 				},
-			});
+			};
+			this.resetLayout();
 			layoutResolve!(gl);
 		},
 		beforeDestroy() {
@@ -141,6 +143,9 @@
 					throw new Error(`No terminal for node '${node}'`);
 				}
 				return rtn;
+			},
+			resetLayout() {
+				this.gl!.loadLayout(this.layoutConfig!);
 			},
 		},
 	});
