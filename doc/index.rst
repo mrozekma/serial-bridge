@@ -119,11 +119,11 @@ The description of the device. A few lines of this are shown on the web home; th
 
 :field-optional:`category`
 """"""""""""""""""""""""""
-The category this device is sorted into on the web home. If omitted, the device goes into the unnamed category at the top of the page.
+This field is obsolete now that tags are available. It can still be set, but is not shown in the UI.
 
 :field-optional:`tags`
 """"""""""""""""""""""
-An array of either strings or objects, one per tag. Tags are shown on the right side of the device box on the home page, and next to the device name on the device page.
+An array of either strings or objects, one per tag. Tags are shown in the table on the home page and next to the device name on the device page.
 
 Each element of the array can either be a string for the tag name, or an object containing the following keys:
 

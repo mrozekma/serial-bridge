@@ -376,7 +376,6 @@
 			columns(): AntTableColumn[] {
 				const tags = uniqifyAndSort(this.annotatedDevices.flatMap(device => device.tags.map(tag => tag.name)));
 				const servers = uniqifyAndSort(this.annotatedDevices.map(device => device.remoteInfo?.name ?? 'Local'));
-				const categories = uniqifyAndSort(this.annotatedDevices.map(device => device.category ?? ''));
 				const connections = new Map(this.annotatedDevices.flatMap(device => device.connections.map(conn => [ conn.host, conn.name ])));
 				const rtn: AntTableColumn[] = [{
 					dataIndex: 'jenkinsLockOwner',
@@ -441,15 +440,6 @@
 					scopedSlots: {
 						customRender: 'description',
 					},
-				}, {
-					title: 'Category',
-					dataIndex: 'category',
-					sorter: (a: AnnotatedDevice, b: AnnotatedDevice) => compareStrings(a.category, b.category, 'first'),
-					filters: categories.map(cat => ({
-						text: (cat !== '') ? cat : '(None)',
-						value: cat,
-					})),
-					onFilter: (cat: string, device: AnnotatedDevice) => (device.category ?? '') === cat,
 				}, {
 					title: 'Server',
 					dataIndex: 'remoteInfo',
