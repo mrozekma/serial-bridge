@@ -18,6 +18,11 @@
 								<a-tooltip placement="bottomRight" title="Clear current table filter">
 									<a-tag color="blue" @click="clearFilter">Clear</a-tag>
 								</a-tooltip>
+								<a-tooltip placement="bottomRight" title="Make permalink to current table filter">
+									<a :href="makeFilterPermalinkHash()">
+										<a-tag color="blue">Permalink</a-tag>
+									</a>
+								</a-tooltip>
 							</template>
 							<template v-if="savedFilters.length > 0">
 								<a-tag v-for="filter in savedFilters" :key="filter.name" closable @click="applyFilter(filter)" @close="removeFilter(filter)">
@@ -357,6 +362,45 @@
 		return rtn;
 	}
 
+	function makeFilter(name: string, tbl: AntTable): SavedFilter {
+		return {
+			name,
+			sort: tbl.sSortColumn ? {
+				column: tbl.sSortColumn.dataIndex!,
+				order: tbl.sSortOrder!,
+			} : undefined,
+			filters: Object.entries<string[]>(tbl.sFilters).map(([ column, values ]) => ({ column, values })),
+		};
+	}
+
+	function serializeFilter(filter: SavedFilter) {
+		return JSON.stringify(filter);
+	}
+
+	function deserializeFilter(filter: string): SavedFilter | undefined {
+		let rtn: SavedFilter;
+		try {
+			rtn = JSON.parse(filter);
+		} catch(e) {
+			return undefined;
+		}
+		if(typeof rtn.name !== 'string') { return undefined; }
+		if(typeof rtn.sort !== 'undefined') {
+			if(typeof rtn.sort !== 'object') { return undefined; }
+			if(typeof rtn.sort.column !== 'string') { return undefined; }
+			if([ 'ascend', 'descend' ].indexOf(rtn.sort.order) < 0) { return undefined; }
+		}
+		if(!Array.isArray(rtn.filters)) { return undefined; }
+		for(const e of rtn.filters) {
+			if(typeof e.column !== 'string') { return undefined; }
+			if(!Array.isArray(e.values)) { return undefined; }
+			for(const v of e.values) {
+				if(typeof v !== 'string') { return undefined; }
+			}
+		}
+		return rtn;
+	}
+
 	import SbNavbar from '../components/navbar.vue';
 	import SbLock, { SbLockVue } from '../components/lock.vue';
 	import SbJenkins from '../components/jenkins.vue';
@@ -371,7 +415,14 @@
 		computed: {
 			...rootDataComputeds(),
 			defaultTab(): string {
-				return window.location.hash ? window.location.hash.substring(1) : 'devices';
+				if(window.location.hash) {
+					const tab = window.location.hash.substring(1);
+					if(tab.startsWith('devices=')) {
+						return 'devices';
+					}
+					return tab;
+				}
+				return 'devices'
 			},
 			columns(): AntTableColumn[] {
 				const tags = uniqifyAndSort(this.annotatedDevices.flatMap(device => device.tags.map(tag => tag.name)));
@@ -612,6 +663,20 @@
 			tbl.$watch('sSortColumn', check);
 			tbl.$watch('sSortOrder', check);
 
+			if(window.location.hash.startsWith('#devices=')) {
+				const ser = window.location.hash.split('=', 2)[1];
+				const filter = deserializeFilter(Buffer.from(ser, 'base64').toString('utf8'));
+				if(filter) {
+					this.applyFilter(filter);
+					check();
+				} else {
+					this.$error({
+						title: 'Loading filter failed',
+						content: 'Unable to decode filter included in URL',
+					});
+				}
+			}
+
 			const self = this;
 			commandPalette.addProvider('home', function*() {
 				if(self.tableFiltered) {
@@ -742,16 +807,7 @@
 				if(name.length == 0) {
 					throw new Error("Filter name can't be empty");
 				}
-
-				const tbl = this.tbl();
-				const filter: SavedFilter = {
-					name,
-					sort: tbl.sSortColumn ? {
-						column: tbl.sSortColumn.dataIndex!,
-						order: tbl.sSortOrder!,
-					} : undefined,
-					filters: Object.entries<string[]>(tbl.sFilters).map(([ column, values ]) => ({ column, values })),
-				};
+				const filter = makeFilter(name, this.tbl());
 				this.savedFilters.push(filter);
 				localStorage.setItem('home-saved-filters', JSON.stringify(this.savedFilters));
 			},
@@ -759,6 +815,10 @@
 				const idx = this.savedFilters.indexOf(filter);
 				this.savedFilters.splice(idx, 1);
 				localStorage.setItem('home-saved-filters', JSON.stringify(this.savedFilters));
+			},
+			makeFilterPermalinkHash() {
+				const filter = makeFilter('', this.tbl());
+				return '#devices=' + Buffer.from(serializeFilter(filter)).toString('base64');
 			},
 			async acquireLock(device: AnnotatedDevice) {
 				if(this.locking.indexOf(device.name) == -1) {
