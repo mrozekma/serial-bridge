@@ -288,7 +288,7 @@
 	import Vue from 'vue';
 	import { Application } from '@feathersjs/feathers';
 	import { AntdComponent } from 'ant-design-vue/types/component';
-	import { Column } from 'ant-design-vue/types/table/column';
+	import { Column, ColumnFilterItem } from 'ant-design-vue/types/table/column';
 
 	import { Connection, getDeviceConnections } from '../connections';
 	import commandPalette from '../command-palette';
@@ -377,6 +377,7 @@
 				const tags = uniqifyAndSort(this.annotatedDevices.flatMap(device => device.tags.map(tag => tag.name)));
 				const servers = uniqifyAndSort(this.annotatedDevices.map(device => device.remoteInfo?.name ?? 'Local'));
 				const connections = new Map(this.annotatedDevices.flatMap(device => device.connections.map(conn => [ conn.host, conn.name ])));
+				const lockers = uniqifyAndSort(this.annotatedDevices.map(device => device.jenkinsLockOwner).filter((owner): owner is string => owner !== undefined));
 				const rtn: AntTableColumn[] = [{
 					dataIndex: 'jenkinsLockOwner',
 					width: 32,
@@ -390,15 +391,25 @@
 						customRender: 'build-icon',
 					},
 					filters: [
-						{ value: 'locked', text: "Reserved" },
-						{ value: 'building', text: "Building" },
 						{ value: 'free', text: "Free" },
+						{ value: 'building', text: "Building" },
+						{ value: 'locked', text: "Reserved" },
+						...lockers.map<ColumnFilterItem>(name => ({
+							value: `locked:${name}`,
+							text: `Reserved by ${name}`,
+						})),
 					],
 					onFilter: (name: string, device: AnnotatedDevice) => {
 						switch(name) {
 							case 'locked': return (device.jenkinsLockOwner !== undefined);
 							case 'building': return (device.build !== undefined);
 							case 'free': return (device.jenkinsLockOwner === undefined && device.build === undefined);
+							default:
+								const parts = name.split(':', 2);
+								if(parts.length == 2 && parts[0] == 'locked') {
+									return (device.jenkinsLockOwner === parts[1]);
+								}
+								throw new Error(`Bad filter: ${name}`);
 						}
 					},
 				}, {
