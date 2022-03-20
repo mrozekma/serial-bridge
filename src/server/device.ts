@@ -513,6 +513,9 @@ export class Devices extends EventEmitter {
 		};
 		// Check the current devices for any that have been updated or removed
 		for(const device of this) {
+			if(device.ephemeral) {
+				continue;
+			}
 			const deviceConfig = devicesConfig.find(seek => seek.name === device.name);
 			if(!deviceConfig) { // Removed
 				if(rtn) {
@@ -634,6 +637,10 @@ export default class Device extends EventEmitter {
 		return this._alive;
 	}
 
+	get ephemeral() {
+		return false;
+	}
+
 	kill() {
 		this._alive = false;
 		for(const node of this.nodes) {
@@ -657,7 +664,7 @@ export default class Device extends EventEmitter {
 	}
 
 	toJSON() {
-		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner, metadata, alive } = this;
+		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner, metadata, alive, ephemeral } = this;
 		return {
 			id,
 			name,
@@ -671,6 +678,7 @@ export default class Device extends EventEmitter {
 			jenkinsLockOwner,
 			metadata,
 			alive,
+			ephemeral,
 			remoteInfo: undefined as RemoteInfo | undefined,
 		};
 	}
@@ -736,6 +744,10 @@ export class EphemeralDevice extends Device {
 			this.gracePeriod = false;
 			this.checkDead();
 		}, 10000);
+	}
+
+	get ephemeral() {
+		return true;
 	}
 
 	addNode(node: Node) {
