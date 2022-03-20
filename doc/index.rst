@@ -500,6 +500,25 @@ Then implement the specified ``file-moved.sh`` script. Incron will call it with 
       curl -X POST -d @"$dir/$file" http://serial-bridge-host/api/lock
    fi
 
+.. _ephemeral-devices:
+
+Ephemeral devices
+-----------------
+
+New devices can be created at runtime by POSTing a JSON object to ``/api/devices`` similar to a device's configuration in ``config.js``::
+
+   {
+      "name": ...,
+      "description": ...,
+      "tags": [ ... ],
+      "nodes": [
+         { "name": ... },
+      ],
+   }
+
+Serial Bridge will respond with a full device object like one that would be returned by querying ``/api/devices/<id>``. Each node within this object will include a TCP port, and connecting to a node's TCP port will provide the other side of that node's pipe.
+If all node TCP connections are closed, the device is automatically removed (there is a 10 second grace period after first creating the device to give time for at least one connection to be established).
+
 .. _node-link-clients:
 
 Web link clients
@@ -565,10 +584,10 @@ API
 A REST-based API is located at ``<serial bridge host>/api``. It's not yet particularly well documented, but the most useful routes are:
 
 * :tag:`GET` ``/api/devices`` -- Get an array of all devices
+* :tag:`POST` ``/api/devices`` -- Create an ephemeral device. See the :ref:`Ephemeral devices <ephemeral-devices>` section for more information.
 * :tag:`GET` ``/api/devices/<ID>`` -- Get information about a particular device
 * :tag:`GET` ``/api/config/version`` -- Get information about the Serial Bridge instance
-* :tag:`GET` ``/api/jenkins/<LOCK_NAME>`` -- Get information about a device's running Jenkins build. See the :ref:`Jenkins <jenkins_build_state>` section for more information about PATCHing this route.
-
-.. TODO Ephemeral devices
+* :tag:`GET` ``/api/jenkins/<LOCK_NAME>`` -- Get information about a device's running Jenkins build.
+* :tag:`PATCH` ``/api/jenkins/<LOCK_NAME>`` -- Update a device's running Jenkins build. See the :ref:`Jenkins <jenkins_build_state>` section for more information.
 
 .. TODO General usage guide
