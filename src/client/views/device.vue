@@ -526,7 +526,7 @@
 				const node = this.nodes.find(node => node.name === nodeName);
 				const term = (await this.getTerminal(nodeName)).terminal;
 				const ctrlKey = (navigator.platform.toUpperCase().indexOf('MAC') >= 0) ? 'Cmd' : 'Ctrl';
-				const clipboard = undefined ?? {
+				const clipboard = navigator.clipboard ?? {
 					readText: () => Promise.reject(),
 					writeText: (text: string) => Promise.reject(),
 				};
