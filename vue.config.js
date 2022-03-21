@@ -19,7 +19,12 @@ module.exports = {
 		}
 	},
 	chainWebpack: config => {
-		config.entry('app').clear().add('./src/client/client.ts');
+		config.entry('app').clear()
+			.add('./src/client/client.ts')
+			// These are included by golden-layout.vue, but for some reason in production mode they don't make it into the build
+			.add('./node_modules/golden-layout/dist/css/goldenlayout-base.css')
+			.add('./node_modules/golden-layout/dist/css/themes/goldenlayout-light-theme.css')
+			;
 	},
 };
 
