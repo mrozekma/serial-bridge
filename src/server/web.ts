@@ -244,7 +244,12 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 
 		'api/commands': {
 			async find(params) {
-				return commands;
+				const deviceId = params?.query?.device;
+				const device = deviceId ? devices.find(device => device.id === deviceId)?.toJSON() : undefined;
+				if(deviceId && !device) {
+					throw new Error(`Invalid device: ${deviceId}`);
+				}
+				return commands.filter(command => command.filter(device));
 			},
 			async get(id, params) {
 				for(const command of iterCommands(commands)) {

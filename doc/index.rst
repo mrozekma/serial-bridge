@@ -251,6 +251,7 @@ An array of objects defining :ref:`commands <commands>` that can be executed in 
 
 * :field-mandatory:`label` -- The label to display in the menu item.
 * :field-optional:`icon` -- The icon to display next to the menu item label. Icons are pulled from `FontAwesome <https://fontawesome.com/icons?m=free>`_ and are specified by the icon's full class. For example, `this icon <https://fontawesome.com/icons/smile?style=solid>`_ is ``'fas fa-smile'``.
+* :field-optional:`filter` -- A function that will be passed a (possibly undefined) device JSON object like the one returned by the :ref:`devices API <api>`, and returns a boolean indicating if the function should be made available when the user is interacting with that device.
 * :field-optional:`fn` -- The function to execute when the user clicks this command.
 * :field-optional:`submenu` -- An array of commands/submenus to display beneath this menu item. The objects in this array contain the same keys listed here.
 

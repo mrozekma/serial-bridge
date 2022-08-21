@@ -12,15 +12,17 @@ export default class Command {
 	public readonly name: string;
 	public readonly label: string;
 	public readonly icon: string | undefined;
+	public readonly filter: (device?: ReturnType<Device['toJSON']>) => boolean;
 	public readonly submenu: Command[] | undefined;
 	private readonly fn: ((api?: any) => Promise<void>) | undefined;
 
-	constructor(name: string, label: string, icon: string | undefined, fn: (api?: any) => Promise<void>);
-	constructor(name: string, label: string, icon: string | undefined, submenu: Command[]);
-	constructor(name: string, label: string, icon: string | undefined, last: ((api?: any) => Promise<void>) | Command[]) {
+	constructor(name: string, label: string, icon: string | undefined, filter: (device?: ReturnType<Device['toJSON']>) => boolean, fn: (api?: any) => Promise<void>);
+	constructor(name: string, label: string, icon: string | undefined, filter: (device?: ReturnType<Device['toJSON']>) => boolean, submenu: Command[]);
+	constructor(name: string, label: string, icon: string | undefined, filter: (device?: ReturnType<Device['toJSON']>) => boolean, last: ((api?: any) => Promise<void>) | Command[]) {
 		this.name = name;
 		this.label = label;
 		this.icon = icon;
+		this.filter = filter;
 		if(typeof last === 'function') {
 			this.fn = last;
 		} else {
@@ -124,12 +126,12 @@ export default class Command {
 	// commandConfig here is type 'any' because the Joi schema for config.commands doesn't have proper inference because it's recursive, so Config['commands'] has type 'never[]'
 	static fromConfig(commandConfig: any, idGen: IdGenerator): Command {
 		const name = idGen.gen();
-		const { label, icon, fn, submenu } = commandConfig;
+		const { label, icon, filter, fn, submenu } = commandConfig;
 		if(fn) {
-			return new Command(name, label, icon, fn);
+			return new Command(name, label, icon, filter, fn);
 		} else if(submenu) {
 			const subInsts = submenu.map((config: any) => Command.fromConfig(config, idGen));
-			return new Command(name, label, icon, subInsts);
+			return new Command(name, label, icon, filter, subInsts);
 		} else {
 			throw new Error(`Command ${name} has neither fn nor submenu`);
 		}

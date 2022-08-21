@@ -429,7 +429,11 @@
 
 			const commandsService = this.app.service('api/commands');
 			commandsService.timeout = 30000;
-			this.commands = unwrapPromise(commandsService.find());
+			this.commands = unwrapPromise(commandsService.find({
+				query: {
+					device: this.id,
+				},
+			}));
 			if(document.location.search) {
 				const params = new URLSearchParams(document.location.search.substring(1));
 				const state = params.get('state');

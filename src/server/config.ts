@@ -94,6 +94,7 @@ const remoteJoi = joi.object({
 const commandJoi: any = joi.object({
 	label: joi.string().required(),
 	icon: joi.string(),
+	filter: joi.func().maxArity(1).default(() => true),
 	fn: joi.func().maxArity(1),
 	submenu: joi.array().items(joi.lazy(() => commandJoi)),
 }).xor('fn', 'submenu');
