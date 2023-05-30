@@ -18,11 +18,6 @@
 								<a-tooltip placement="bottomRight" title="Clear current table filter">
 									<a-tag color="blue" @click="clearFilter">Clear</a-tag>
 								</a-tooltip>
-								<a-tooltip placement="bottomRight" title="Make permalink to current table filter">
-									<a :href="makeFilterPermalinkHash()">
-										<a-tag color="blue">Permalink</a-tag>
-									</a>
-								</a-tooltip>
 							</template>
 							<template v-if="savedFilters.length > 0">
 								<a-tag v-for="filter in savedFilters" :key="filter.name" closable @click="applyFilter(filter)" @close="removeFilter(filter)">
@@ -682,6 +677,7 @@
 			};
 			const check = () => {
 				this.tableFiltered = (Object.keys(tbl.sFilters).some(k => tbl.sFilters[k].length > 0)) || (tbl.sSortColumn?.dataIndex !== defaultSort.column) || (tbl.sSortOrder !== defaultSort.order);
+				window.location.hash = this.tableFiltered ? this.makeFilterPermalinkHash() : '';
 			};
 			tbl.$watch('sFilters', check);
 			tbl.$watch('sSortColumn', check);
