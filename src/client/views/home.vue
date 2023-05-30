@@ -374,29 +374,53 @@
 	}
 
 	function serializeFilter(filter: SavedFilter) {
-		return JSON.stringify(filter);
+		if(filter.name === '' && (filter.sort === undefined || (filter.sort.column === 'name' && filter.sort.order === 'ascend')) && filter.filters.length === 1 && filter.filters[0].column === 'tags') {
+			return '#tags=' + filter.filters[0].values.join(',');
+		} else {
+			return '#devices=' + Buffer.from(JSON.stringify(filter)).toString('base64');
+		}
 	}
 
 	function deserializeFilter(filter: string): SavedFilter | undefined {
 		let rtn: SavedFilter;
-		try {
-			rtn = JSON.parse(filter);
-		} catch(e) {
-			return undefined;
-		}
-		if(typeof rtn.name !== 'string') { return undefined; }
-		if(typeof rtn.sort !== 'undefined') {
-			if(typeof rtn.sort !== 'object') { return undefined; }
-			if(typeof rtn.sort.column !== 'string') { return undefined; }
-			if([ 'ascend', 'descend' ].indexOf(rtn.sort.order) < 0) { return undefined; }
-		}
-		if(!Array.isArray(rtn.filters)) { return undefined; }
-		for(const e of rtn.filters) {
-			if(typeof e.column !== 'string') { return undefined; }
-			if(!Array.isArray(e.values)) { return undefined; }
-			for(const v of e.values) {
-				if(typeof v !== 'string') { return undefined; }
-			}
+		let m = filter.match(/^#?(devices|tags)=(.+)$/);
+		switch(m ? m[1] : undefined) {
+			case 'devices':
+				try {
+					rtn = JSON.parse(Buffer.from(m![2], 'base64').toString('utf8'));
+				} catch(e) {
+					return undefined;
+				}
+				if(typeof rtn.name !== 'string') { return undefined; }
+				if(typeof rtn.sort !== 'undefined') {
+					if(typeof rtn.sort !== 'object') { return undefined; }
+					if(typeof rtn.sort.column !== 'string') { return undefined; }
+					if([ 'ascend', 'descend' ].indexOf(rtn.sort.order) < 0) { return undefined; }
+				}
+				if(!Array.isArray(rtn.filters)) { return undefined; }
+				for(const e of rtn.filters) {
+					if(typeof e.column !== 'string') { return undefined; }
+					if(!Array.isArray(e.values)) { return undefined; }
+					for(const v of e.values) {
+						if(typeof v !== 'string') { return undefined; }
+					}
+				}
+				break;
+			case 'tags':
+				rtn = {
+					name: '',
+					sort: {
+						column: 'name',
+						order: 'ascend',
+					},
+					filters: [{
+						column: 'tags',
+						values: m![2].split(','),
+					}],
+				};
+				break;
+			default:
+				return undefined;
 		}
 		return rtn;
 	}
@@ -663,9 +687,8 @@
 			tbl.$watch('sSortColumn', check);
 			tbl.$watch('sSortOrder', check);
 
-			if(window.location.hash.startsWith('#devices=')) {
-				const ser = window.location.hash.split('=', 2)[1];
-				const filter = deserializeFilter(Buffer.from(ser, 'base64').toString('utf8'));
+			if([ 'devices', 'tags' ].some(n => window.location.hash.startsWith(`#${n}=`))) {
+				const filter = deserializeFilter(window.location.hash);
 				if(filter) {
 					this.applyFilter(filter);
 					check();
@@ -817,8 +840,7 @@
 				localStorage.setItem('home-saved-filters', JSON.stringify(this.savedFilters));
 			},
 			makeFilterPermalinkHash() {
-				const filter = makeFilter('', this.tbl());
-				return '#devices=' + Buffer.from(serializeFilter(filter)).toString('base64');
+				return serializeFilter(makeFilter('', this.tbl()));
 			},
 			async acquireLock(device: AnnotatedDevice) {
 				if(this.locking.indexOf(device.name) == -1) {
