@@ -26,6 +26,10 @@
 				<h1>Manage menu</h1>
 				The <b>Manage</b> menu on the device view has been renamed <b>State</b>, the <b>Ports</b> menu item under it is now <b>Manage</b>, and several other menu items were moved to the <b>View</b> menu.
 			</template>
+			<template v-else-if="key === 'tagFiltering'">
+				<h1>Tag filtering</h1>
+				You can now click <a-tag>tags</a-tag>in the devices table to quickly include/exclude them from the active filter. You can also click tags when viewing a particular device to redirect to the home view with only that tag included.
+			</template>
 			<a-alert v-else type="error" message="Bad entry" show-icon>
 				<template #description>
 					Configuration file specifies unknown changelog entry <b>{{ key }}</b>

@@ -37,7 +37,7 @@
 								</a-tooltip>
 							</template>
 							<template #tags="tags">
-								<a-tag v-for="{ name, description, color } in tags" :key="name" :title="description" :color="color">{{ name }}</a-tag>
+								<a-tag v-for="{ name, description, color } in tags" :key="name" :title="description" :color="color" class="device-tag" @click.stop="toggleTagInFilter(name)">{{ name }}</a-tag>
 							</template>
 							<template #connections="connections">
 								<div class="connections">
@@ -797,9 +797,10 @@
 					}
 				}
 			},
-			applyFilter({ sort, filters }: SavedFilter) {
+			applyFilter(saved_filter: SavedFilter) {
 				this.clearFilter();
 				const tbl = this.tbl();
+				const { sort, filters } = saved_filter;
 				for(const filter of filters) {
 					tbl.sFilters[filter.column] = [...filter.values];
 				}
@@ -807,6 +808,24 @@
 					tbl.sSortColumn = tbl.columns.find(col => col.dataIndex === sort.column) ?? null;
 					tbl.sSortOrder = tbl.sSortColumn ? sort.order : undefined;
 				}
+			},
+			toggleTagInFilter(tag: string) {
+				const filter = makeFilter('', this.tbl());
+				const tag_filter = filter.filters.find(f => f.column === 'tags');
+				if(tag_filter) {
+					const idx = tag_filter.values.indexOf(tag);
+					if(idx >= 0) {
+						tag_filter.values.splice(idx, 1);
+					} else {
+						tag_filter.values.push(tag);
+					}
+				} else {
+					filter.filters.push({
+						column: 'tags',
+						values: [ tag ],
+					});
+				}
+				this.applyFilter(filter);
 			},
 			clearFilter() {
 				const tbl = this.tbl();
@@ -1079,6 +1098,10 @@
 		/deep/ input[type=text], /deep/ input[type=password] {
 			width: 400px;
 		}
+	}
+
+	.device-tag {
+		cursor: pointer;
 	}
 
 	footer {

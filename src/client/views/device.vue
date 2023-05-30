@@ -6,7 +6,9 @@
 					{{ deviceName }}
 				</span>
 				<template v-for="{ name, description, color, showOnDevicePage } in (device.state == 'resolved' ? device.value.tags : [])">
-					<a-tag v-if="showOnDevicePage !== false" :key="name" :title="description" :color="color">{{ name }}</a-tag>
+					<a :href="`/#tags=${name}`">
+						<a-tag v-if="showOnDevicePage !== false" :key="name" :title="description" :color="color" class="device-tag">{{ name }}</a-tag>
+					</a>
 				</template>
 			</template>
 			<a-sub-menu v-if="commands && (commands.state != 'resolved' || commands.value.length > 0)" title="Commands">
@@ -943,6 +945,10 @@
 				}
 			}
 		}
+	}
+
+	.device-tag {
+		cursor: pointer;
 	}
 </style>
 
