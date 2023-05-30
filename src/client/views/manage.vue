@@ -64,6 +64,10 @@
 						</a-card>
 					</template>
 				</div>
+				<template v-if="device.state == 'resolved' && device.value.description && device.value.description.length > 0">
+					<h2>Description</h2>
+					{{ device.value.description }}
+				</template>
 				<h2>Metadata</h2>
 				<sb-metadata-tree v-if="device.state == 'resolved' && device.value.metadata && Object.entries(device.value.metadata).length > 0" :metadata="device.value.metadata"/>
 				<template v-else>None</template>
@@ -149,6 +153,10 @@
 				margin-right: 5px;
 			}
 		}
+	}
+
+	h2 {
+		margin: 10px 0;
 	}
 
 	.nodes {
