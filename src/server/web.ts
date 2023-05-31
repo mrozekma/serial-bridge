@@ -414,6 +414,13 @@ function makeRawListeners(socket: SocketIO.Socket, devices: Devices, commands: C
 			}
 		}
 	});
+	socket.on('device-user-active', (deviceId: string, active: boolean) => {
+		const device = devices.find(device => device.id == deviceId);
+		if(device) {
+			device.webConnections.updateConnection(host, active);
+		}
+	});
+
 }
 
 function attachDeviceListeners(app: Application<Services>, devices: Device | Devices) {
@@ -431,7 +438,7 @@ function attachDeviceListeners(app: Application<Services>, devices: Device | Dev
 				...data,
 			}));
 		}
-		device.webConnections.on('connect', sendUpdate).on('disconnect', sendUpdate);
+		device.webConnections.on('connect', sendUpdate).on('update', sendUpdate).on('disconnect', sendUpdate);
 		for(const node of device.nodes) {
 			node.on('serialData', (data: Buffer) => devicesService.emit('data', {
 				id: device.id,

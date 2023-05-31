@@ -108,7 +108,11 @@ export function setUserInfo(host: string, displayName: string | undefined, email
 export interface Connection {
 	host: string;
 	user: User;
-	//TODO timestamps
+	connectedAt: Date;
+	state: {
+		active: boolean;
+		asOf: Date;
+	};
 }
 
 export default class Connections extends EventEmitter {
@@ -123,9 +127,15 @@ export default class Connections extends EventEmitter {
 	}
 
 	async addConnection(host: string) {
+		const now = new Date();
 		const connection: Connection = {
 			host,
 			user: await getUser(host),
+			connectedAt: now,
+			state: {
+				active: true,
+				asOf: now,
+			},
 		}
 		this.connections.push(connection);
 		this.emit('connect', connection);
@@ -138,6 +148,17 @@ export default class Connections extends EventEmitter {
 				this.connections.push(connection);
 				this.emit('connect', connection);
 			}
+		}
+	}
+
+	updateConnection(host: string, active: boolean) {
+		const connection = this.connections.find(conn => conn.host == host);
+		if(connection) {
+			connection.state = {
+				active,
+				asOf: new Date(),
+			};
+			this.emit('update', connection);
 		}
 	}
 

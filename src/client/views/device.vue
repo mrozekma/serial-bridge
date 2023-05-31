@@ -332,6 +332,7 @@
 						nodes: [],
 						name: user.displayName,
 						avatar: user.avatar,
+						webState: undefined,
 					}));
 					const terminal = await this.getTerminal(data.node);
 					terminal?.onWriteCollision(connections);
@@ -444,6 +445,17 @@
 					this.loadState(state);
 				}
 			}
+
+			document.addEventListener('visibilitychange', () => {
+				if(this.device.state === 'resolved') {
+					this.socket.emit('device-user-active', this.device.value.id, !document.hidden);
+				}
+			});
+			this.socket.on('reconnect', () => {
+				if(this.device.state === 'resolved') {
+					this.socket.emit('device-user-active', this.device.value.id, !document.hidden);
+				}
+			});
 		},
 		beforeDestroy() {
 			this.app.service('api/devices').removeAllListeners();
