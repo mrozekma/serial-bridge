@@ -128,3 +128,20 @@ export function compareStrings(a: string | undefined, b: string | undefined, und
 	       (b === undefined) ? -undefinedPos :
 	       collator.compare(a, b);
 }
+
+export function relativeDate(from: Date, to?: Date) {
+	const seconds = ((to ?? new Date()).getTime() - from.getTime()) / 1000;
+	if(seconds < 60) {
+		return "just now";
+	}
+	const minutes = seconds / 60;
+	if(minutes < 60) {
+		return `${Math.floor(minutes)}m ago`;
+	}
+	const hours = minutes / 60;
+	if(hours < 24) {
+		return `${Math.floor(hours)}h ago`;
+	}
+	const days = hours / 24;
+	return `${Math.floor(days)}d ago`;
+}

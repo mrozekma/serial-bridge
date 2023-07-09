@@ -1,5 +1,5 @@
 <template>
-	<a-tooltip placement="bottomRight" @visibleChange="v => tooltipVisible = v">
+	<a-tooltip placement="bottomRight" @visibleChange="setVisible">
 		<template slot="title">
 			<div class="name">{{ name }}</div>
 			<div class="host" v-if="host != name">{{ host }}</div>
@@ -15,6 +15,7 @@
 <script lang="ts">
 	import Vue, { PropType } from 'vue';
 	import { Connection } from '../connections';
+	import { relativeDate } from '../device-functions';
 
 	export default Vue.extend({
 		// These fields match up with the Connection interface
@@ -45,33 +46,21 @@
 		},
 		computed: {
 			active(): boolean {
-				// Check if a web connection is inactive and no other connection exists
+				// The user is active if their web connection is active, or they have any direct connections to nodes
 				return this.nodes.length !== 1 || this.nodes[0] !== 'Web' || this.webState!.active;
-			},
-			lastActive(): string | undefined {
-				if(!this.tooltipVisible || this.active) {
-					return undefined;
-				}
-				const seconds = (new Date().getTime() - this.webState!.asOf.getTime()) / 1000;
-				if(seconds < 60) {
-					return "just now";
-				}
-				const minutes = seconds / 60;
-				if(minutes < 60) {
-					return `${Math.floor(minutes)}m ago`;
-				}
-				const hours = minutes / 60;
-				if(hours < 24) {
-					return `${Math.floor(hours)}h ago`;
-				}
-				const days = hours / 24;
-				return `${Math.floor(days)}d ago`;
 			},
 		},
 		data() {
 			return {
-				tooltipVisible: false,
+				lastActive: undefined as string | undefined,
 			};
+		},
+		methods: {
+			async setVisible(vis: boolean) {
+				if(vis) {
+					this.lastActive = !this.active ? relativeDate(this.webState!.asOf) : undefined;
+				}
+			},
 		},
 	});
 </script>

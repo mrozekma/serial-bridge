@@ -25,7 +25,7 @@
 								</a-tag>
 							</template>
 						</div>
-						<a-table :columns="columns" :data-source="annotatedDevices" :row-key="device => device.id" :custom-row="customRow" :row-class-name="device => (device.jenkinsLockOwner !== undefined || device.build !== undefined) ? 'busy' : ''" :loading="devices.state == 'pending'" :pagination="false" :locale="{emptyText: 'No devices'}" class="devices" ref="table">
+						<a-table :columns="columns" :data-source="annotatedDevices" :row-key="device => device.id" :custom-row="customRow" :row-class-name="device => (device.lock !== undefined || device.build !== undefined) ? 'busy' : ''" :loading="devices.state == 'pending'" :pagination="false" :locale="{emptyText: 'No devices'}" class="devices" ref="table">
 							<template #lock-icon="lockOwner">
 								<a-tooltip v-if="lockOwner" placement="bottomRight" :title="`Reserved by ${lockOwner}`">
 									<i class="fas fa-lock-alt"></i>
@@ -87,7 +87,7 @@
 									</a-card>
 									<a-card title="Jenkins" class="jenkins-card">
 										<template #extra v-if="device.jenkinsLockName">
-											<a-tooltip v-if="device.jenkinsLockOwner" placement="bottomRight" title="Release lock">
+											<a-tooltip v-if="device.lock" placement="bottomRight" title="Release lock">
 												<a-button size="small" @click="releaseLock(device)">
 													<i class="fas fa-unlock-alt"></i>
 												</a-button>
@@ -98,7 +98,7 @@
 												</a-button>
 											</a-tooltip>
 										</template>
-										<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.jenkinsLockOwner" :ref="`lock-${device.name}`" :device="device" :owner="device.jenkinsLockOwner"/>
+										<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.lock" :ref="`lock-${device.name}`" :device="device" :owner="device.lock ? device.lock.owner : undefined" :date="device.lock ? device.lock.date : undefined" inline-date/>
 										<div v-else-if="device.jenkinsLockName" class="unlocked">
 											<i class="fas fa-unlock-alt"></i>
 											<span>
@@ -447,9 +447,9 @@
 				const tags = uniqifyAndSort(this.annotatedDevices.flatMap(device => device.tags.map(tag => tag.name)));
 				const servers = uniqifyAndSort(this.annotatedDevices.map(device => device.remoteInfo?.name ?? 'Local'));
 				const connections = new Map(this.annotatedDevices.flatMap(device => device.connections.map(conn => [ conn.host, conn.name ])));
-				const lockers = uniqifyAndSort(this.annotatedDevices.map(device => device.jenkinsLockOwner).filter((owner): owner is string => owner !== undefined));
+				const lockers = uniqifyAndSort(this.annotatedDevices.map(device => device.lock?.owner).filter((owner): owner is string => owner !== undefined));
 				const rtn: AntTableColumn[] = [{
-					dataIndex: 'jenkinsLockOwner',
+					dataIndex: 'lock.owner',
 					width: 32,
 					scopedSlots: {
 						customRender: 'lock-icon',
@@ -471,13 +471,13 @@
 					],
 					onFilter: (name: string, device: AnnotatedDevice) => {
 						switch(name) {
-							case 'locked': return (device.jenkinsLockOwner !== undefined);
+							case 'locked': return (device.lock !== undefined);
 							case 'building': return (device.build !== undefined);
-							case 'free': return (device.jenkinsLockOwner === undefined && device.build === undefined);
+							case 'free': return (device.lock === undefined && device.build === undefined);
 							default:
 								const parts = name.split(':', 2);
 								if(parts.length == 2 && parts[0] == 'locked') {
-									return (device.jenkinsLockOwner === parts[1]);
+									return (device.lock?.owner === parts[1]);
 								}
 								throw new Error(`Bad filter: ${name}`);
 						}

@@ -42,6 +42,18 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 		}
 	}
 
+	// If the remote is running an old version, it might set 'jenkinsLockOwner' but not 'lock'
+	function fixupOldLock(device: DeviceJson): DeviceJson {
+		if(device.lock === undefined && device.jenkinsLockOwner !== undefined) {
+			device.lock = {
+				source: 'jenkins',
+				owner: device.jenkinsLockOwner,
+				date: undefined,
+			};
+		}
+		return device;
+	}
+
 	const services: ServiceDefinitions = {
 		'api/devices': {
 			events: [ 'updated', 'data', 'command', 'termLine', 'commandModal', 'writeCollision' ],
@@ -55,7 +67,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 						const service = remote.app.service('api/devices');
 						service.timeout = 2000; // Shorten so the parent API call won't timeout waiting on this one
 						return service.find({ query: { local: true } })
-							.then<DeviceJson[]>(devices => devices.map(device => remote.rewriteDeviceJson(device)))
+							.then<DeviceJson[]>(devices => devices.map(device => remote.rewriteDeviceJson(fixupOldLock(device))))
 							.catch<DeviceJson[]>(err => {
 								const device = new Device('error', `Failed to contact remote '${remote.name}'`, `${err}`, undefined, [{ name: 'error', color: 'red' }], undefined);
 								return [ remote.rewriteDeviceJson(device.toJSON(), false) ];
@@ -553,7 +565,7 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 				}
 				const lock = locks[device.jenkinsLockName];
 				if(lock === undefined) {
-					device.jenkinsLockOwner = undefined;
+					device.lock = undefined;
 					if(device.build?.fromXml) {
 						device.endBuild();
 					}
@@ -561,9 +573,13 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 					if(device.build?.fromXml) {
 						device.endBuild();
 					}
-					device.jenkinsLockOwner = lock.owner;
+					device.lock = {
+						source: 'jenkins',
+						owner: lock.owner,
+						date: lock.date,
+					};
 				} else if(lock.type === 'build') {
-					device.jenkinsLockOwner = undefined;
+					device.lock = undefined;
 					device.startBuild(lock.owner, undefined, true);
 				}
 			}

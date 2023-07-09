@@ -554,6 +554,12 @@ export class Devices extends EventEmitter {
 	}
 }
 
+export interface Lock {
+	source: 'jenkins';
+	owner: string;
+	date: Date | undefined;
+}
+
 // NB: The Command class causes Device to emit many events not visible here
 export default class Device extends EventEmitter {
 	protected _nodes: Node[] = [];
@@ -561,7 +567,7 @@ export default class Device extends EventEmitter {
 	public readonly webConnections: Connections;
 	private readonly _commandMutex = new Mutex();
 	private _build: Build | undefined = undefined;
-	private _jenkinsLockOwner: string | undefined = undefined;
+	private _lock: Lock | undefined = undefined;
 
 	constructor(public readonly id: string, public readonly name: string, public readonly description: string | undefined, public readonly category: string | undefined, public readonly tags: Tag[], public readonly jenkinsLockName?: string, public readonly metadata?: object) {
 		super();
@@ -610,12 +616,12 @@ export default class Device extends EventEmitter {
 		return rtn;
 	}
 
-	get jenkinsLockOwner(): string | undefined {
-		return this._jenkinsLockOwner;
+	get lock(): Lock | undefined {
+		return this._lock;
 	}
 
-	set jenkinsLockOwner(owner: string | undefined) {
-		this._jenkinsLockOwner = owner;
+	set lock(lock: Lock | undefined) {
+		this._lock = lock;
 		this.emit('updated');
 	}
 
@@ -664,7 +670,7 @@ export default class Device extends EventEmitter {
 	}
 
 	toJSON() {
-		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, jenkinsLockOwner, metadata, alive, ephemeral } = this;
+		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, lock, metadata, alive, ephemeral } = this;
 		return {
 			id,
 			name,
@@ -675,7 +681,8 @@ export default class Device extends EventEmitter {
 			webConnections: webConnections.toJSON(),
 			build: build ? build.toJSON() : undefined,
 			jenkinsLockName,
-			jenkinsLockOwner,
+			jenkinsLockOwner: (lock?.source === 'jenkins') ? lock.owner : undefined, // Deprecated; use 'lock' instead
+			lock,
 			metadata,
 			alive,
 			ephemeral,
@@ -708,7 +715,7 @@ export default class Device extends EventEmitter {
 		this.webConnections.addFrom(device.webConnections);
 		this._build = device._build ? Build.makeFrom(device._build) : undefined;
 		this._build?.on('updated', () => this.emit('updated'));
-		this._jenkinsLockOwner = device._jenkinsLockOwner;
+		this._lock = device._lock;
 	}
 
 	static normalizeTags(tagsConfig: Config['devices'][number]['tags']): Tag[] {

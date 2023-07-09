@@ -124,7 +124,7 @@
 							type,
 							id,
 							name: device.name,
-							lock: device.jenkinsLockOwner,
+							lock: device.lock?.owner,
 							build: device.build?.name,
 							connections: [...getDeviceConnections(device)],
 						};

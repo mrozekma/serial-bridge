@@ -26,13 +26,13 @@
 			<a-sub-menu title="State">
 				<a-menu-item><a :href="manageUrl">Manage</a></a-menu-item>
 				<template v-if="device.state == 'resolved' && device.value.jenkinsLockName">
-					<a-menu-item v-if="!device.value.jenkinsLockOwner" @click="acquireLock">Reserve in Jenkins</a-menu-item>
+					<a-menu-item v-if="!device.value.lock" @click="acquireLock">Reserve in Jenkins</a-menu-item>
 					<a-menu-item v-else @click="releaseLock">Unreserve in Jenkins</a-menu-item>
 				</template>
 				<a-menu-item><a :href="`/config/reload?devices=${id}`">Reload configuration</a></a-menu-item>
 			</a-sub-menu>
 			<a-menu-item class="faux">
-				<sb-lock v-if="showLock && device.state === 'resolved'" ref="lock" :device="device.value" :owner="device.value.jenkinsLockOwner" @close="locking = false"/>
+				<sb-lock v-if="showLock && device.state === 'resolved'" ref="lock" :device="device.value" :owner="device.value.lock ? device.value.lock.owner : undefined" :date="device.value.lock ? device.value.lock.date : undefined" compact @close="locking = false"/>
 			</a-menu-item>
 			<a-menu-item class="faux" @click="finishedBuild = undefined">
 				<sb-jenkins v-if="device.state == 'resolved' && (device.value.build || finishedBuild)" :build="device.value.build || finishedBuild"/>
@@ -192,7 +192,7 @@
 				return rtn;
 			},
 			showLock(): boolean {
-				return this.locking || (this.device.state == 'resolved' && this.device.value.jenkinsLockOwner !== undefined);
+				return this.locking || (this.device.state == 'resolved' && this.device.value.lock !== undefined);
 			},
 		},
 		watch: {
@@ -395,7 +395,7 @@
 						handler: () => self.copyState(),
 					};
 					if(device.jenkinsLockName) {
-						yield !device.jenkinsLockOwner ? {
+						yield !device.lock ? {
 							value: 'device.manage.lock.acquire',
 							text: [ 'Device', 'Manage', 'Reserve in Jenkins' ],
 							handler: () => self.acquireLock(),
