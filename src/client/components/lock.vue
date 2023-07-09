@@ -12,10 +12,10 @@
 				<template v-if="relativeDate" slot="title">
 					Reserved since {{ dateAsDate }} ({{ relativeDate }})
 				</template>
-				Reserved by {{ owner }}
+				Reserved by {{ owner }}<template v-if="note">: {{ note }}</template>
 			</a-tooltip>
 			<template v-else>
-				Reserved by {{ owner }} since {{ dateAsDate }} ({{ relativeDate }})
+				Reserved by {{ owner }} since {{ dateAsDate }} ({{ relativeDate }})<template v-if="note">: {{ note }}</template>
 			</template>
 		</template>
 		<template v-else-if="state == 'failed'">
@@ -36,6 +36,7 @@
 			device: Object as PropType<DeviceJson>,
 			owner: String,
 			date: [ Object, String ] as PropType<Date | string>,
+			note: String,
 			compact: Boolean,
 		},
 		computed: {

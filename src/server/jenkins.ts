@@ -113,6 +113,7 @@ interface Locks {
 		owner: string;
 		type: 'user' | 'build';
 		date: Date | undefined;
+		note: string | undefined;
 	};
 };
 
@@ -147,12 +148,14 @@ export async function parseLockXml(xml: string): Promise<Locks> {
 					owner: resource.reservedBy,
 					type: 'user',
 					date: resource.reservedTimestamp ? new Date(resource.reservedTimestamp) : undefined,
+					note: resource.note,
 				};
 			} else if(resource.buildExternalizableId) {
 				rtn[resource.name] = {
 					owner: resource.buildExternalizableId,
 					type: 'build',
 					date: undefined,
+					note: undefined,
 				};
 			}
 		}

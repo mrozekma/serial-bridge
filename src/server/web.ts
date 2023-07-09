@@ -49,6 +49,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				source: 'jenkins',
 				owner: device.jenkinsLockOwner,
 				date: undefined,
+				note: undefined,
 			};
 		}
 		return device;
@@ -577,6 +578,7 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 						source: 'jenkins',
 						owner: lock.owner,
 						date: lock.date,
+						note: lock.note,
 					};
 				} else if(lock.type === 'build') {
 					device.lock = undefined;

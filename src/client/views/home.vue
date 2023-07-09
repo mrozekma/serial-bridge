@@ -98,7 +98,7 @@
 												</a-button>
 											</a-tooltip>
 										</template>
-										<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.lock" :ref="`lock-${device.name}`" :device="device" :owner="device.lock ? device.lock.owner : undefined" :date="device.lock ? device.lock.date : undefined" inline-date/>
+										<sb-lock v-if="(locking.indexOf(device.name) >= 0) || device.lock" :ref="`lock-${device.name}`" :device="device" :owner="device.lock ? device.lock.owner : undefined" :date="device.lock ? device.lock.date : undefined" :note="device.lock ? device.lock.note : undefined" inline-date/>
 										<div v-else-if="device.jenkinsLockName" class="unlocked">
 											<i class="fas fa-unlock-alt"></i>
 											<span>

@@ -558,6 +558,7 @@ export interface Lock {
 	source: 'jenkins';
 	owner: string;
 	date: Date | undefined;
+	note: string | undefined;
 }
 
 // NB: The Command class causes Device to emit many events not visible here

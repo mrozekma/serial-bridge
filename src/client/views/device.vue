@@ -32,7 +32,7 @@
 				<a-menu-item><a :href="`/config/reload?devices=${id}`">Reload configuration</a></a-menu-item>
 			</a-sub-menu>
 			<a-menu-item class="faux">
-				<sb-lock v-if="showLock && device.state === 'resolved'" ref="lock" :device="device.value" :owner="device.value.lock ? device.value.lock.owner : undefined" :date="device.value.lock ? device.value.lock.date : undefined" compact @close="locking = false"/>
+				<sb-lock v-if="showLock && device.state === 'resolved'" ref="lock" :device="device.value" :owner="device.value.lock ? device.value.lock.owner : undefined" :date="device.value.lock ? device.value.lock.date : undefined" :note="device.value.lock ? device.value.lock.note : undefined" compact @close="locking = false"/>
 			</a-menu-item>
 			<a-menu-item class="faux" @click="finishedBuild = undefined">
 				<sb-jenkins v-if="device.state == 'resolved' && (device.value.build || finishedBuild)" :build="device.value.build || finishedBuild"/>
