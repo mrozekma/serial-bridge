@@ -42,8 +42,8 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 		}
 	}
 
-	// If the remote is running an old version, it might set 'jenkinsLockOwner' but not 'lock'
-	function fixupOldLock(device: DeviceJson): DeviceJson {
+	function fixupOldDeviceJson(device: DeviceJson): DeviceJson {
+		// If the remote is running an old version, it might set 'jenkinsLockOwner' but not 'lock'
 		if(device.lock === undefined && device.jenkinsLockOwner !== undefined) {
 			device.lock = {
 				source: 'jenkins',
@@ -51,6 +51,18 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 				date: undefined,
 				note: undefined,
 			};
+		}
+		// It might also be missing some webConnection keys
+		for(const conn of device.webConnections) {
+			if(conn.connectedAt === undefined) {
+				conn.connectedAt = new Date();
+			}
+			if(conn.state === undefined) {
+				conn.state = {
+					active: true,
+					asOf: new Date(),
+				};
+			}
 		}
 		return device;
 	}
@@ -68,7 +80,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 						const service = remote.app.service('api/devices');
 						service.timeout = 2000; // Shorten so the parent API call won't timeout waiting on this one
 						return service.find({ query: { local: true } })
-							.then<DeviceJson[]>(devices => devices.map(device => remote.rewriteDeviceJson(fixupOldLock(device))))
+							.then<DeviceJson[]>(devices => devices.map(device => remote.rewriteDeviceJson(fixupOldDeviceJson(device))))
 							.catch<DeviceJson[]>(err => {
 								const device = new Device('error', `Failed to contact remote '${remote.name}'`, `${err}`, undefined, [{ name: 'error', color: 'red' }], undefined);
 								return [ remote.rewriteDeviceJson(device.toJSON(), false) ];
