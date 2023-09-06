@@ -290,9 +290,9 @@ How to handle the files stored on the server when a user shares their terminal s
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 If Jenkins is :ref:`integrated <jenkins>` with Serial Bridge, this is the root URL of the Jenkins installation.
 
-:field-optional:`blacklist`
+:field-optional:`blocklist`
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-An array of hostnames and IP addresses to block from connecting to the web interface and node telnet ports. Serial Bridge will attempt to convert hostnames to IPs and the reverse on startup, but after that the blacklist is fixed. Best practice is to list exactly the string you see in the console output when the target host tries to connect.
+An array of hostnames and IP addresses to block from connecting to the web interface and node telnet ports. Serial Bridge will attempt to convert hostnames to IPs and the reverse on startup, but after that the blocklist is fixed. Best practice is to list exactly the string you see in the console output when the target host tries to connect.
 
 .. _users:
 

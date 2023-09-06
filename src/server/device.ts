@@ -10,7 +10,7 @@ import slugify from 'slugify';
 import ioClient from 'socket.io-client';
 
 import { ClientServices as Services } from '@/services';
-import { isBlacklisted } from './blacklist';
+import { isBlocklisted } from './blocklist';
 import { Config } from './config';
 import Connections, { Connection } from './connections';
 import IdGenerator from './id-generator';
@@ -243,9 +243,9 @@ export abstract class Node extends EventEmitter {
 
 	private onTcpConnect(socket: net.Socket) {
 		const address = socket.remoteAddress!;
-		if(isBlacklisted(address)) {
-			this.log(`${address} rejected -- blacklisted`);
-			socket.write("Blacklisted\r\n");
+		if(isBlocklisted(address)) {
+			this.log(`${address} rejected -- blocklisted`);
+			socket.write("Blocklisted\r\n");
 			socket.destroy();
 			return;
 		}
