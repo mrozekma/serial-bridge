@@ -7,17 +7,17 @@ function add(promise: Promise<string[]>) {
 	promise.then(names => names.forEach(name => list.add(name))).catch(err => {});
 }
 
-export function blacklist(host: string) {
-	console.log('blacklist', host);
+export function blocklist(host: string) {
+	console.log('blocklist', host);
 	list.add(host);
 	add(resolver.resolve(host));
 	add(resolver.reverse(host));
 }
 
-export function isBlacklisted(host: string): boolean {
+export function isBlocklisted(host: string): boolean {
 	return list.has(host);
 }
 
-export function getBlacklist(): Readonly<string[]> {
+export function getBlocklist(): Readonly<string[]> {
 	return [ ...list ];
 }

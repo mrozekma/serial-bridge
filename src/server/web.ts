@@ -9,7 +9,7 @@ import pathlib from 'path';
 import slugify from 'slugify';
 
 import { ServerServices as Services, ServiceDefinitions, DeviceJson } from '@/services';
-import { isBlacklisted, getBlacklist } from './blacklist';
+import { isBlocklisted, getBlocklist } from './blocklist';
 import { Config, gitPull, hasGitDir, loadConfig } from './config';
 import Device, { Node, Remote, EphemeralDevice, RemoteIONode, Devices, DevicesConfigReloadSpec } from './device';
 import { getUser, setUserInfo } from './connections';
@@ -206,8 +206,8 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 					return {
 						...config.portsFind,
 					};
-				case 'blacklist':
-					return getBlacklist();
+				case 'blocklist':
+					return getBlocklist();
 				case 'reload':
 					if(!config.configReloadable) {
 						return {
@@ -501,8 +501,8 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 	const app = express(feathers<Services>());
 
 	app.use((req, res, next) => {
-		if(isBlacklisted(req.ip)) {
-			res.status(403).send('Blacklisted');
+		if(isBlocklisted(req.ip)) {
+			res.status(403).send('Blocklisted');
 		} else {
 			next();
 		}
@@ -610,7 +610,7 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 
 	app.configure(socketioServer(io => {
 		io.on('connection', socket => {
-			if(isBlacklisted(socket.conn.remoteAddress)) {
+			if(isBlocklisted(socket.conn.remoteAddress)) {
 				socket.disconnect();
 				return;
 			}

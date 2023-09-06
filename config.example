@@ -128,7 +128,7 @@ config = {
 	jenkinsUrl: 'http://...',
 
 	// Optional. List of hostnames/IP addresses to block from connecting.
-	blacklist: [
+	blocklist: [
 		'google.com',
 		'8.8.8.8',
 	],

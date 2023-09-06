@@ -5,7 +5,7 @@ import net from 'net';
 import ora from 'ora';
 
 import banner from 'raw-loader!./banner.txt';
-import { blacklist } from './blacklist';
+import { blocklist } from './blocklist';
 import { loadConfig, Config } from './config';
 import { Devices, Remote } from './device';
 import { configureUserFactory } from './connections';
@@ -51,7 +51,7 @@ function makeHttpxServer(httpServer: http.Server, httpsServer: https.Server) {
 	console.log(`${banner}\n${BUILD_VERSION}${BUILD_ID ? ` (build ${BUILD_ID})` : ''} (${BUILD_FILE_HASH ?? 'no file hash'})\nBuilt ${BUILD_DATE}\n`);
 	const config = await spinner("Load configuration", loadConfig);
 	configureUserFactory(config.users ? config.users.identify as any : undefined);
-	config.blacklist.forEach(blacklist);
+	config.blocklist.forEach(blocklist);
 	const devices: Devices = await spinner("Load device information", async () => Devices.fromConfig(config.devices));
 	if(config.configReloadable) {
 		process.on('SIGUSR2', async () => {
