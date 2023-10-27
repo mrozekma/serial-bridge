@@ -257,6 +257,56 @@ An array of objects defining :ref:`commands <commands>` that can be executed in 
 
 Every command object must contain exactly one of ``fn``, if the menu item is a command, or ``submenu``, if the menu item is a submenu.
 
+.. _config_layouts:
+
+:field-optional:`layouts`
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+An array of objects defining :ref:`layouts <layouts>` that can be applied to the device web view. Each object contains the following keys:
+
+* :field-mandatory:`name` -- A human-friendly name used to identify the layout.
+* :field-optional:`devices` -- A filter to control which devices the layout can be used on. This can either be an array of device name strings, or a function that takes a device's JSON representation and returns a boolean. By default, a layout is allowed on a particular device as long as the device contains all of the nodes referenced in the layout.
+* :field-mandatory:`type` -- The type of the root layout cell. See the next section on layout structure for more information.
+* :field-mandatory:`children` -- The children of the root layout cell. See the next section on layout structure for more information.
+
+Layout structure
+""""""""""""""""
+Each layout is comprised of cells that are organized into rows, columns, stacks, and nodes (a cell containing the actual node terminal). Each non-node cell specifies a ``children`` array containing the cells within it. Rows and columns can nest indefinitely, while stacks can only contain nodes. Node cells do not specify ``children``, but do specify ``name``, the name of the node they contain.
+
+Each cell can also optionally specify a width or height. These are `fractional units <https://www.w3.org/TR/css-grid-2/#valdef-flex-fr>`_, so each one represents a fraction of the total width/height available, determined by dividing the value by the sum of all the values in that row/column. For example, if three cells in the same row specify widths 1, 2, and 3, they will be allocated 1/6th, 2/6th, and 3/6th of the row width, respectively. Any cell that does not specify a width or height will default to 1.
+
+For example, the layout in this figure:
+
+.. figure:: web-manage-layouts.png
+   :scale: 50%
+
+is specified by the following configuration::
+
+   {
+      name: 'Example layout',
+      type: 'row',
+      children: [{
+         type: 'column',
+         children: [{
+            type: 'node',
+            name: 'ttyS1000',
+            height: 2,
+         }, {
+            type: 'node',
+            name: 'ttyS1003',
+         }],
+      }, {
+         type: 'stack',
+         children: [{
+            type: 'node',
+            name: 'ttyS1001',
+         }, {
+            type: 'node',
+            name: 'ttyS1002',
+         }],
+      }]
+   }
+
+
 :field-optional:`notice`
 ^^^^^^^^^^^^^^^^^^^^^^^^
 A notice to show users at the top of the web home page.
@@ -429,6 +479,15 @@ The ``api`` object contains the following functions:
    will draw:
 
    .. figure:: web-device-command-modal.png
+
+.. _layouts:
+
+Layouts
+-------
+Layouts are saved arrangements of nodes on the device view. Layouts can be defined in the :ref:`configuration file <config>`, and each user can also save custom layouts in their local storage. The current layout on the device view can be changed via the :menuselection:`View --> Layout` menu. Users can also preview layouts and choose which layout they want the device view to default to via the home view "Setup" tab:
+
+.. figure:: web-manage-layouts.png
+   :scale: 50%
 
 .. _jenkins:
 

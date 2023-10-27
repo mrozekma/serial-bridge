@@ -9,8 +9,10 @@ import deepRenameKeys from 'deep-rename-keys';
 //@ts-ignore No declaration file
 import requireLike from 'require-like';
 
+import { layoutJoi } from '../layout';
+
 const nodeJoi = joi.object({
-	name: joi.string().required(),
+	name: joi.string().required().min(1),
 	comPort: joi.string().required(),
 	baudRate: joi.number().integer().required(),
 	byteSize: joi.number().default(8).valid(5, 6, 7, 8),
@@ -23,21 +25,21 @@ const nodeJoi = joi.object({
 	).default([]),
 	webDefaultVisible: joi.boolean().default(true),
 	ssh: joi.object({
-		host: joi.string().required(),
-		username: joi.string().required(),
+		host: joi.string().required().min(1),
+		username: joi.string().required().min(1),
 		password: joi.string().required(),
 	}),
 	metadata: joi.object(),
 });
 
 const deviceJoi = joi.object({
-	name: joi.string().required(),
+	name: joi.string().required().min(1),
 	description: joi.string(),
 	category: joi.string(),
 	tags: joi.array().items(
 		joi.string(),
 		joi.object({
-			name: joi.string().required(),
+			name: joi.string().required().min(1),
 			description: joi.string(),
 			color: joi.string(),
 			showOnDevicePage: joi.boolean(),
@@ -45,7 +47,7 @@ const deviceJoi = joi.object({
 	).default([]),
 	nodes: joi.array().required().items(nodeJoi),
 	//TODO commands?
-	jenkinsLock: joi.string(),
+	jenkinsLock: joi.string().min(1),
 	metadata: joi.object(),
 });
 
@@ -122,6 +124,7 @@ const configJoi = joi.object({
 	jenkinsUrl: joi.string(),
 	notice: joi.string(),
 	blacklist: joi.array().items(joi.string()).default([]),
+	layouts: joi.array().items(layoutJoi).default([]),
 }).required();
 
 // Serial Bridge 1's config file had keys with spaces in it, so for backwards compatibility, convert 'foo bar' to 'fooBar'

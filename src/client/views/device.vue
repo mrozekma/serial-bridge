@@ -13,13 +13,22 @@
 			</template>
 			<a-sub-menu v-if="commands && (commands.state != 'resolved' || commands.value.length > 0)" title="Commands">
 				<a-menu-item v-if="commands.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
-				<a-menu-item v-else-if="commands.state == 'rejected'"  disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
+				<a-menu-item v-else-if="commands.state == 'rejected'" disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
 				<sb-command-menu v-else v-for="entry in commands.value" :key="entry.name" v-bind="entry"/>
 			</a-sub-menu>
 			<a-sub-menu title="View">
+				<a-sub-menu title="Layout">
+					<a-menu-item v-if="layouts.state == 'pending'" disabled><a-spin size="small"/> Loading...</a-menu-item>
+					<a-menu-item v-else-if="layouts.state == 'rejected'" disabled><i class="fas fa-exclamation-circle"></i> Failed to load</a-menu-item>
+					<a-menu-item-group v-else title="Apply Layout">
+						<a-menu-item v-for="layout in layouts.value" :key="layout.name" @click="applyLayout(layout)">{{ layout.name }}</a-menu-item>
+					</a-menu-item-group>
+					<a-menu-divider/>
+					<a-menu-item @click="newLayout.visible = true">Save current layout</a-menu-item>
+					<a-menu-item @click="manageLayouts">Manage layouts</a-menu-item>
+				</a-sub-menu>
 				<a-menu-item @click="resetTerms">Clear</a-menu-item>
 				<a-menu-item @click="paused = !paused">{{ !paused ? 'Pause' : 'Unpause' }}</a-menu-item>
-				<a-menu-item @click="resetLayout">Reset Layout</a-menu-item>
 				<a-menu-item @click="screenshot()">Screenshot</a-menu-item>
 				<a-menu-item @click="copyState">Share</a-menu-item>
 			</a-sub-menu>
@@ -96,6 +105,11 @@
 				<!-- eslint-enable vue/valid-v-for -->
 			</a-menu>
 		</main>
+		<sb-form-modal v-model="newLayout.visible" title="Save Layout" :ok="saveLayout">
+			<a-form-item label="Layout name">
+				<a-input v-model="newLayout.name" />
+			</a-form-item>
+		</sb-form-modal>
 	</div>
 </template>
 
@@ -112,6 +126,8 @@
 	import commandPalette, { Command as PaletteCommand } from '../command-palette';
 	import { DeviceJson, CommandJson, BuildJson, SavedTerminalJson } from '@/services';
 	import { User } from '@/server/connections'; // Another server type import in the client :|
+
+	import { SerializedLayout, deserialize as deserializeLayouts, saveNew as saveNewLayout } from '../components/setup-layouts.vue';
 
 	type ContextMenuItem<T = string> = {
 		text: string;
@@ -140,8 +156,9 @@
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
 	import SbConnection from '../components/connection.vue';
 	import SbCommandModal from '../components/command-modal.vue';
+	import SbFormModal from '../components/form-modal.vue';
 	export default Vue.extend({
-		components: { SbNavbar, SbCommandMenu, SbJenkins, SbLock, SbLayout, SbTerminal, SbConnection },
+		components: { SbNavbar, SbCommandMenu, SbJenkins, SbLock, SbLayout, SbTerminal, SbConnection, SbFormModal },
 		props: {
 			id: {
 				type: String,
@@ -259,6 +276,9 @@
 				commands: {
 					state: 'pending',
 				} as PromiseResult<CommandJson[]>,
+				layouts: {
+					state: 'pending',
+				} as PromiseResult<SerializedLayout[]>,
 				runningCommand: undefined as {
 					name: string;
 					label: string;
@@ -279,6 +299,10 @@
 					items: ContextMenuItem[];
 				} | undefined,
 				nodeEols: {} as { [K: string]: 'cr' | 'lf' | 'crlf' },
+				newLayout: {
+					visible: false,
+					name: '',
+				},
 			};
 		},
 		mounted() {
@@ -363,6 +387,20 @@
 						text: 'Commands',
 					}]);
 				}
+				if(self.layouts.state === 'resolved') {
+					for(const layout of self.layouts.value) {
+						yield {
+							value: `device.layout.apply.${layout.name}`,
+							text: [ 'Device', 'Layout', 'Apply', layout.name ],
+							handler: () => self.applyLayout(layout),
+						};
+					}
+				}
+				yield {
+					value: 'device.layout.save',
+					text: [ 'Device', 'Layout', 'Save' ],
+					handler: () => self.newLayout.visible = true,
+				};
 				yield {
 					value: 'device.view.clear',
 					text: [ 'Device', 'View', 'Clear' ],
@@ -376,11 +414,6 @@
 					value: 'device.view.unpause',
 					text: [ 'Device', 'View', 'Unpause' ],
 					handler: () => self.paused = false,
-				};
-				yield {
-					value: 'device.view.resetLayout',
-					text: [ 'Device', 'View', 'Reset Layout' ],
-					handler: () => self.resetLayout(),
 				};
 				if(self.device.state === 'resolved') {
 					const device = self.device.value;
@@ -437,6 +470,13 @@
 					device: this.id,
 				},
 			}));
+
+			this.layouts = unwrapPromise(this.app.service('api/layouts').find({
+				query: {
+					device: this.id,
+				},
+			}).then(deserializeLayouts), layouts => this.applyDefaultLayout());
+
 			if(document.location.search) {
 				const params = new URLSearchParams(document.location.search.substring(1));
 				const state = params.get('state');
@@ -521,9 +561,33 @@
 					(await this.getTerminal(node.name)).terminal.reset();
 				}
 			},
-			resetLayout() {
-				const layout = this.$refs.layout as SbLayoutVue;
-				layout.resetLayout();
+			applyLayout(layout: SerializedLayout) {
+				const layoutVue = this.$refs.layout as SbLayoutVue;
+				layoutVue.loadLayout(layout.layout);
+			},
+			applyDefaultLayout() {
+				if(this.layouts.state !== 'resolved') {
+					throw new Error("Layouts unresolved");
+				}
+				const layout = this.layouts.value.find(layout => layout.enabled);
+				if(!layout) {
+					throw new Error("No layout available");
+				}
+				this.applyLayout(layout);
+			},
+			saveLayout() {
+				if(this.layouts.state !== 'resolved') {
+					throw new Error("Layouts unresolved");
+				} else if(this.newLayout.name === '') {
+					return;
+				}
+				const layoutVue = this.$refs.layout as SbLayoutVue;
+				const layout = layoutVue.saveLayout();
+				const newLayout = saveNewLayout(this.newLayout.name, layout);
+				this.layouts.value.push(newLayout);
+			},
+			manageLayouts() {
+				window.open('/#setup', '_blank');
 			},
 			termStdin(nodeName: string, data: string) {
 				const eol = {
@@ -1020,6 +1084,12 @@
 		}
 		.ant-menu-item-divider {
 			margin: 4px 0;
+		}
+	}
+
+	.ant-menu {
+		.ant-menu-item-group-title {
+			color: rgba(255, 255, 255, 0.35);
 		}
 	}
 </style>

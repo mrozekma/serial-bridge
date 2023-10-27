@@ -5,11 +5,67 @@
 <script lang="ts">
 	import Vue, { PropType } from 'vue';
 
+	import { Layout as SbLayout, LayoutItem as SbLayoutItem } from '../../layout';
 	import { Node } from '../device-functions';
 
-	import { ComponentContainer, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, RowOrColumnItemConfig, Stack } from 'golden-layout';
+	import { ComponentContainer, ComponentItemConfig, ContentItem, GoldenLayout, LayoutConfig, ResolvedComponentItemConfig, ResolvedLayoutConfig, RowOrColumnItemConfig, Stack, StackItemConfig } from 'golden-layout';
 	import 'golden-layout/dist/css/goldenlayout-base.css';
 	import 'golden-layout/dist/css/themes/goldenlayout-light-theme.css';
+
+	function sbLayoutToGl(layout: SbLayout, nodes: Node[]): LayoutConfig {
+		function helper(item: SbLayoutItem): RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig {
+			switch(item.type) {
+				case 'row':
+				case 'column':
+					return {
+						type: item.type,
+						height: item.height ?? 1,
+						width: item.width ?? 1,
+						content: item.children ? item.children.map(helper) : [],
+					};
+				case 'stack':
+					return {
+						type: item.type,
+						height: item.height ?? 1,
+						width: item.width ?? 1,
+						content: item.children ? item.children.map(helper) as ComponentItemConfig[] : [],
+					};
+				case 'node':
+					const node = nodes.find(node => node.name === item.name);
+					return node ? {
+						type: 'component',
+						height: item.height ?? 1,
+						width: item.width ?? 1,
+						componentType: 'terminal',
+						title: node.name,
+						componentState: {
+							node,
+						},
+					} : {
+						type: 'component',
+						height: item.height,
+						width: item.width,
+						componentType: 'badNode',
+						componentState: {
+							name: item.name,
+						},
+					};
+			}
+		}
+
+		return {
+			root: helper(layout),
+			header: {
+				close: 'Close',
+				maximise: 'Maximize',
+				minimise: 'Minimize',
+				// popout: 'Open in new window',
+				popout: false,
+				popin: 'Pop back in to main window',
+				tabDropdown: 'Additional tabs',
+			},
+		};
+	}
 
 	import SbTerminal, { SbTerminalVue } from '../components/terminal.vue';
 	import SbTabLinks, { SbTabLinksVue } from '../components/tab-links.vue';
@@ -27,14 +83,13 @@
 		data() {
 			return {
 				gl: undefined as GoldenLayout | undefined,
-				layoutConfig: undefined as LayoutConfig | undefined,
 				ready: false,
 				terminals: new Map<string, SbTerminalVue>(), // node name -> SbTerminal
+				layoutPromiseResolve: (layout: GoldenLayout) => {},
 			};
 		},
 		mounted() {
-			let layoutResolve: (layout: GoldenLayout) => void;
-			const layoutPromise = new Promise<GoldenLayout>(resolve => layoutResolve = resolve);
+			const layoutPromise = new Promise<GoldenLayout>(resolve => this.layoutPromiseResolve = resolve);
 			layoutPromise.then(() => this.ready = true);
 
 			// Make an SbTerminal for each node
@@ -57,34 +112,6 @@
 				this.terminals.set(node.name, comp as SbTerminalVue);
 			});
 
-			const nodeConfigs = this.nodes.map<ComponentItemConfig>(node => ({
-				type: 'component',
-				componentName: 'terminal',
-				componentType: 'terminal',
-				title: node.name,
-				componentState: {
-					node,
-				},
-			}));
-
-			const row = [...function*(): IterableIterator<RowOrColumnItemConfig> {
-				let i = 0;
-				if(nodeConfigs.length % 2) {
-					// If odd, put the first node in a column alone
-					yield {
-						type: 'column',
-						content: [ nodeConfigs[i++]] ,
-					};
-				}
-				const rowLen = Math.floor(nodeConfigs.length / 2);
-				for(; i * 2 < nodeConfigs.length; i++) {
-					yield {
-						type: 'column',
-						content: [ nodeConfigs[i], nodeConfigs[i + rowLen] ],
-					};
-				}
-			}()];
-
 			const gl = this.gl = new GoldenLayout(this.$el as HTMLDivElement, (container: ComponentContainer, itemConfig: ResolvedComponentItemConfig) => {
 				const node: Node = (itemConfig.componentState as any).node;
 				const term = this.getNodeTerminal(node.name);
@@ -97,7 +124,7 @@
 			// The GL beforeunload handler gets triggered when following a tab-links link and destroys the layout, so this unregisters it.
 			//@ts-ignore The listener isn't part of the public interface
 			window.removeEventListener('beforeunload', gl._windowUnloadListener);
-			this.gl.resizeWithContainerAutomatically = true;
+			gl.resizeWithContainerAutomatically = true;
 
 			const tabLinksCtor = Vue.extend(SbTabLinks);
 			gl.on('itemCreated', e => {
@@ -115,23 +142,6 @@
 					comp.setNode(this.deviceName, this.nodes.find(seek => seek.name == node.name));
 				});
 			});
-			this.layoutConfig = {
-				root: {
-					type: 'row',
-					content: row,
-				},
-				header: {
-					close: 'Close',
-					maximise: 'Maximize',
-					minimise: 'Minimize',
-					// popout: 'Open in new window',
-					popout: false,
-					popin: 'Pop back in to main window',
-					tabDropdown: 'Additional tabs',
-				},
-			};
-			this.resetLayout();
-			layoutResolve!(gl);
 		},
 		beforeDestroy() {
 			this.gl?.destroy();
@@ -144,8 +154,15 @@
 				}
 				return rtn;
 			},
-			resetLayout() {
-				this.gl!.loadLayout(this.layoutConfig!);
+			loadLayout(layout: SbLayout | ResolvedLayoutConfig) {
+				function isGlLayout(layout: SbLayout | ResolvedLayoutConfig): layout is ResolvedLayoutConfig {
+					return (layout as any).resolved === true;
+				}
+				this.gl!.loadLayout(isGlLayout(layout) ? layout as any : sbLayoutToGl(layout, this.nodes));
+				this.layoutPromiseResolve(this.gl!);
+			},
+			saveLayout(): ResolvedLayoutConfig {
+				return this.gl!.saveLayout();
 			},
 		},
 	});

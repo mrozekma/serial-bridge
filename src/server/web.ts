@@ -19,6 +19,7 @@ import makeMobaSessionsFile from './mobaxterm';
 import { parseLockXml, checkJenkinsApiKey } from './jenkins';
 import NativePort, { onPortData } from './native-port';
 import SavedTerminalStore, { SavedTerminal, SavedTerminalJson } from './saved-terminal';
+import { Layout, Layouts } from '@/layout';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_LINK: string, BUILD_ID: string | undefined, RELEASE_LINK: string | undefined, BUILD_FILE_HASH: string, BUILD_DATE: string, HAS_LICENSES: boolean;
@@ -27,7 +28,7 @@ const devicesRoute = /^\/devices\/([^/]+)(?:\/manage)?\/?$/;
 const portsRoute = /^\/ports(?:\/find)?\/?$/;
 const configRoute = /^\/config\/reload\/?$/;
 
-function makeServices(app: Application<Services>, config: Config, devices: Devices, remotes: Remote[], commands: Command[], saveStore: SavedTerminalStore): ServiceDefinitions {
+function makeServices(app: Application<Services>, config: Config, devices: Devices, remotes: Remote[], commands: Command[], layouts: Layouts, saveStore: SavedTerminalStore): ServiceDefinitions {
 	function getJenkinsDevice(name: any) {
 		const device = devices.find(device => device.jenkinsLockName == name);
 		if(device) {
@@ -300,6 +301,29 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 			},
 		},
 
+		'api/layouts': {
+			async find(params) {
+				const deviceId = params?.query?.device;
+				if(deviceId) {
+					const device = devices.find(device => device.id === deviceId);
+					if(!device) {
+						throw new Error(`Invalid device: ${deviceId}`);
+					}
+					return layouts.getLayoutsForDevice(device);
+				} else {
+					return Array.from(layouts.filter((layout): layout is Layout => layout !== 'auto'));
+				}
+			},
+			async get(id, params) {
+				for (const layout of await this.find()) {
+					if (layout.name === id) {
+						return layout;
+					}
+				}
+				throw new Error(`Layout not found: ${id}`);
+			},
+		},
+
 		'api/jenkins': {
 			async get(id, params) {
 				const device = getJenkinsDevice(id);
@@ -497,7 +521,7 @@ function attachRemoteListeners(app: Application<Services>, remotes: Remote[]) {
 	}
 }
 
-export function makeWebserver(config: Config, devices: Devices, remotes: Remote[], commands: Command[]): Application<Services> {
+export function makeWebserver(config: Config, devices: Devices, remotes: Remote[], commands: Command[], layouts: Layouts): Application<Services> {
 	const app = express(feathers<Services>());
 
 	app.use((req, res, next) => {
@@ -648,7 +672,7 @@ export function makeWebserver(config: Config, devices: Devices, remotes: Remote[
 	const saveStore = new SavedTerminalStore(config.savedState.dir, config.savedState.expireAfter, config.savedState.maxSize);
 
 	// Register services
-	const services = makeServices(app, config, devices, remotes, commands, saveStore);
+	const services = makeServices(app, config, devices, remotes, commands, layouts, saveStore);
 	for(const [ name, service ] of Object.entries(services)) {
 		app.use(name, service);
 	}

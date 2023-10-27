@@ -124,12 +124,11 @@
 					</div>
 				</a-tab-pane>
 
-
-				<a-tab-pane key="setup" tab="Setup">
+				<a-tab-pane key="setup" tab="Setup" class="setup-tab">
 					<h2>You</h2>
 					<a-alert v-if="usersConfig.state == 'rejected'" type="error" message="Failed to load user directory config" :description="usersConfig.error.message" showIcon/>
 					<a-alert v-else-if="currentUser.state == 'rejected'" type="error" message="Failed to load current user info" :description="currentUser.error.message" showIcon/>
-					<a-spin v-else-if="usersConfig.state == 'pending' || currentUser.state == 'pending'"/>
+					<a-skeleton v-else-if="usersConfig.state == 'pending' || currentUser.state == 'pending'" active/>
 					<template v-else>
 						A list of who is connected to each device/port is displayed in several places in the UI.<br>
 						<template v-if="usersConfig.value.identifySupport">
@@ -158,7 +157,7 @@
 					</template>
 
 					<a-alert v-if="jenkinsConfig.state == 'rejected'" type="error" message="Failed to load Jenkins config" :description="jenkinsConfig.error.message" showIcon/>
-					<a-spin v-else-if="jenkinsConfig.state == 'pending'"/>
+					<a-skeleton v-else-if="jenkinsConfig.state == 'pending'" active/>
 					<template v-else-if="jenkinsConfig.value.jenkinsUrl">
 						<h2>Jenkins</h2>
 						It's possible to control Jenkins locks from within Serial Bridge, but this requires a Jenkins API key:
@@ -239,6 +238,9 @@
 						</a-radio-group>
 						<a-button type="primary" html-type="submit" style="margin-left: 10px">Save</a-button>
 					</a-form>
+
+					<h2>Layouts</h2>
+					<sb-setup-layouts/>
 
 					<h2>Clipboard</h2>
 					<template v-if="clipboardAvailable === true">
@@ -427,10 +429,11 @@
 	import SbChangelog from '../components/changelog.vue';
 	import SbConnection from '../components/connection.vue';
 	import SbMetadataTree from '../components/metadata-tree.vue';
+	import SbSetupLayouts from '../components/setup-layouts.vue';
 	import { rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
 	import { Node, compareStrings, getDeviceUrl, isErrorDevice, uniqifyAndSort, NodeLinkHandler } from '../device-functions';
 	export default Vue.extend({
-		components: { SbNavbar, SbLock, SbJenkins, SbFormModal, SbChangelog, SbConnection, SbMetadataTree },
+		components: { SbNavbar, SbLock, SbJenkins, SbFormModal, SbChangelog, SbConnection, SbMetadataTree, SbSetupLayouts },
 		computed: {
 			...rootDataComputeds(),
 			defaultTab(): string {
@@ -1086,6 +1089,10 @@
 		/deep/ .ant-radio + * {
 			font-weight: bold;
 		}
+	}
+
+	.setup-tab {
+		padding: 0 5px;
 	}
 
 	form {

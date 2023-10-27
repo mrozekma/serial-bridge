@@ -37,7 +37,7 @@ export type PromiseResult<T> = {
 	error: Error;
 }
 
-export function unwrapPromise<T>(promise: Promise<T>): PromiseResult<T> {
+export function unwrapPromise<T>(promise: Promise<T>, onfulfilled?: (value: T) => void, onrejected?: (err: any) => void): PromiseResult<T> {
 	const result = {
 		state: 'pending',
 		value: undefined as T | undefined,
@@ -46,9 +46,11 @@ export function unwrapPromise<T>(promise: Promise<T>): PromiseResult<T> {
 	promise.then(value => {
 		result.value = value;
 		result.state = 'resolved';
+		onfulfilled?.(value);
 	}).catch(err => {
 		result.error = err;
 		result.state = 'rejected';
+		onrejected?.(err);
 	});
 	return result as PromiseResult<T>;
 }

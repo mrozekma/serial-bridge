@@ -11,6 +11,7 @@ import { Devices, Remote } from './device';
 import { configureUserFactory } from './connections';
 import Command from './command';
 import IdGenerator from './id-generator';
+import { Layouts } from '../layout';
 
 // From DefinePlugin
 declare const BUILD_VERSION: string, BUILD_ID: string, BUILD_FILE_HASH: string, BUILD_DATE: string;
@@ -71,9 +72,10 @@ function makeHttpxServer(httpServer: http.Server, httpsServer: https.Server) {
 			const idGen = new IdGenerator('command');
 			return config.commands ? config.commands.map(commandConfig => Command.fromConfig(commandConfig, idGen)) : [];
 		});
+		const layouts: Layouts = await spinner("Load layouts", async () => Layouts.fromConfig(config.layouts));
 		const app = await spinner("Make webserver", async () => {
 			const { makeWebserver } = await import(/* webpackChunkName: 'web' */ './web');
-			return makeWebserver(config, devices, remotes, commands);
+			return makeWebserver(config, devices, remotes, commands, layouts);
 		});
 		if(config.web.ssl === undefined) {
 			app.listen(config.web.port);

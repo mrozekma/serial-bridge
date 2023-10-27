@@ -26,6 +26,8 @@
 	import 'xterm/css/xterm.css';
 
 	class SbFit extends FitAddon {
+		private lastResult: ITerminalDimensions | undefined = undefined;
+
 		private getFloatDimensions() {
 			// FitAddon.proposeDimensions rounds its result, but I need the unrounded values.
 			// This might be the worst thing I've ever done
@@ -38,8 +40,17 @@
 			}
 		}
 
+		override fit(): void {
+			super.fit();
+			if(!this.lastResult) {
+				// This sometimes happens when showing a terminal for the first time, and I can't figure out a better fix than just waiting a moment.
+				// Probably there's some xterm event that's more appropriate than 'stateChanged'
+				setTimeout(() => super.fit(), 1);
+			}
+		}
+
 		//@ts-ignore The interface claims proposeDimensions() can't return undefined, but it can and does in FitAddon
-		proposeDimensions(): ITerminalDimensions | undefined {
+		override proposeDimensions(): ITerminalDimensions | undefined {
 			// Terminal lines are 17px tall, so if the terminal height doesn't exactly divide that we're left with a gap on the bottom.
 			// The alternative is to draw one line too many and hide the overflow. This works except that the bottom part of the scrolbar can get a little cut off.
 			// I hate both, but I generally hate the latter less. Choose depending on how big the gap will be
@@ -51,7 +62,7 @@
 			if(rows - Math.floor(rows) > .2) {
 				rows = Math.ceil(rows);
 			}
-			return (isNaN(rows) || isNaN(cols)) ? undefined : {
+			return this.lastResult = (isNaN(rows) || isNaN(cols)) ? undefined : {
 				rows: Math.floor(rows),
 				cols: Math.floor(cols),
 			};
