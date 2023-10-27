@@ -15,6 +15,7 @@ import { Config } from './config';
 import Connections, { Connection } from './connections';
 import IdGenerator from './id-generator';
 import Build, { setLockReservation } from './jenkins';
+import ArrayWrapper from '../array-wrapper';
 
 interface SSHInfo {
 	host: string;
@@ -446,58 +447,21 @@ export interface DevicesConfigReloadSpec {
 	}
 }
 
-export class Devices extends EventEmitter {
-	private devices: Device[] = [];
-
+export class Devices extends ArrayWrapper<Device> {
 	constructor(devices?: Device[], private readonly idGen: IdGenerator = new IdGenerator()) {
-		super();
-		if(devices) {
-			this.devices.push(...devices);
-		}
+		super(devices);
 		this.on('removed', (devices: Devices, device: Device, idx: number) => {
 			device.kill();
 			idGen.release(device.id);
 		});
 	}
 
-	// Pass some array functions through to this.devices
-	// Theoretically these could be of the form foo(...args: Parameters<Device[]['foo']), but I can't figure out how to handle the generics, so the declarations are copied from the Array<T> interface.
-	[Symbol.iterator]() {
-		return this.devices[Symbol.iterator]();
-	}
-	find<S extends Device>(predicate: (this: void, value: Device, index: number, obj: Device[]) => value is S): S | undefined;
-	find(predicate: (value: Device, index: number, obj: Device[]) => unknown): Device | undefined;
-	find(predicate: (value: Device, index: number, obj: Device[]) => unknown): Device | undefined {
-		return this.devices.find(predicate);
-	}
-	map<U>(callbackfn: (value: Device, index: number, array: Device[]) => U): U[] {
-		return this.devices.map(callbackfn);
-	}
-	some(predicate: (value: Device, index: number, array: Device[]) => unknown): boolean {
-		return this.devices.some(predicate);
-	}
-
-	add(device: Device) {
-		const len = this.devices.push(device);
-		this.emit('added', this, device, len - 1);
-	}
-
-	remove(deviceOrIdx: Device | number): Device | undefined {
-		if(typeof deviceOrIdx === 'number') {
-			const idx = deviceOrIdx;
-			if(idx >= 0 && idx < this.devices.length) {
-				const [ device ] = this.devices.splice(idx, 1);
-				this.emit('removed', this, device, idx);
-				return device;
-			}
-			return undefined;
-		} else {
-			return this.remove(this.devices.findIndex(seek => seek.id === deviceOrIdx.id));
-		}
+	protected override tComparator(a: Device, b: Device): boolean {
+		return a.id === b.id;
 	}
 
 	removeByName(name: string): Device | undefined {
-		return this.remove(this.devices.findIndex(device => device.name === name));
+		return this.remove(this.wrappedArray.findIndex(device => device.name === name));
 	}
 
 	// Return a spec of all possible changes given this new config
