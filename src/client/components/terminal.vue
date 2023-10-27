@@ -43,7 +43,11 @@
 			// Terminal lines are 17px tall, so if the terminal height doesn't exactly divide that we're left with a gap on the bottom.
 			// The alternative is to draw one line too many and hide the overflow. This works except that the bottom part of the scrolbar can get a little cut off.
 			// I hate both, but I generally hate the latter less. Choose depending on how big the gap will be
-			let { rows, cols } = this.getFloatDimensions();
+			const dims = this.getFloatDimensions();
+			if(!dims) {
+				return undefined;
+			}
+			let { rows, cols } = dims;
 			if(rows - Math.floor(rows) > .2) {
 				rows = Math.ceil(rows);
 			}
@@ -111,7 +115,7 @@
 					}
 				});
 				// When printing incoming data, convert \n to \r\n
-				this.terminal.setOption('convertEol', true);
+				this.terminal.options.convertEol = true
 			}
 		},
 		methods: {
@@ -119,7 +123,9 @@
 				this.fitAddon.fit();
 			},
 			serialize() {
-				return this.serializeAddon.serialize(numScrollbackLines);
+				return this.serializeAddon.serialize({
+					scrollback: numScrollbackLines,
+				});
 			},
 			write(abuf: ArrayBuffer) {
 				const arr = new Uint8Array(abuf);

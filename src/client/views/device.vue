@@ -216,7 +216,7 @@
 				async handler() {
 					for(const node of this.nodes) {
 						const term = (await this.getTerminal(node.name)).terminal;
-						term.setOption('theme', this.termThemes[node.name]);
+						term.options.theme = this.termThemes[node.name];
 					}
 				},
 				immediate: true,
