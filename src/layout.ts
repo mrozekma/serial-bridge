@@ -10,7 +10,7 @@ export type CellLayoutItem = {
 	type: 'row' | 'column' | 'stack';
 	height?: number;
 	width?: number;
-	children?: LayoutItem[];
+	children?: LayoutItem[] | '*';
 }
 
 export interface NodeLayoutItem {
@@ -18,6 +18,7 @@ export interface NodeLayoutItem {
 	name: string;
 	height?: number;
 	width?: number;
+	optional?: boolean;
 }
 
 export type LayoutItem = CellLayoutItem | NodeLayoutItem
@@ -27,7 +28,10 @@ export interface Layout extends CellLayoutItem {
 	devices?: string[] | ((device: DeviceJson) => boolean);
 }
 
-function* iterLayoutNodeNames(items: LayoutItem[] | undefined): IterableIterator<string> {
+function* iterLayoutNodeNames(items: LayoutItem[] | '*' | undefined): IterableIterator<{ name: string, optional?: boolean }> {
+	if(items === '*') {
+		return;
+	}
 	for(const item of items ?? []) {
 		switch(item.type) {
 			case 'row':
@@ -36,7 +40,10 @@ function* iterLayoutNodeNames(items: LayoutItem[] | undefined): IterableIterator
 				yield* iterLayoutNodeNames(item.children);
 				break;
 			case 'node':
-				yield item.name;
+				yield {
+					name: item.name,
+					optional: item.optional,
+				};
 				break;
 		}
 	}
@@ -59,15 +66,43 @@ function* iterLayoutItems(nodeNames: string[]): IterableIterator<LayoutItem> {
 	}
 }
 
-export class Layouts extends ArrayWrapper<Layout | 'auto'> {
+function validateLayout(layout: Layout) {
+	// Make sure there aren't multiple wildcard children
+	let wildcards = 0;
+	function helper(item: LayoutItem) {
+		if(item.type === 'node' || item.children === undefined) {
+			return;
+		} else if(item.children === '*') {
+			wildcards++;
+		} else {
+			for(const child of item.children) {
+				helper(child);
+			}
+		}
+	}
+	if(layout.children !== '*' && layout.children !== undefined) {
+		for(const child of layout.children) {
+			helper(child);
+		}
+	}
+	if(wildcards > 1) {
+		throw new Error(`Layout '${layout.name}' has multiple wildcard containers`);
+	}
+}
+
+export class Layouts extends ArrayWrapper<Layout> {
 	constructor(layouts?: Layout[]) {
 		super(layouts);
+		for(const layout of layouts ?? []) {
+			validateLayout(layout);
+		}
 	}
 
 	override add(layout: Layout): void {
-		if(this.wrappedArray.find(seek => (seek === 'auto' ? 'auto' : seek.name) === layout.name)) {
+		if (this.wrappedArray.find(seek => seek.name === layout.name)) {
 			throw new Error(`Duplicate layout name '${layout.name}'`);
 		}
+		validateLayout(layout);
 		return super.add(layout);
 	}
 
@@ -77,9 +112,7 @@ export class Layouts extends ArrayWrapper<Layout | 'auto'> {
 
 	*iterLayoutsForDevice(device: Device): IterableIterator<Layout> {
 		l: for(const layout of this) {
-			if(layout === 'auto') {
-				yield Layouts.makeAutoLayoutForDevice(device);
-			} else if(layout.devices !== undefined) {
+			if (layout.devices !== undefined) {
 				if(Array.isArray(layout.devices)) {
 					if(layout.devices.indexOf(device.name) >= 0) {
 						yield layout;
@@ -88,17 +121,15 @@ export class Layouts extends ArrayWrapper<Layout | 'auto'> {
 					yield layout;
 				}
 			} else {
-				for(const name of iterLayoutNodeNames(layout.children)) {
-					if(!device.nodes.some(node => node.name === name)) {
+				for (const { name, optional } of iterLayoutNodeNames(layout.children)) {
+					if (!optional && !device.nodes.some(node => node.name === name)) {
 						continue l;
 					}
 				}
 				yield layout;
 			}
 		}
-		if(this.length == 0) {
-			yield Layouts.makeAutoLayoutForDevice(device);
-		}
+		yield Layouts.makeAutoLayoutForDevice(device);
 	}
 
 	static makeAutoLayoutForDevice(device: Device): Layout {
@@ -114,30 +145,33 @@ export class Layouts extends ArrayWrapper<Layout | 'auto'> {
 	}
 }
 
+const childrenJoi = joi.alternatives().try(
+	joi.array().items(joi.lazy(() => layoutItemJoi)),
+	joi.string().required().valid('*'),
+);
+
 const layoutItemJoi: any = joi.alternatives().try(
 	joi.object({
 		type: joi.string().required().valid('row', 'column', 'stack'),
 		height: joi.number(),
 		width: joi.number(),
-		children: joi.array().items(joi.lazy(() => layoutItemJoi)),
+		children: childrenJoi,
 	}),
 	joi.object({
 		type: joi.string().required().valid('node'),
 		name: joi.string().required(),
 		height: joi.number(),
 		width: joi.number(),
+		optional: joi.bool().default(false),
 	}),
 );
 
-export const layoutJoi = joi.alternatives().try(
-	joi.string().valid('auto'),
-	joi.object({
-		name: joi.string().required().min(1),
-		devices: joi.alternatives().try(
-			joi.array().items(joi.string().min(1)),
-			joi.func().maxArity(1),
-		),
-		type: joi.string().required().valid('row', 'column', 'stack'),
-		children: joi.array().required().items(layoutItemJoi),
-	}),
-);
+export const layoutJoi = joi.object({
+	name: joi.string().required().min(1),
+	devices: joi.alternatives().try(
+		joi.array().items(joi.string().min(1)),
+		joi.func().maxArity(1),
+	),
+	type: joi.string().required().valid('row', 'column', 'stack'),
+	children: childrenJoi.required(),
+});

@@ -270,9 +270,22 @@ An array of objects defining :ref:`layouts <layouts>` that can be applied to the
 
 Layout structure
 """"""""""""""""
-Each layout is comprised of cells that are organized into rows, columns, stacks, and nodes (a cell containing the actual node terminal). Each non-node cell specifies a ``children`` array containing the cells within it. Rows and columns can nest indefinitely, while stacks can only contain nodes. Node cells do not specify ``children``, but do specify ``name``, the name of the node they contain.
+Each layout is comprised of cells that are organized into rows, columns, stacks, and nodes (a cell containing the actual node terminal). Structural (non-node) cells are described by objects containing the following keys:
 
-Each cell can also optionally specify a width or height. These are `fractional units <https://www.w3.org/TR/css-grid-2/#valdef-flex-fr>`_, so each one represents a fraction of the total width/height available, determined by dividing the value by the sum of all the values in that row/column. For example, if three cells in the same row specify widths 1, 2, and 3, they will be allocated 1/6th, 2/6th, and 3/6th of the row width, respectively. Any cell that does not specify a width or height will default to 1.
+* :field-mandatory:`type` -- ``'row'``, ``'column'``, or ``'stack'``.
+* :field-optional:`height` -- The height of the cell. See the explanation of fractional units below.
+* :field-optional:`width` -- The width of the cell. See the explanation of fractional units below.
+* :field-optional:`children` -- An array of the cells nested within this one. Rows and columns can contain any cells and nest indefinitely, while stacks can only contain nodes. This can also be ``'*'`` to include all the nodes not specified elsewhere in the layout.
+
+Node cells are the leaves of the layout, specifying the actual node that should be displayed at that location in the layout. Node cells are described by objects containing the following keys:
+
+* :field-mandatory:`type` -- ``'node'``.
+* :field-mandatory:`name` -- The name of the node to display here.
+* :field-optional:`height` -- The height of the cell. See the explanation of fractional units below.
+* :field-optional:`width` -- The width of the cell. See the explanation of fractional units below.
+* :field-optional:`optional` -- True to skip this node if the device rendering the layout doesn't have it. False (the default) if this layout should be unavailable to devices lacking this node.
+
+The ``width`` and ``height`` fields in cell configuration are measured in `fractional units <https://www.w3.org/TR/css-grid-2/#valdef-flex-fr>`_. This means each value represents a fraction of the total width/height available, determined by dividing the value by the sum of all the values in that row/column. For example, if three cells in the same row specify widths 1, 2, and 3, they will be allocated 1/6th, 2/6th, and 3/6th of the row width, respectively. Any cell that does not specify a width or height will default to 1.
 
 For example, the layout in this figure:
 
@@ -305,7 +318,6 @@ is specified by the following configuration::
          }],
       }]
    }
-
 
 :field-optional:`notice`
 ^^^^^^^^^^^^^^^^^^^^^^^^

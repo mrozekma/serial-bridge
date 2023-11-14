@@ -311,7 +311,7 @@ function makeServices(app: Application<Services>, config: Config, devices: Devic
 					}
 					return layouts.getLayoutsForDevice(device);
 				} else {
-					return Array.from(layouts.filter((layout): layout is Layout => layout !== 'auto'));
+					return Array.from(layouts);
 				}
 			},
 			async get(id, params) {

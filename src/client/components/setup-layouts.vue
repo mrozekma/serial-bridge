@@ -98,6 +98,25 @@
 	}
 
 	function sbLayoutToGl(layout: Layout): LayoutConfig {
+		function getChildren(children: LayoutItem[] | '*' | undefined, parentType: string): (RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig)[] {
+			if(children === undefined) {
+				return [];
+			} else if(children === '*') {
+				return [{
+					type: 'component',
+					height: 1,
+					width: 1,
+					componentType: 'wildcard',
+					title: 'Wildcard',
+					componentState: {
+						parentType,
+					},
+				}];
+			} else {
+				return children.map(helper);
+			}
+		}
+
 		function helper(item: LayoutItem): RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig {
 			switch(item.type) {
 				case 'row':
@@ -106,14 +125,14 @@
 						type: item.type,
 						height: item.height ?? 1,
 						width: item.width ?? 1,
-						content: item.children ? item.children.map(helper) : [],
+						content: getChildren(item.children, item.type),
 					};
 				case 'stack':
 					return {
 						type: item.type,
 						height: item.height ?? 1,
 						width: item.width ?? 1,
-						content: item.children ? item.children.map(helper) as ComponentItemConfig[] : [],
+						content: getChildren(item.children, item.type) as ComponentItemConfig[],
 					};
 				case 'node':
 					return {
@@ -183,8 +202,25 @@
 				const layout = this.layouts.value.find(seek => seek.name === layoutName)!;
 				const el = (this.$refs.preview as HTMLDivElement[])[0];
 				const gl = new GoldenLayout(el, (container: ComponentContainer, itemConfig: ResolvedComponentItemConfig) => {
+					const div = document.createElement('div');
+					container.element.append(div);
+
+					if(itemConfig.componentType === 'wildcard') {
+						const alert = document.createElement('div');
+						div.append(alert);
+						alert.className = 'ant-alert ant-alert-info';
+						alert.style.paddingLeft = '8px';
+						alert.style.margin = '5px';
+
+						const span = document.createElement('span');
+						alert.append(span);
+						span.className = 'ant-alert-message';
+						const parentType: string = (itemConfig.componentState as any).parentType;
+						span.appendChild(document.createTextNode(`This is a wildcard ${parentType}. It will contain all nodes not manually positioned in the layout`));
+					}
+
 					return {
-						component: document.createElement('div'),
+						component: div,
 						virtual: false,
 					};
 				});

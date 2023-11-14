@@ -13,26 +13,50 @@
 	import 'golden-layout/dist/css/themes/goldenlayout-light-theme.css';
 
 	function sbLayoutToGl(layout: SbLayout, nodes: Node[]): LayoutConfig {
-		function helper(item: SbLayoutItem): RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig {
+		const wildcardInfo = {
+			allocatedNodes: new Set<Node>(),
+			wildcardArray: undefined as ComponentItemConfig[] | undefined,
+		};
+
+		function getChildren(item: SbLayoutItem): (RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig)[] {
+			if(item.type === 'node' || item.children === undefined) {
+				return [];
+			} else if(item.children === '*') {
+				// Server should have already checked for this:
+				if(wildcardInfo.wildcardArray !== undefined) {
+					throw new Error("Layout cannot have multiple wildcard children");
+				}
+				wildcardInfo.wildcardArray = []
+				return wildcardInfo.wildcardArray;
+			} else {
+				return item.children.flatMap(helper);
+			}
+		}
+
+		function helper(item: SbLayoutItem): (RowOrColumnItemConfig | StackItemConfig | ComponentItemConfig)[] {
 			switch(item.type) {
 				case 'row':
 				case 'column':
-					return {
+					return [{
 						type: item.type,
 						height: item.height ?? 1,
 						width: item.width ?? 1,
-						content: item.children ? item.children.map(helper) : [],
-					};
+						content: getChildren(item),
+					}];
 				case 'stack':
-					return {
+					return [{
 						type: item.type,
 						height: item.height ?? 1,
 						width: item.width ?? 1,
-						content: item.children ? item.children.map(helper) as ComponentItemConfig[] : [],
-					};
+						content: getChildren(item) as ComponentItemConfig[],
+					}];
 				case 'node':
 					const node = nodes.find(node => node.name === item.name);
-					return node ? {
+					if(!node) {
+						return [];
+					}
+					wildcardInfo.allocatedNodes.add(node);
+					return [{
 						type: 'component',
 						height: item.height ?? 1,
 						width: item.width ?? 1,
@@ -41,20 +65,25 @@
 						componentState: {
 							node,
 						},
-					} : {
-						type: 'component',
-						height: item.height,
-						width: item.width,
-						componentType: 'badNode',
-						componentState: {
-							name: item.name,
-						},
-					};
+					}];
 			}
 		}
 
+		const roots = helper(layout);
+		if(wildcardInfo.wildcardArray !== undefined) {
+			wildcardInfo.wildcardArray.push(...nodes.filter(node => !wildcardInfo.allocatedNodes.has(node)).map(node => ({
+				type: 'component' as const,
+				height: 1,
+				width: 1,
+				componentType: 'terminal',
+				title: node.name,
+				componentState: {
+					node,
+				},
+			})));
+		}
 		return {
-			root: helper(layout),
+			root: (roots.length == 1) ? roots[0] : { type: 'row', content: roots },
 			header: {
 				close: 'Close',
 				maximise: 'Maximize',
