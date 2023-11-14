@@ -173,7 +173,7 @@
 							<a-form-item label="Username">
 								<a-input v-model="jenkinsForm.username" @change="changeJenkinsKey = undefined"/>
 							</a-form-item>
-							<a-form-item v-if="usersConfig.value.avatarSupport" label="API Key" v-bind="jenkinsFormFeedback">
+							<a-form-item label="API Key" v-bind="jenkinsFormFeedback">
 								<a-input-password v-model="jenkinsForm.key" @change="changeJenkinsKey = undefined"/>
 							</a-form-item>
 							<a-form-item>
