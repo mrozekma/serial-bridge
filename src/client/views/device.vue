@@ -118,6 +118,7 @@
 	import { MetaInfo } from 'vue-meta';
 	import { ITheme } from 'xterm';
 	import { saveAs } from 'file-saver';
+	import { ResolvedComponentItemConfig, ResolvedLayoutConfig, ResolvedRowOrColumnItemConfig, ResolvedStackItemConfig } from 'golden-layout';
 	import html2canvas from 'html2canvas';
 
 	import { appName, rootDataComputeds, unwrapPromise, PromiseResult } from '../root-data';
@@ -475,7 +476,7 @@
 				query: {
 					device: this.id,
 				},
-			}).then(deserializeLayouts), layouts => this.applyDefaultLayout());
+			}).then(deserializeLayouts).then(this.filterLayouts), layouts => this.applyDefaultLayout());
 
 			if(document.location.search) {
 				const params = new URLSearchParams(document.location.search.substring(1));
@@ -560,6 +561,34 @@
 				for(const node of this.nodes) {
 					(await this.getTerminal(node.name)).terminal.reset();
 				}
+			},
+			filterLayouts(layouts: SerializedLayout[]): SerializedLayout[] {
+				function* getNodeNames(children: readonly (ResolvedRowOrColumnItemConfig | ResolvedStackItemConfig | ResolvedComponentItemConfig)[]): IterableIterator<string> {
+					for(const child of children) {
+						if(child.type === 'component') {
+							yield (child.componentState as any).node;
+						} else {
+							yield* getNodeNames(child.content)
+						}
+					}
+				}
+				const nodes = this.nodes;
+				return Array.from(function*() {
+					for(const layout of layouts) {
+						if(!layout.enabled) {
+							continue;
+						}
+						// Config-sourced layouts have already been filtered by the server, we only need to check user-sourced layouts
+						if(layout.source === 'user') {
+							const config = layout.layout as ResolvedLayoutConfig;
+							const requiredNames = Array.from(getNodeNames(config.root!.content));
+							if(!requiredNames.every(name => nodes.find(node => node.name === name))) {
+								continue;
+							}
+						}
+						yield layout;
+					}
+				}());
 			},
 			applyLayout(layout: SerializedLayout) {
 				const layoutVue = this.$refs.layout as SbLayoutVue;

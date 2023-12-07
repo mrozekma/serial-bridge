@@ -63,7 +63,7 @@
 						componentType: 'terminal',
 						title: node.name,
 						componentState: {
-							node,
+							node: node.name,
 						},
 					}];
 			}
@@ -78,7 +78,7 @@
 				componentType: 'terminal',
 				title: node.name,
 				componentState: {
-					node,
+					node: node.name,
 				},
 			})));
 		}
@@ -142,8 +142,8 @@
 			});
 
 			const gl = this.gl = new GoldenLayout(this.$el as HTMLDivElement, (container: ComponentContainer, itemConfig: ResolvedComponentItemConfig) => {
-				const node: Node = (itemConfig.componentState as any).node;
-				const term = this.getNodeTerminal(node.name);
+				const node: string = (itemConfig.componentState as any).node;
+				const term = this.getNodeTerminal(node);
 				container.element.append(term.$el);
 				return {
 					component: term.$el,

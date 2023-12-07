@@ -44,7 +44,7 @@
 		layout: Layout | ResolvedLayoutConfig;
 	}
 
-	const storageKey = 'layouts';
+	const storageKey = 'layouts2';
 
 	export function deserialize(configLayouts: Layout[]): SerializedLayout[] {
 		const rtn: SerializedLayout[] = JSON.parse(localStorage.getItem(storageKey) ?? '[]');
@@ -283,6 +283,7 @@
 
 	.preview {
 		min-height: 600px;
+		pointer-events: none;
 	}
 
 	.buttons {
