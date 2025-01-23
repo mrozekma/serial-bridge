@@ -136,7 +136,9 @@ class SerialPort extends Port {
 	}
 
 	closeImpl() {
-		this.serialConn.close();
+		if(this.serialConn.isOpen) {
+			this.serialConn.close();
+		}
 	}
 
 	write(data: Buffer) {
@@ -745,6 +747,15 @@ export default class Device extends EventEmitter {
 		this.webConnections.removeAllListeners();
 		for(const node of this.nodes) {
 			node.removeAllListeners();
+		}
+		return this;
+	}
+
+	closeAllPorts(reason?: string) {
+		for(const node of this._nodes) {
+			if(node.port.isOpen) {
+				node.port.close(reason);
+			}
 		}
 		return this;
 	}
