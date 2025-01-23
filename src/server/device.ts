@@ -524,7 +524,7 @@ export class NetworkedNode extends Node {
 		const { networkedPort } = this;
 		return {
 			...super.toJSON(),
-			type: 'digi',
+			type: 'networked',
 			path: `${networkedPort.host}:${networkedPort.port}`,
 		};
 	}
