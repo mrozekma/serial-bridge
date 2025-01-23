@@ -836,7 +836,7 @@ export default class Device extends EventEmitter {
 				node.networkedPort.open();
 				node.tcpPort.open();
 			} else {
-				const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate ?? 9600,
+				const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate,
 					nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.eol, nodeConfig.tcpPort,
 					nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
 				device.addNode(node);
