@@ -144,6 +144,84 @@ class SerialPort extends Port {
 	}
 }
 
+class NetworkedPort extends Port {
+	private static readonly reconnectPeriods = [1000, 1000, 1000, 2000, 2000, 2000, 3000, 4000, 5000, 10000, 15000, 30000];
+	private static readonly reconnectingSuffix = ". Attempting to reconnect";
+
+	private readonly socket: net.Socket;
+	private retryTimer: any = undefined; // Should be NodeJS.Timeout, but Typescript keeps getting confused between the Node setInterval() and the browser version.
+	private _host: string;
+	private _port: number;
+
+	constructor(host: string, port: number) {
+		super();
+		this._host = host;
+		this._port = port;
+		this.socket = new net.Socket({allowHalfOpen: false});
+		this.socket.on('connect', () => {
+			if(this.retryTimer) {
+				clearInterval(this.retryTimer);
+				this.retryTimer = undefined;
+			}
+			this.state = {
+				open: true,
+			};
+		});
+		this.socket.on('end', (err: any) => {
+			if(this.isOpen) {
+				this.state = {
+					open: false,
+					reason: (err?.disconnected ? "Disconnected" : `Error: ${err}`) + NetworkedPort.reconnectingSuffix,
+				};
+				const periods = [...NetworkedPort.reconnectPeriods].reverse();
+				const sched = () => {
+					const period = periods.pop();
+					this.retryTimer = (periods.length > 0)
+						? setTimeout(() => { sched(); this.open(); }, period)
+						: setInterval(() => this.open(), period);
+				};
+				sched();
+			}
+		});
+		this.socket.on('error', err => {
+				this.state = {
+					open: false,
+					reason: err.message + (this.retryTimer ? NetworkedPort.reconnectingSuffix : ''),
+				}
+				this.close()
+				const periods = [...NetworkedPort.reconnectPeriods].reverse();
+				const sched = () => {
+					const period = periods.pop();
+					this.retryTimer = (periods.length > 0)
+						? setTimeout(() => { sched(); this.open(); }, period)
+						: setInterval(() => this.open(), period);
+				};
+				sched();
+			});
+		this.socket.on('data', (data: Buffer) => this.emit('data', data));
+	}
+
+	get host() {
+		return this._host;
+	}
+
+	get port() {
+		return this._port;
+	}
+
+	openImpl() {
+		this.socket.connect({host: this._host, port: this._port});
+	}
+
+	closeImpl() {
+		this.socket.end();
+	}
+
+	write(data: Buffer) {
+		this.socket.write(data);
+	}
+}
+
 class TcpPort extends Port {
 	private readonly tcpServer: net.Server;
 	private _port: number;
@@ -428,6 +506,43 @@ export class RemoteIONode extends Node {
 	}
 }
 
+export class NetworkedNode extends Node {
+	public readonly networkedPort: NetworkedPort;
+
+	constructor(device: Device, name: string, host: string, serverPortNumber: number, public readonly eol: 'cr' | 'lf' | 'crlf', tcpPortNumber: number, webLinks: string[], ssh: SSHInfo | undefined, public readonly metadata?: object) {
+		super(device, name, eol, tcpPortNumber, webLinks, ssh, metadata)
+		this.networkedPort = new NetworkedPort(host, serverPortNumber);
+	}
+
+	get port() {
+		return this.networkedPort;
+	}
+
+	toJSON() {
+		const { networkedPort } = this;
+		return {
+			...super.toJSON(),
+			type: 'digi',
+			path: `${networkedPort.host}:${networkedPort.port}`,
+		};
+	}
+
+	matchesConfig(nodeConfig: Config['devices'][number]['nodes'][number]) {
+		if(`${this.networkedPort.host}:${this.networkedPort.port}` !== nodeConfig.comPort) { return false; }
+		if(JSON.stringify(this.metadata) !== JSON.stringify(nodeConfig.metadata)) { return false; }
+		if(this.name !== nodeConfig.name) { return false; }
+		if(JSON.stringify(this.ssh) !== JSON.stringify(nodeConfig.ssh)) { return false; }
+		if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== nodeConfig.tcpPort) { return false; }
+		return true;
+	}
+
+	onTcpConnectImpl(socket: net.Socket) {
+		// Bi-directional pipe between the sockets
+		socket.on('data', buf => this.port.isOpen && this.port.write(buf));
+		socketListenTo(socket, this.port, 'data', (buf: Buffer) => socket.write(buf));
+	}
+}
+
 interface Tag {
 	name: string;
 	description?: string;
@@ -693,10 +808,30 @@ export default class Device extends EventEmitter {
 		}
 		const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, Device.normalizeTags(deviceConfig.tags), deviceConfig.jenkinsLock, deviceConfig.metadata);
 		for(const nodeConfig of deviceConfig.nodes) {
-			const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.eol, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
-			device.addNode(node);
-			node.serialPort.open();
-			node.tcpPort.open();
+			// Try splitting the com port path on ":" because <ipv4 addr>:<port> and <ipv6 addr>:<port> produce lengths > 1, and "COMX" or "/dev/tty..." won't.
+			const split_on_colons = nodeConfig.comPort.split(':');
+			if (split_on_colons.length > 1) {
+				// Why is typescript making me provide a value when pop() returns null even though length > 1?
+				const port = split_on_colons.pop() ?? 0;
+				// Assume IPv4 addr or hostname given by default
+				var netaddr: string = split_on_colons[0];
+				if (split_on_colons.length > 1) {
+					// IPv6 addr given
+					netaddr = split_on_colons.join(':');
+				}
+				const node = new NetworkedNode(device, nodeConfig.name, netaddr, +port, nodeConfig.eol,
+					nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
+				device.addNode(node);
+				node.networkedPort.open();
+				node.tcpPort.open();
+			} else {
+				const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate ?? 9600,
+					nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.eol, nodeConfig.tcpPort,
+					nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
+				device.addNode(node);
+				node.serialPort.open();
+				node.tcpPort.open();
+			}
 		}
 		return device;
 	}

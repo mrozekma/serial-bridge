@@ -14,7 +14,7 @@ import { layoutJoi } from '../layout';
 const nodeJoi = joi.object({
 	name: joi.string().required().min(1),
 	comPort: joi.string().required(),
-	baudRate: joi.number().integer().required(),
+	baudRate: joi.number().integer(),
 	byteSize: joi.number().default(8).valid(5, 6, 7, 8),
 	parity: joi.string().default('none').valid('even', 'odd', 'none'),
 	stop: joi.number().default(1).valid(1, 2),
