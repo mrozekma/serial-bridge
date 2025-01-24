@@ -11,13 +11,31 @@ import requireLike from 'require-like';
 
 import { layoutJoi } from '../layout';
 
-const nodeJoi = joi.object({
+const deviceNodeJoi = joi.object({
 	name: joi.string().required().min(1),
 	comPort: joi.string().required(),
-	baudRate: joi.number().integer().default(9600),
+	baudRate: joi.number().integer().required(),
 	byteSize: joi.number().default(8).valid(5, 6, 7, 8),
 	parity: joi.string().default('none').valid('even', 'odd', 'none'),
 	stop: joi.number().default(1).valid(1, 2),
+	tcpPort: joi.number().required().port(),
+	eol: joi.string().default('crlf').valid('cr', 'lf', 'crlf'),
+	webLinks: joi.array().items(
+		joi.string().allow('telnet', 'ssh', 'raw')
+	).default([]),
+	webDefaultVisible: joi.boolean().default(true),
+	ssh: joi.object({
+		host: joi.string().required().min(1),
+		username: joi.string().required().min(1),
+		password: joi.string().required(),
+	}),
+	metadata: joi.object(),
+});
+
+const networkedNodeJoi = joi.object({
+	name: joi.string().required().min(1),
+	host: joi.string().required(),
+	port: joi.number().integer().required(),
 	tcpPort: joi.number().required().port(),
 	eol: joi.string().default('crlf').valid('cr', 'lf', 'crlf'),
 	webLinks: joi.array().items(
@@ -45,7 +63,7 @@ const deviceJoi = joi.object({
 			showOnDevicePage: joi.boolean(),
 		}),
 	).default([]),
-	nodes: joi.array().required().items(nodeJoi),
+	nodes: joi.array().required().items([deviceNodeJoi, networkedNodeJoi]),
 	//TODO commands?
 	jenkinsLock: joi.string().min(1),
 	metadata: joi.object(),

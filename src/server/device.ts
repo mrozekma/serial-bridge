@@ -23,6 +23,33 @@ interface SSHInfo {
 	password: string;
 }
 
+interface deviceNodeInfo {
+	name: string;
+	comPort: string;
+	baudRate: number;
+	byteSize: 8 | 5 | 6 | 7;
+	parity: "none" | "even" | "odd";
+	stop: 1 | 2;
+	tcpPort: number;
+	eol: "crlf" | "cr" | "lf";
+	webLinks: [];
+	webDefaultVisible: boolean;
+	ssh: SSHInfo | undefined;
+	metadata: any;
+}
+
+interface networkedNodeInfo {
+	name: string;
+	host: string;
+	port: number;
+	tcpPort: number;
+	eol: "crlf" | "cr" | "lf";
+	webLinks: [];
+	webDefaultVisible: boolean;
+	ssh: SSHInfo | undefined;
+	metadata: any;
+}
+
 type PortState = {
 	open: true;
 } | {
@@ -212,7 +239,7 @@ class NetworkedPort extends Port {
 	}
 
 	openImpl() {
-		this.socket.connect({host: this._host, port: this._port});
+		this.socket.connect({host: this.host, port: this.port});
 	}
 
 	closeImpl() {
@@ -401,15 +428,18 @@ export class SerialNode extends Node {
 	}
 
 	matchesConfig(nodeConfig: Config['devices'][number]['nodes'][number]) {
-		if(this.baudRate !== nodeConfig.baudRate) { return false; }
-		if(this.byteSize !== nodeConfig.byteSize) { return false; }
-		if(this.path !== nodeConfig.comPort) { return false; }
-		if(JSON.stringify(this.metadata) !== JSON.stringify(nodeConfig.metadata)) { return false; }
-		if(this.name !== nodeConfig.name) { return false; }
-		if(this.parity !== nodeConfig.parity) { return false; }
-		if(JSON.stringify(this.ssh) !== JSON.stringify(nodeConfig.ssh)) { return false; }
-		if(this.stopBits !== nodeConfig.stop) { return false; }
-		if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== nodeConfig.tcpPort) { return false; }
+		if('comPort' in nodeConfig) {
+			const c = nodeConfig as deviceNodeInfo;
+			if(this.baudRate !== c.baudRate) { return false; }
+			if(this.byteSize !== c.byteSize) { return false; }
+			if(this.path !== c.comPort) { return false; }
+			if(JSON.stringify(this.metadata) !== JSON.stringify(c.metadata)) { return false; }
+			if(this.name !== c.name) { return false; }
+			if(this.parity !== c.parity) { return false; }
+			if(JSON.stringify(this.ssh) !== JSON.stringify(c.ssh)) { return false; }
+			if(this.stopBits !== c.stop!) { return false; }
+			if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== c.tcpPort) { return false; }
+		}
 		return true;
 	}
 
@@ -530,11 +560,15 @@ export class NetworkedNode extends Node {
 	}
 
 	matchesConfig(nodeConfig: Config['devices'][number]['nodes'][number]) {
-		if(`${this.networkedPort.host}:${this.networkedPort.port}` !== nodeConfig.comPort) { return false; }
-		if(JSON.stringify(this.metadata) !== JSON.stringify(nodeConfig.metadata)) { return false; }
-		if(this.name !== nodeConfig.name) { return false; }
-		if(JSON.stringify(this.ssh) !== JSON.stringify(nodeConfig.ssh)) { return false; }
-		if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== nodeConfig.tcpPort) { return false; }
+		if('host' in nodeConfig) {
+			const c = nodeConfig as networkedNodeInfo;
+			if(this.networkedPort.host !== c.host!) { return false; }
+			if(this.networkedPort.port !== c.port!) { return false; }
+			if(JSON.stringify(this.metadata) !== JSON.stringify(c.metadata)) { return false; }
+			if(this.name !== c.name) { return false; }
+			if(JSON.stringify(this.ssh) !== JSON.stringify(c.ssh)) { return false; }
+			if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== c.tcpPort) { return false; }
+		}
 		return true;
 	}
 
@@ -752,10 +786,8 @@ export default class Device extends EventEmitter {
 	}
 
 	closeAllPorts(reason?: string) {
-		for(const node of this._nodes) {
-			if(node.port.isOpen) {
-				node.port.close(reason);
-			}
+		for(const node of this.nodes) {
+			node.port.close(reason);
 		}
 		return this;
 	}
@@ -819,28 +851,17 @@ export default class Device extends EventEmitter {
 		}
 		const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, Device.normalizeTags(deviceConfig.tags), deviceConfig.jenkinsLock, deviceConfig.metadata);
 		for(const nodeConfig of deviceConfig.nodes) {
-			// Try splitting the com port path on ":" because <ipv4 addr>:<port> and <ipv6 addr>:<port> produce lengths > 1, and "COMX" or "/dev/tty..." won't.
-			const split_on_colons = nodeConfig.comPort.split(':');
-			if (split_on_colons.length > 1) {
-				// Why is typescript making me provide a value when pop() returns null even though length > 1?
-				const port = split_on_colons.pop() ?? 0;
-				// Assume IPv4 addr or hostname given by default
-				var netaddr: string = split_on_colons[0];
-				if (split_on_colons.length > 1) {
-					// IPv6 addr given
-					netaddr = split_on_colons.join(':');
-				}
-				const node = new NetworkedNode(device, nodeConfig.name, netaddr, +port, nodeConfig.eol,
-					nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
-				device.addNode(node);
-				node.networkedPort.open();
-				node.tcpPort.open();
-			} else {
-				const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate,
-					nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.eol, nodeConfig.tcpPort,
-					nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
+			if ('baudRate' in nodeConfig) {
+				const c = nodeConfig as deviceNodeInfo;
+				const node = new SerialNode(device, c.name, c.comPort, c.baudRate, c.byteSize, c.parity, c.stop, c.eol, c.tcpPort, c.webLinks, c.ssh, c.metadata);
 				device.addNode(node);
 				node.serialPort.open();
+				node.tcpPort.open();
+			} else if ('host' in nodeConfig) {
+				const c = nodeConfig as networkedNodeInfo;
+				const node = new NetworkedNode(device, c.name, c.host, c.port, c.eol, c.tcpPort, c.webLinks, c.ssh, c.metadata);
+				device.addNode(node);
+				node.networkedPort.open();
 				node.tcpPort.open();
 			}
 		}
