@@ -23,6 +23,37 @@ interface SSHInfo {
 	password: string;
 }
 
+interface NodeInfo {
+	name: string;
+	tcpPort: number;
+	eol: "crlf" | "cr" | "lf";
+	webDefaultVisible: boolean;
+	metadata: any;
+	webLinks: string[];
+	ssh: SSHInfo | undefined;
+}
+
+interface DeviceNodeInfo extends NodeInfo {
+	comPort: string;
+	baudRate: number;
+	byteSize: 8 | 5 | 6 | 7;
+	parity: "none" | "even" | "odd";
+	stop: 1 | 2;
+}
+
+interface NetworkedNodeInfo extends NodeInfo {
+	host: string;
+	port: number;
+}
+
+function isNetworkedNodeInfo(nodeInfo: Config['devices'][number]['nodes'][number]): nodeInfo is NetworkedNodeInfo {
+	return ('host' in nodeInfo);
+}
+
+function isDeviceNodeInfo(nodeInfo: Config['devices'][number]['nodes'][number]): nodeInfo is DeviceNodeInfo {
+	return ('comPort' in nodeInfo);
+}
+
 type PortState = {
 	open: true;
 } | {
@@ -136,11 +167,91 @@ class SerialPort extends Port {
 	}
 
 	closeImpl() {
-		this.serialConn.close();
+		if(this.serialConn.isOpen) {
+			this.serialConn.close();
+		}
 	}
 
 	write(data: Buffer) {
 		this.serialConn.write(data);
+	}
+}
+
+class NetworkedPort extends Port {
+	private static readonly reconnectPeriods = [1000, 1000, 1000, 2000, 2000, 2000, 3000, 4000, 5000, 10000, 15000, 30000];
+	private static readonly reconnectingSuffix = ". Attempting to reconnect";
+
+	private readonly socket: net.Socket;
+	private retryTimer: any = undefined; // Should be NodeJS.Timeout, but Typescript keeps getting confused between the Node setInterval() and the browser version.
+	private _host: string;
+	private _port: number;
+
+	constructor(host: string, port: number) {
+		super();
+		this._host = host;
+		this._port = port;
+		this.socket = new net.Socket({allowHalfOpen: false});
+		this.socket.on('connect', () => {
+			if(this.retryTimer) {
+				clearInterval(this.retryTimer);
+				this.retryTimer = undefined;
+			}
+			this.state = {
+				open: true,
+			};
+		});
+		this.socket.on('end', (err: any) => {
+			if(this.isOpen) {
+				this.state = {
+					open: false,
+					reason: (err?.disconnected ? "Disconnected" : `Error: ${err}`) + NetworkedPort.reconnectingSuffix,
+				};
+				const periods = [...NetworkedPort.reconnectPeriods].reverse();
+				const sched = () => {
+					const period = periods.pop();
+					this.retryTimer = (periods.length > 0)
+						? setTimeout(() => { sched(); this.open(); }, period)
+						: setInterval(() => this.open(), period);
+				};
+				sched();
+			}
+		});
+		this.socket.on('error', err => {
+				this.state = {
+					open: false,
+					reason: err.message + (this.retryTimer ? NetworkedPort.reconnectingSuffix : ''),
+				}
+				this.close()
+				const periods = [...NetworkedPort.reconnectPeriods].reverse();
+				const sched = () => {
+					const period = periods.pop();
+					this.retryTimer = (periods.length > 0)
+						? setTimeout(() => { sched(); this.open(); }, period)
+						: setInterval(() => this.open(), period);
+				};
+				sched();
+			});
+		this.socket.on('data', (data: Buffer) => this.emit('data', data));
+	}
+
+	get host() {
+		return this._host;
+	}
+
+	get port() {
+		return this._port;
+	}
+
+	openImpl() {
+		this.socket.connect({host: this.host, port: this.port});
+	}
+
+	closeImpl() {
+		this.socket.end();
+	}
+
+	write(data: Buffer) {
+		this.socket.write(data);
 	}
 }
 
@@ -321,15 +432,19 @@ export class SerialNode extends Node {
 	}
 
 	matchesConfig(nodeConfig: Config['devices'][number]['nodes'][number]) {
-		if(this.baudRate !== nodeConfig.baudRate) { return false; }
-		if(this.byteSize !== nodeConfig.byteSize) { return false; }
-		if(this.path !== nodeConfig.comPort) { return false; }
-		if(JSON.stringify(this.metadata) !== JSON.stringify(nodeConfig.metadata)) { return false; }
-		if(this.name !== nodeConfig.name) { return false; }
-		if(this.parity !== nodeConfig.parity) { return false; }
-		if(JSON.stringify(this.ssh) !== JSON.stringify(nodeConfig.ssh)) { return false; }
-		if(this.stopBits !== nodeConfig.stop) { return false; }
-		if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== nodeConfig.tcpPort) { return false; }
+		if (isDeviceNodeInfo(nodeConfig)) {
+			if(this.baudRate !== nodeConfig.baudRate) { return false; }
+			if(this.byteSize !== nodeConfig.byteSize) { return false; }
+			if(this.path !== nodeConfig.comPort) { return false; }
+			if(JSON.stringify(this.metadata) !== JSON.stringify(nodeConfig.metadata)) { return false; }
+			if(this.name !== nodeConfig.name) { return false; }
+			if(this.parity !== nodeConfig.parity) { return false; }
+			if(JSON.stringify(this.ssh) !== JSON.stringify(nodeConfig.ssh)) { return false; }
+			if(this.stopBits !== nodeConfig.stop!) { return false; }
+			if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== nodeConfig.tcpPort) { return false; }
+		} else {
+			return false;
+		}
 		return true;
 	}
 
@@ -419,6 +534,48 @@ export class RemoteIONode extends Node {
 			type: 'remote_io',
 			remoteAddress, port,
 		};
+	}
+
+	onTcpConnectImpl(socket: net.Socket) {
+		// Bi-directional pipe between the sockets
+		socket.on('data', buf => this.port.isOpen && this.port.write(buf));
+		socketListenTo(socket, this.port, 'data', (buf: Buffer) => socket.write(buf));
+	}
+}
+
+export class NetworkedNode extends Node {
+	public readonly networkedPort: NetworkedPort;
+
+	constructor(device: Device, name: string, host: string, serverPortNumber: number, public readonly eol: 'cr' | 'lf' | 'crlf', tcpPortNumber: number, webLinks: string[], ssh: SSHInfo | undefined, public readonly metadata?: object) {
+		super(device, name, eol, tcpPortNumber, webLinks, ssh, metadata)
+		this.networkedPort = new NetworkedPort(host, serverPortNumber);
+	}
+
+	get port() {
+		return this.networkedPort;
+	}
+
+	toJSON() {
+		const { networkedPort } = this;
+		return {
+			...super.toJSON(),
+			type: 'networked',
+			path: `${networkedPort.host}:${networkedPort.port}`,
+		};
+	}
+
+	matchesConfig(nodeConfig: Config['devices'][number]['nodes'][number]) {
+		if(isNetworkedNodeInfo(nodeConfig)) {
+			if(this.networkedPort.host !== nodeConfig.host!) { return false; }
+			if(this.networkedPort.port !== nodeConfig.port!) { return false; }
+			if(JSON.stringify(this.metadata) !== JSON.stringify(nodeConfig.metadata)) { return false; }
+			if(this.name !== nodeConfig.name) { return false; }
+			if(JSON.stringify(this.ssh) !== JSON.stringify(nodeConfig.ssh)) { return false; }
+			if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== nodeConfig.tcpPort) { return false; }
+		} else {
+			return false;
+		}
+		return true;
 	}
 
 	onTcpConnectImpl(socket: net.Socket) {
@@ -634,6 +791,13 @@ export default class Device extends EventEmitter {
 		return this;
 	}
 
+	closeAllPorts(reason?: string) {
+		for(const node of this.nodes) {
+			node.port.close(reason);
+		}
+		return this;
+	}
+
 	toJSON() {
 		const { id, name, description, category, tags, nodes, webConnections, build, jenkinsLockName, lock, metadata, alive, ephemeral } = this;
 		return {
@@ -693,10 +857,20 @@ export default class Device extends EventEmitter {
 		}
 		const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, Device.normalizeTags(deviceConfig.tags), deviceConfig.jenkinsLock, deviceConfig.metadata);
 		for(const nodeConfig of deviceConfig.nodes) {
-			const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize, nodeConfig.parity, nodeConfig.stop, nodeConfig.eol, nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
-			device.addNode(node);
-			node.serialPort.open();
-			node.tcpPort.open();
+			if (isDeviceNodeInfo(nodeConfig)) {
+				const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize,
+											nodeConfig.parity, nodeConfig.stop, nodeConfig.eol, nodeConfig.tcpPort, nodeConfig.webLinks,
+											nodeConfig.ssh, nodeConfig.metadata);
+				device.addNode(node);
+				node.serialPort.open();
+				node.tcpPort.open();
+			} else if (isNetworkedNodeInfo(nodeConfig)) {
+				const node = new NetworkedNode(device, nodeConfig.name, nodeConfig.host, nodeConfig.port, nodeConfig.eol,
+											   nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
+				device.addNode(node);
+				node.networkedPort.open();
+				node.tcpPort.open();
+			}
 		}
 		return device;
 	}
