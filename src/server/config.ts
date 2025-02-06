@@ -11,43 +11,35 @@ import requireLike from 'require-like';
 
 import { layoutJoi } from '../layout';
 
+const nodeJoi = {
+    name: joi.string().required().min(1),
+    eol: joi.string().default('crlf').valid('cr', 'lf', 'crlf'),
+    webLinks: joi.array().items(
+        joi.string().allow('telnet', 'ssh', 'raw')
+    ).default([]),
+    tcpPort: joi.number().required().port(),
+	webDefaultVisible: joi.boolean().default(true),
+	ssh: joi.object({
+		host: joi.string().required().min(1),
+		username: joi.string().required().min(1),
+		password: joi.string().required(),
+	}),
+	metadata: joi.object(),
+};
+
 const deviceNodeJoi = joi.object({
-	name: joi.string().required().min(1),
+    ...nodeJoi,
 	comPort: joi.string().required(),
 	baudRate: joi.number().integer().required(),
 	byteSize: joi.number().default(8).valid(5, 6, 7, 8),
 	parity: joi.string().default('none').valid('even', 'odd', 'none'),
 	stop: joi.number().default(1).valid(1, 2),
-	tcpPort: joi.number().required().port(),
-	eol: joi.string().default('crlf').valid('cr', 'lf', 'crlf'),
-	webLinks: joi.array().items(
-		joi.string().allow('telnet', 'ssh', 'raw')
-	).default([]),
-	webDefaultVisible: joi.boolean().default(true),
-	ssh: joi.object({
-		host: joi.string().required().min(1),
-		username: joi.string().required().min(1),
-		password: joi.string().required(),
-	}),
-	metadata: joi.object(),
 });
 
 const networkedNodeJoi = joi.object({
-	name: joi.string().required().min(1),
+    ...nodeJoi,
 	host: joi.string().required(),
 	port: joi.number().integer().required(),
-	tcpPort: joi.number().required().port(),
-	eol: joi.string().default('crlf').valid('cr', 'lf', 'crlf'),
-	webLinks: joi.array().items(
-		joi.string().allow('telnet', 'ssh', 'raw')
-	).default([]),
-	webDefaultVisible: joi.boolean().default(true),
-	ssh: joi.object({
-		host: joi.string().required().min(1),
-		username: joi.string().required().min(1),
-		password: joi.string().required(),
-	}),
-	metadata: joi.object(),
 });
 
 const deviceJoi = joi.object({

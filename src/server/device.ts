@@ -23,31 +23,35 @@ interface SSHInfo {
 	password: string;
 }
 
-interface deviceNodeInfo {
+interface NodeInfo {
 	name: string;
+	tcpPort: number;
+	eol: "crlf" | "cr" | "lf";
+	webDefaultVisible: boolean;
+	metadata: any;
+	webLinks: string[];
+	ssh: SSHInfo | undefined;
+}
+
+interface DeviceNodeInfo extends NodeInfo {
 	comPort: string;
 	baudRate: number;
 	byteSize: 8 | 5 | 6 | 7;
 	parity: "none" | "even" | "odd";
 	stop: 1 | 2;
-	tcpPort: number;
-	eol: "crlf" | "cr" | "lf";
-	webLinks: [];
-	webDefaultVisible: boolean;
-	ssh: SSHInfo | undefined;
-	metadata: any;
 }
 
-interface networkedNodeInfo {
-	name: string;
+interface NetworkedNodeInfo extends NodeInfo {
 	host: string;
 	port: number;
-	tcpPort: number;
-	eol: "crlf" | "cr" | "lf";
-	webLinks: [];
-	webDefaultVisible: boolean;
-	ssh: SSHInfo | undefined;
-	metadata: any;
+}
+
+function isNetworkedNodeInfo(nodeInfo: Config['devices'][number]['nodes'][number]): nodeInfo is NetworkedNodeInfo {
+	return ('host' in nodeInfo);
+}
+
+function isDeviceNodeInfo(nodeInfo: Config['devices'][number]['nodes'][number]): nodeInfo is DeviceNodeInfo {
+	return ('comPort' in nodeInfo);
 }
 
 type PortState = {
@@ -428,17 +432,18 @@ export class SerialNode extends Node {
 	}
 
 	matchesConfig(nodeConfig: Config['devices'][number]['nodes'][number]) {
-		if('comPort' in nodeConfig) {
-			const c = nodeConfig as deviceNodeInfo;
-			if(this.baudRate !== c.baudRate) { return false; }
-			if(this.byteSize !== c.byteSize) { return false; }
-			if(this.path !== c.comPort) { return false; }
-			if(JSON.stringify(this.metadata) !== JSON.stringify(c.metadata)) { return false; }
-			if(this.name !== c.name) { return false; }
-			if(this.parity !== c.parity) { return false; }
-			if(JSON.stringify(this.ssh) !== JSON.stringify(c.ssh)) { return false; }
-			if(this.stopBits !== c.stop!) { return false; }
-			if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== c.tcpPort) { return false; }
+		if (isDeviceNodeInfo(nodeConfig)) {
+			if(this.baudRate !== nodeConfig.baudRate) { return false; }
+			if(this.byteSize !== nodeConfig.byteSize) { return false; }
+			if(this.path !== nodeConfig.comPort) { return false; }
+			if(JSON.stringify(this.metadata) !== JSON.stringify(nodeConfig.metadata)) { return false; }
+			if(this.name !== nodeConfig.name) { return false; }
+			if(this.parity !== nodeConfig.parity) { return false; }
+			if(JSON.stringify(this.ssh) !== JSON.stringify(nodeConfig.ssh)) { return false; }
+			if(this.stopBits !== nodeConfig.stop!) { return false; }
+			if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== nodeConfig.tcpPort) { return false; }
+		} else {
+			return false;
 		}
 		return true;
 	}
@@ -560,14 +565,15 @@ export class NetworkedNode extends Node {
 	}
 
 	matchesConfig(nodeConfig: Config['devices'][number]['nodes'][number]) {
-		if('host' in nodeConfig) {
-			const c = nodeConfig as networkedNodeInfo;
-			if(this.networkedPort.host !== c.host!) { return false; }
-			if(this.networkedPort.port !== c.port!) { return false; }
-			if(JSON.stringify(this.metadata) !== JSON.stringify(c.metadata)) { return false; }
-			if(this.name !== c.name) { return false; }
-			if(JSON.stringify(this.ssh) !== JSON.stringify(c.ssh)) { return false; }
-			if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== c.tcpPort) { return false; }
+		if(isNetworkedNodeInfo(nodeConfig)) {
+			if(this.networkedPort.host !== nodeConfig.host!) { return false; }
+			if(this.networkedPort.port !== nodeConfig.port!) { return false; }
+			if(JSON.stringify(this.metadata) !== JSON.stringify(nodeConfig.metadata)) { return false; }
+			if(this.name !== nodeConfig.name) { return false; }
+			if(JSON.stringify(this.ssh) !== JSON.stringify(nodeConfig.ssh)) { return false; }
+			if(nodeConfig.tcpPort !== 0 && this.tcpPortNumber !== nodeConfig.tcpPort) { return false; }
+		} else {
+			return false;
 		}
 		return true;
 	}
@@ -851,15 +857,16 @@ export default class Device extends EventEmitter {
 		}
 		const device = new Device(id, deviceConfig.name, deviceConfig.description, deviceConfig.category, Device.normalizeTags(deviceConfig.tags), deviceConfig.jenkinsLock, deviceConfig.metadata);
 		for(const nodeConfig of deviceConfig.nodes) {
-			if ('baudRate' in nodeConfig) {
-				const c = nodeConfig as deviceNodeInfo;
-				const node = new SerialNode(device, c.name, c.comPort, c.baudRate, c.byteSize, c.parity, c.stop, c.eol, c.tcpPort, c.webLinks, c.ssh, c.metadata);
+			if (isDeviceNodeInfo(nodeConfig)) {
+				const node = new SerialNode(device, nodeConfig.name, nodeConfig.comPort, nodeConfig.baudRate, nodeConfig.byteSize,
+											nodeConfig.parity, nodeConfig.stop, nodeConfig.eol, nodeConfig.tcpPort, nodeConfig.webLinks,
+											nodeConfig.ssh, nodeConfig.metadata);
 				device.addNode(node);
 				node.serialPort.open();
 				node.tcpPort.open();
-			} else if ('host' in nodeConfig) {
-				const c = nodeConfig as networkedNodeInfo;
-				const node = new NetworkedNode(device, c.name, c.host, c.port, c.eol, c.tcpPort, c.webLinks, c.ssh, c.metadata);
+			} else if (isNetworkedNodeInfo(nodeConfig)) {
+				const node = new NetworkedNode(device, nodeConfig.name, nodeConfig.host, nodeConfig.port, nodeConfig.eol,
+											   nodeConfig.tcpPort, nodeConfig.webLinks, nodeConfig.ssh, nodeConfig.metadata);
 				device.addNode(node);
 				node.networkedPort.open();
 				node.tcpPort.open();
